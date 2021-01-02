@@ -221,7 +221,9 @@ def get_ion(pydt, **kwargs):
         target = get_ion_final_target(pydt, **kwargs)
 
     indct = {}
-    if 'save_as' in kwargs: indct['save_as'] = kwargs['save_as']
-    if 'save_dir' in kwargs: indct['save_dir'] = kwargs['save_dir']
+    if 'save_as' in kwargs:
+        indct['save_as'] = kwargs['save_as']
+    if 'save_dir' in kwargs:
+        indct['save_dir'] = kwargs['save_dir']
     status, remote, local = web_retrieve(target, **indct)
     return status, remote, local

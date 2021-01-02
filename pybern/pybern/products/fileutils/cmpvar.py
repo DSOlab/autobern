@@ -5,8 +5,10 @@ from __future__ import print_function
 import os
 import re
 
+
 def is_compressed(filename):
-  return find_os_compression_type(filename) is not None
+    return find_os_compression_type(filename) is not None
+
 
 def find_os_compression_type(filename):
     """ Find if filename is OS compressed
@@ -44,4 +46,3 @@ def name_of_decompressed(filename):
         return re.sub(dct[ctype], '', filename)
     except:
         raise RuntimeError('[ERROR] decompress:name_of_decompressed Failed!')
-

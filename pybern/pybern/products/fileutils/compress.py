@@ -10,9 +10,10 @@ import gzip, tarfile, zipfile
 import tempfile
 from sys import version_info as version_info
 if version_info.major == 2:
-  from cmpvar import find_os_compression_type, name_of_decompressed
+    from cmpvar import find_os_compression_type, name_of_decompressed
 else:
-  from .cmpvar import find_os_compression_type, name_of_decompressed
+    from .cmpvar import find_os_compression_type, name_of_decompressed
+
 
 def os_compress(filename, ctype, remove_original=False):
     """ compress a file to any of the formats:
@@ -24,10 +25,13 @@ def os_compress(filename, ctype, remove_original=False):
          file will be removed (only if the compression process is succeseful)
   """
     if not os.path.isfile(filename):
-        raise RuntimeError("[ERROR] compress::os_compress File {:} does not exist".format(
-            filename))
-    if ctype is None: return filename, filename
-    if not ctype.startswith('.'): ctype = '.' + ctype
+        raise RuntimeError(
+            "[ERROR] compress::os_compress File {:} does not exist".format(
+                filename))
+    if ctype is None:
+        return filename, filename
+    if not ctype.startswith('.'):
+        ctype = '.' + ctype
 
     compressed_file = '{:}{:}'.format(filename, ctype)
     status = 0

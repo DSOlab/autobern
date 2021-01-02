@@ -37,10 +37,11 @@ def ftp_retrieve(url, filename=None, **kwargs):
         url, filename = url_split(url)
     saveas = kwargs['save_as'] if 'save_as' in kwargs else filename
     if 'save_dir' in kwargs:
-      if not os.path.isdir(kwargs['save_dir']):
-        msg = '[ERROR] retrieve::http_retrieve Directory does not exist {:}'.format(kwargs['save_dir'])
-        raise RuntimeError(msg)
-      saveas = os.path.join(kwargs['save_dir'], saveas)
+        if not os.path.isdir(kwargs['save_dir']):
+            msg = '[ERROR] retrieve::http_retrieve Directory does not exist {:}'.format(
+                kwargs['save_dir'])
+            raise RuntimeError(msg)
+        saveas = os.path.join(kwargs['save_dir'], saveas)
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
 
@@ -93,10 +94,11 @@ def http_retrieve(url, filename=None, **kwargs):
         url, filename = url_split(url)
     saveas = kwargs['save_as'] if 'save_as' in kwargs else filename
     if 'save_dir' in kwargs:
-      if not os.path.isdir(kwargs['save_dir']):
-        msg = '[ERROR] retrieve::http_retrieve Directory does not exist {:}'.format(kwargs['save_dir'])
-        raise RuntimeError(msg)
-      saveas = os.path.join(kwargs['save_dir'], saveas)
+        if not os.path.isdir(kwargs['save_dir']):
+            msg = '[ERROR] retrieve::http_retrieve Directory does not exist {:}'.format(
+                kwargs['save_dir'])
+            raise RuntimeError(msg)
+        saveas = os.path.join(kwargs['save_dir'], saveas)
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
 

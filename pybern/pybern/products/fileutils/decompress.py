@@ -10,9 +10,9 @@ import gzip, tarfile, zipfile
 import tempfile
 from sys import version_info as version_info
 if version_info.major == 2:
-  from cmpvar import find_os_compression_type, name_of_decompressed
+    from cmpvar import find_os_compression_type, name_of_decompressed
 else:
-  from .cmpvar import find_os_compression_type, name_of_decompressed
+    from .cmpvar import find_os_compression_type, name_of_decompressed
 
 
 def os_decompress(filename, remove_original=False):
@@ -30,7 +30,8 @@ def os_decompress(filename, remove_original=False):
             "[ERROR] decompress::os_decompress file {:} does not exist".format(
                 filename))
     ctype = find_os_compression_type(filename)
-    if ctype is None: return filename, filename
+    if ctype is None:
+        return filename, filename
     noncmp_filename = name_of_decompressed(filename)
     status = 0
     ## use 7-zip on windows and uncompress on Linux
@@ -42,8 +43,7 @@ def os_decompress(filename, remove_original=False):
             ])
         else:
             try:
-                subprocess.call(
-                    ["uncompress", "-f", "{:}".format(filename)])
+                subprocess.call(["uncompress", "-f", "{:}".format(filename)])
             except:
                 status = 1
     elif ctype == '.gz':
