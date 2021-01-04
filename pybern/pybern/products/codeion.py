@@ -15,27 +15,6 @@ def _pydt2yydoy(pydt):
     return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
 
 
-"""
-def get_trp(pydt, **kwargs):
-   Troposphere path delays of final or EUREF solution from BSWUSER52 yearly
-      folder.
-      By default the function will download the troposphere path delays of 
-      final solution (aka BSWUSER52/yyyy/CODyyddd.TRP.Z). If you want the 
-      EUREF solution (aka BSWUSER52/yyyy/COEyyddd.TRP.Z), specify the input 
-      argument acid='coe'.
-
-      kwargs that matter:
-      acid = 'coe' Will get the EUREF solution
-  
-  if 'acid' in kwargs and kwargs['acid'] not in ['coe', 'COE']:
-      raise RuntimeError('[ERROR] code::get_trp Invalid AC.')
-  acn = kwargs['acid'].upper() if 'acid' in kwargs else CODE_AC
-  yy, ddd = _pydt2yydoy(pydt)
-  trp = '{:}{:2d}{:03d}.TRP.Z'.format(acn, yy, ddd)
-  target = '{:}/BSWUSER52/{:}/{:}'.format(CODE_URL, pydt.strftime("%Y"), trp)
-"""
-
-
 def get_ion_final_target(pydt, **kwargs):
     """ Final ionosphere information in IONEX or Bernese format from COD
 
@@ -227,3 +206,39 @@ def get_ion(pydt, **kwargs):
         indct['save_dir'] = kwargs['save_dir']
     status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
+
+def list_products():
+  print(""" Information on Ionospheric (and other) products available via CODE's 
+  ftp site can be found at: {:}. Here is a table of products that can be 
+  downloaded via this script:\n
+  
+  type=final
+  kwargs         |format=ionex                 | format=bernese               |
+  ---------------+-----------------------------+------------------------------+
+  acid=coe       |BSWUSER52/yyyy/COEyyddd.INX.Z| BSWUSER52/yyyy/COEyyddd.ION.Z|
+  acid=cod       |CODE/yyyy/CODGddd0.yyI.Z     | CODE/yyyy/CODwwwwd.ION.Z     |
+  ---------------+-----------------------------+------------------------------+
+  kwargs         |format=ionex                 | format=bernese               |
+  ---------------+-----------------------------+------------------------------+
+  type=rapid     |CODE/CORGddd0.yyI.Z          | CODE/CODwwwwd.ION_R          |
+  type=prediction|CODE/COPGddd0.yyI.Z          | CODE/CODwwwwd.ION_P          |
+  type=current   |                             | CODE/COD.ION_U               |
+  type=p2        |                             | CODE/CODwwwwd.ION_P2         |
+  type=p5        |                             | CODE/CODwwwwd.ION_P5         |
+     
+  (for non-final products, EUREF solutions, aka acid=coe, not available)
+
+  COEyyddd.INX.Z    Ionosphere information in IONEX format from EUREF solution
+  COEyyddd.ION.Z    Ionosphere information in Bernese format from EUREF solution
+  CORGddd0.yyI.Z    CODE rapid ionosphere product, IONEX format
+  COPGddd0.yyI.Z    CODE 1-day or 2-day ionosphere predictions,
+                    in IONEX format
+  CODwwwwd.ION_R    CODE rapid ionosphere product, Bernese format
+  CODwwwwd.ION_P    CODE 1-day ionosphere predictions, Bernese format
+  CODwwwwd.ION_P2   CODE 2-day ionosphere predictions, Bernese format
+  CODwwwwd.ION_P5   CODE 5-day ionosphere predictions, Bernese format
+  COD.ION_U         Last update of CODE rapid ionosphere product
+                    (1 day) complemented with ionosphere predictions 
+                    (2 days)
+  """.format(FTP_TXT))
+  return
