@@ -60,16 +60,16 @@ def get_trp_final_target(pydt, **kwargs):
         raise RuntimeError(msg)
       url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
       acn = 'COE'
-      sdate = '{:2d}{:03d}'.format(yy, ddd)
+      sdate = '{:02d}{:03d}'.format(yy, ddd)
     else:
         acn = 'COD'
         if kwargs['format'] in ['bernese', 'ion']:
           url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
-          sdate = '{:2d}{:03d}'.format(yy, ddd)
+          sdate = '{:02d}{:03d}'.format(yy, ddd)
         else:
             url_dir = 'CODE/{:}'.format(pydt.strftime("%Y"))
             week, sow = pydt2gps(pydt)
-            sdate = '{:4d}{:1d}'.format(week, sow2dow(sow))
+            sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
 
     tro = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, tro)
@@ -123,7 +123,7 @@ def get_trp_rapid_target(pydt, **kwargs):
       acn = 'COD'
       if kwargs['type'] == 'rapid':
         week, sow = pydt2gps(pydt)
-        sdate = '{:4d}{:1d}'.format(week, sow2dow(sow))
+        sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
         frmt = 'TRO_R'
       elif kwargs['type'] == 'urapid':
         sdate = ''

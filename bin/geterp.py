@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 import argparse
 import datetime
-from pybern.products.codeion import get_ion, list_products
+from pybern.products.codeerp import get_erp, list_products
 from pybern.products.formats.ion import BernIon
 from pybern.products.formats.ionex import Ionex
 import pybern.products.fileutils.decompress as dc
@@ -23,7 +23,7 @@ class myFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 parser = argparse.ArgumentParser(
     formatter_class=myFormatter,
-    description='Download Ionospheric information files estimated at CODE ac',
+    description='Download Earth Rotation Parameter (erp) files estimated at CODE ac',
     epilog=('''National Technical University of Athens,
     Dionysos Satellite Observatory\n
     Send bug reports to:
@@ -48,29 +48,12 @@ parser.add_argument('-d',
                     help='The day-of-year (doy) of date.')
 
 parser.add_argument(
-    '-e',
-    '--code-euref',
-    dest='code_euref',
-    action='store_true',
-    help=
-    'Use CODE\'s EUREF solution products (note: not available for all types).')
-
-parser.add_argument(
     '--validate-interval',
     dest='validate_interval',
     action='store_true',
     help=
-    'Check that the passed in date (via \'-y\' and \'-d\') is spanned in the time interval given by the ionospheric information file.'
+    'Check that the passed in date (via \'-y\' and \'-d\') is spanned in the time interval given by the ERP file.'
 )
-
-parser.add_argument('-f',
-                    '--format',
-                    default='bernese',
-                    metavar='FORMAT',
-                    dest='format',
-                    choices=['bernese', 'ionex'],
-                    required=False,
-                    help='Choose between Bernese or IONEX format files.')
 
 parser.add_argument(
     '-o',
@@ -96,7 +79,7 @@ parser.add_argument(
     dest='types',
     required=False,
     help=
-    'Choose type of solution; can be any of (or multiple of) \"rapid, prediction, urapid, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,p5\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the p5 solution.'
+    'Choose type of solution; can be any of (or multiple of) \"final, ultra-rapid, final-rapid, early-rapid, prediction, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,p5\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the p5 solution.'
 )
 
 parser.add_argument(
@@ -104,7 +87,7 @@ parser.add_argument(
     '--list-products',
     dest='list_products',
     action='store_true',
-    help='List available ionospheric products and exit')
+    help='List available ERP products and exit')
 
 def validate_interval(pydt, filename, informat):
     dct = {
@@ -115,9 +98,8 @@ def validate_interval(pydt, filename, informat):
     filename, decomp_filename = dc.os_decompress(filename)
     status = 0
     try:
-      ion = BernIon(decomp_filename) if informat == 'bernese' else Ionex(
-          decomp_filename)
-      fstart, fstop = ion.time_span()
+      erp = Erp(decomp_filename)
+      fstart, fstop = erp.time_span()
       dstart, dstop = pydt, pydt + datetime.timedelta(seconds=86400)
       if dstart < fstart or dstop > fstop:
           status = 10
@@ -151,8 +133,6 @@ if __name__ == '__main__':
     types = args.types.split(',')
 
     input_dct = {'format': args.format}
-    if args.code_euref:
-        input_dct['acid'] = 'coe'
     if args.save_as:
         input_dct['save_as'] = args.save_as
     if args.save_dir:
@@ -162,19 +142,19 @@ if __name__ == '__main__':
     for t in types:
         input_dct['type'] = t
         try:
-            status, remote, local = get_ion(pydt, **input_dct)
+            status, remote, local = get_erp(pydt, **input_dct)
         except:
             pass
         if not status:
-            print('Downloaded Ionospheric Information File: {:} as {:}'.format(
+            print('Downloaded ERP Information File: {:} as {:}'.format(
                 remote, local))
             if args.validate_interval:
-                j = validate_interval(pydt, local, input_dct['format'])
+                j = validate_interval(pydt, local)
                 if not j:
                     sys.exit(0)
                 else:
                     print(
-                        'Ionospheric file {:} does not include the correct interval!'
+                        'ERP file {:} does not include the correct interval!'
                     )
             else:
                 sys.exit(0)

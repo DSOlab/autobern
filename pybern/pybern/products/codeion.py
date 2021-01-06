@@ -54,18 +54,18 @@ def get_ion_final_target(pydt, **kwargs):
         if kwargs['acid'] == 'coe':
             frmt = 'INX'
         else:
-            frmt = '{:2d}I'.format(yy)
+            frmt = '{:02d}I'.format(yy)
 
     if kwargs['acid'] == 'coe':
         url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
         acn = 'COE'
-        sdate = '{:2d}{:03d}'.format(yy, ddd)
+        sdate = '{:02d}{:03d}'.format(yy, ddd)
     else:
         url_dir = 'CODE/{:}'.format(pydt.strftime("%Y"))
         if kwargs['format'] in ['bernese', 'ion']:
             acn = 'COD'
             week, sow = pydt2gps(pydt)
-            sdate = '{:4d}{:1d}'.format(week, sow2dow(sow))
+            sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
         else:
             acn = 'CODG'
             sdate = '{:03d}0'.format(ddd)
@@ -104,17 +104,20 @@ def get_ion_rapid_target(pydt, **kwargs):
       ---------------+--------------------+---------------------+
       type=rapid     |CODE/CORGddd0.yyI.Z | CODE/CODwwwwd.ION_R |
       type=prediction|CODE/COPGddd0.yyI.Z | CODE/CODwwwwd.ION_P |
-      type=current   |                    | CODE/COD.ION_U      |
+      type=current or|                    | CODE/COD.ION_U      |
+      urapid or      |                    |
+      ultra-rapid    |                    |
       type=p2        |                    | CODE/CODwwwwd.ION_P2|
       type=p5        |                    | CODE/CODwwwwd.ION_P5|
 
+      TODO cuurent should be an alias for urapid or ultra-rapid
   """
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
     ]:
         raise RuntimeError('[ERROR] code::get_ion_rapid Invalid format.')
     if 'type' in kwargs and kwargs['type'] not in [
-            'rapid', 'prediction', 'current', 'p2', 'p5'
+            'rapid', 'prediction', 'current', 'p2', 'p5' ,'urapid', 'ultra-rapid'
     ]:
         raise RuntimeError('[ERROR] code::get_ion_rapid Invalid type.')
 
@@ -139,7 +142,7 @@ def get_ion_rapid_target(pydt, **kwargs):
     if kwargs['format'] in ['bernese', 'ion']:
         acn = 'COD'
         week, sow = pydt2gps(pydt)
-        sdate = '{:4d}{:1d}'.format(week, sow2dow(sow))
+        sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
         if kwargs['type'] == 'rapid':
             frmt = 'ION_R'
         elif kwargs['type'] == 'prediction':
@@ -148,7 +151,7 @@ def get_ion_rapid_target(pydt, **kwargs):
             frmt = 'ION_P2'
         elif kwargs['type'] == 'p5':
             frmt = 'ION_P5'
-        elif kwargs['type'] == 'current':
+        elif kwargs['type'] in ['current', 'urapid', 'ultra-rapid']:
             frmt = 'ION_U'
             sdate = ''
         else:
@@ -188,9 +191,12 @@ def get_ion(pydt, **kwargs):
       ---------------+--------------------+---------------------+
       type=rapid     |CODE/CORGddd0.yyI.Z | CODE/CODwwwwd.ION_R |
       type=prediction|CODE/COPGddd0.yyI.Z | CODE/CODwwwwd.ION_P |
-      type=current   |                    | CODE/COD.ION_U      |
+      type=current(*)|                    | CODE/COD.ION_U      |
       type=p2        |                    | CODE/CODwwwwd.ION_P2|
       type=p5        |                    | CODE/CODwwwwd.ION_P5|
+
+      (*) current is an alias for 'urapid' and 'ultra-rapid'; any of those three
+      strings describes the same type
   """
     if 'type' in kwargs and kwargs['type'] in [
             'rapid', 'prediction', 'current', 'p2', 'p5'
@@ -222,11 +228,12 @@ def list_products():
   ---------------+-----------------------------+------------------------------+
   type=rapid     |CODE/CORGddd0.yyI.Z          | CODE/CODwwwwd.ION_R          |
   type=prediction|CODE/COPGddd0.yyI.Z          | CODE/CODwwwwd.ION_P          |
-  type=current   |                             | CODE/COD.ION_U               |
+  type=urapid (*)|                             | CODE/COD.ION_U               |
   type=p2        |                             | CODE/CODwwwwd.ION_P2         |
   type=p5        |                             | CODE/CODwwwwd.ION_P5         |
      
   (for non-final products, EUREF solutions, aka acid=coe, not available)
+  (*) 'urapid' can be used interchangably with 'current' and 'ultra-rapid'
 
   COEyyddd.INX.Z    Ionosphere information in IONEX format from EUREF solution
   COEyyddd.ION.Z    Ionosphere information in Bernese format from EUREF solution
