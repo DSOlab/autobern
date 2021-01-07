@@ -37,26 +37,33 @@ def mjd2pydt(mjd, fmjd=0e0):
     fmjd = float(d)
 
     days_fr_jan1_1901 = mjd - JAN11901
-    num_four_yrs = days_fr_jan1_1901 / 1461
+    num_four_yrs = days_fr_jan1_1901 // 1461
     years_so_far = 1901 + 4 * num_four_yrs
     days_left = days_fr_jan1_1901 - 1461 * num_four_yrs
-    delta_yrs = days_left / 365 - days_left / 1460
+    delta_yrs = days_left // 365 - days_left // 1460
 
     year = years_so_far + delta_yrs
     yday = days_left - 365 * delta_yrs + 1
-    hour = fmjd * 24.0
-    minute = fmjd * 1440.0 - hour * 60.0
-    second = fmjd * 86400.0 - hour * 3600.0 - minute * 60.0
+    hour = int(fmjd * 24e0)
+    minute = int(fmjd * 1440e0 - hour * 60e0)
+    second = fmjd * 86400e0 - hour * 3600e0 - minute * 60e0
     leap = int(year % 4 == 0)
-    guess = yday * 0.032
+    guess = int(yday * 0.032e0)
+    if leap > 1 or guess + 1 > len(month_day[0]):
+        raise RuntimeError('[ERROR] gnssdates::mjd2pydt Invalid MJD date (#1).')
     more = int((yday - month_day[leap][guess + 1]) > 0)
     month = guess + more + 1
     mday = yday - month_day[leap][guess + more]
 
     try:
-        return datetime.datetime(year, month, mday, hour, minute, second)
+        return datetime.datetime(year,
+                                 month,
+                                 mday,
+                                 hour,
+                                 minute,
+                                 microsecond=int(second * 1e6))
     except:
-        raise RuntimeError('[ERROR] gnssdates::mjd2pydt Invalid MJD date.')
+        raise RuntimeError('[ERROR] gnssdates::mjd2pydt Invalid MJD date (#2).')
 
 
 def pydt2ydoy(datetm):

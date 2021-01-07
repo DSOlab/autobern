@@ -63,14 +63,15 @@ parser.add_argument(
     'Check that the passed in date (via \'-y\' and \'-d\') is spanned in the time interval given by the ionospheric information file.'
 )
 """
-parser.add_argument('-f',
-                    '--format',
-                    default='bernese',
-                    metavar='FORMAT',
-                    dest='format',
-                    choices=['bernese', 'sinex'],
-                    required=False,
-                    help='Choose between Bernese or tropospheric SINEX format files.')
+parser.add_argument(
+    '-f',
+    '--format',
+    default='bernese',
+    metavar='FORMAT',
+    dest='format',
+    choices=['bernese', 'sinex'],
+    required=False,
+    help='Choose between Bernese or tropospheric SINEX format files.')
 
 parser.add_argument(
     '-o',
@@ -80,12 +81,11 @@ parser.add_argument(
     required=False,
     help='Save the downloaded file using this file(name); can include path.')
 
-parser.add_argument(
-    '-l',
-    '--list-products',
-    dest='list_products',
-    action='store_true',
-    help='List available tropospheric products and exit')
+parser.add_argument('-l',
+                    '--list-products',
+                    dest='list_products',
+                    action='store_true',
+                    help='List available tropospheric products and exit')
 
 parser.add_argument(
     '-O',
@@ -111,12 +111,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.list_products:
-      list_products()
-      sys.exit(0)
+        list_products()
+        sys.exit(0)
 
     if args.year is None or args.doy is None:
-      print('[ERROR] Need to specify both Year and DayOfYear')
-      sys.exit(1)
+        print('[ERROR] Need to specify both Year and DayOfYear')
+        sys.exit(1)
 
     pydt = datetime.datetime.strptime(
         '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
@@ -137,7 +137,8 @@ if __name__ == '__main__':
         try:
             status, remote, local = get_trp(pydt, **input_dct)
         except:
-            pass
+            status = 50
+            #pass
         if not status:
             print('Downloaded Tropospheric Information File: {:} as {:}'.format(
                 remote, local))

@@ -117,7 +117,8 @@ def get_ion_rapid_target(pydt, **kwargs):
     ]:
         raise RuntimeError('[ERROR] code::get_ion_rapid Invalid format.')
     if 'type' in kwargs and kwargs['type'] not in [
-            'rapid', 'prediction', 'current', 'p2', 'p5' ,'urapid', 'ultra-rapid'
+            'rapid', 'prediction', 'current', 'p2', 'p5', 'urapid',
+            'ultra-rapid'
     ]:
         raise RuntimeError('[ERROR] code::get_ion_rapid Invalid type.')
 
@@ -213,8 +214,10 @@ def get_ion(pydt, **kwargs):
     status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
 
+
 def list_products():
-  print(""" Information on Ionospheric (and other) products available via CODE's 
+    print(
+        """ Information on Ionospheric (and other) products available via CODE's 
   ftp site can be found at: {:}. Here is a table of products that can be 
   downloaded via this script:\n
   
@@ -248,4 +251,4 @@ def list_products():
                     (1 day) complemented with ionosphere predictions 
                     (2 days)
   """.format(FTP_TXT))
-  return
+    return

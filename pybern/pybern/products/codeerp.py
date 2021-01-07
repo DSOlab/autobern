@@ -10,6 +10,7 @@ CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
+
 def _pydt2yydoy(pydt):
     return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
 
@@ -51,15 +52,15 @@ def get_erp_final_target(pydt, **kwargs):
       default, the value defaults to code_dir=code
 
   """
-    if 'format' in kwargs and kwargs['format'] not in [ 'bernese' ]:
+    if 'format' in kwargs and kwargs['format'] not in ['bernese']:
         raise RuntimeError('[ERROR] code::get_erp_final Invalid format.')
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
         raise RuntimeError('[ERROR] code::get_erp_final Invalid acid.')
     if 'type' in kwargs and kwargs['type'] != 'final':
         raise RuntimeError('[ERROR] code::get_erp_final Invalid type.')
-    if 'type' in kwargs and kwargs['span'] not in ['daily', 'weekly']:
+    if 'span' in kwargs and kwargs['span'] not in ['daily', 'weekly']:
         raise RuntimeError('[ERROR] code::get_erp_final Invalid span.')
-    if 'type' in kwargs and kwargs['code_dir'] not in ['bswuser52', 'code']:
+    if 'code_dir' in kwargs and kwargs['code_dir'] not in ['bswuser52', 'code']:
         raise RuntimeError('[ERROR] code::get_erp_final Invalid code_dir.')
 
     if 'span' not in kwargs:
@@ -69,7 +70,7 @@ def get_erp_final_target(pydt, **kwargs):
 
     yy, ddd = _pydt2yydoy(pydt)
     week, sow = pydt2gps(pydt)
-    
+
     if kwargs['code_dir'] == 'code':
         url_dir = '{:}/{:}'.format('CODE', pydt.strftime('%Y'))
     else:
@@ -78,16 +79,17 @@ def get_erp_final_target(pydt, **kwargs):
     acn = 'COD'
     frmt = 'ERP'
     if kwargs['span'] == 'weekly':
-      sdate = '{:04d}{:1d}'.format(week, 7)
+        sdate = '{:04d}{:1d}'.format(week, 7)
     else:
-      if kwargs['code_dir'] == 'code':
-        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-      else:
-        sdate = '{:02d}{:03d}'.format(yy, ddd)
-    
+        if kwargs['code_dir'] == 'code':
+            sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+        else:
+            sdate = '{:02d}{:03d}'.format(yy, ddd)
+
     erp = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
     return target
+
 
 def get_erp_rapid_target(pydt, **kwargs):
     """ Rapid , Ultra-Rapid and Predicted Final Earth Rotation Parameters (ERP) 
@@ -124,36 +126,41 @@ def get_erp_rapid_target(pydt, **kwargs):
       type=p2                    | CODwwwwd.ERP_P2
       type=p5                    | CODwwwwd.ERP_5D
   """
-  if 'format' in kwargs and kwargs['format'] not in [ 'bernese' ]:
-      raise RuntimeError('[ERROR] code::get_erp_rapid Invalid format.')
-  if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
-      raise RuntimeError('[ERROR] code::get_erp_rapid Invalid acid.')
-  if 'type' in kwargs and kwargs['type'] not in ['urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid', 'early-rapid', 'prediction', 'p2', 'p5']:
-      raise RuntimeError('[ERROR] code::get_erp_rapid Invalid type.')
+    if 'format' in kwargs and kwargs['format'] not in ['bernese']:
+        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid format.')
+    if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
+        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid acid.')
+    if 'type' in kwargs and kwargs['type'] not in [
+            'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid',
+            'early-rapid', 'prediction', 'p2', 'p5'
+    ]:
+        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid type.')
 
-  if 'type' not in kwargs: kwargs['type'] = 'frapid'
-    
-  week, sow = pydt2gps(pydt)
-  sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-  acn = 'COD'
-  url_dir = 'CODE'
+    if 'type' not in kwargs:
+        kwargs['type'] = 'frapid'
 
-  if kwargs['type'] in ['urapid', 'ultra-rapid']:
-    frmt = 'ERP_U'
-  elif kwargs['type'] in ['frapid', 'final-rapid']:
-    frmt = 'ERP_M'
-  elif kwargs['type'] in ['erapid', 'early-rapid']:
-    frmt = 'ERP_R'
-  elif kwargs['type'] in ['prediction']:
-    frmt = 'ERP_P'
-  elif kwargs['type'] in ['p2']:
-    frmt = 'ERP_P2'
-  elif kwargs['type'] in ['p5']:
-    frmt = 'ERP_5D'
-    
-  erp = '{:}{:}.{:}'.format(acn, sdate, frmt)
-  target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
-  return target
+    week, sow = pydt2gps(pydt)
+    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+    acn = 'COD'
+    url_dir = 'CODE'
+
+    if kwargs['type'] in ['urapid', 'ultra-rapid']:
+        frmt = 'ERP_U'
+    elif kwargs['type'] in ['frapid', 'final-rapid']:
+        frmt = 'ERP_M'
+    elif kwargs['type'] in ['erapid', 'early-rapid']:
+        frmt = 'ERP_R'
+    elif kwargs['type'] in ['prediction']:
+        frmt = 'ERP_P'
+    elif kwargs['type'] in ['p2']:
+        frmt = 'ERP_P2'
+    elif kwargs['type'] in ['p5']:
+        frmt = 'ERP_5D'
+
+    erp = '{:}{:}.{:}'.format(acn, sdate, frmt)
+    target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
+    return target
+
 
 def get_erp(pydt, **kwargs):
     """
@@ -189,16 +196,18 @@ def get_erp(pydt, **kwargs):
       (+) under /CODE/yyyy
   """
     if 'type' in kwargs and kwargs['type'] in [
-            'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid', 'early-rapid', 'prediction', 'p2', 'p5'
+            'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid',
+            'early-rapid', 'prediction', 'p2', 'p5'
     ]:
         target = get_erp_rapid_target(pydt, **kwargs)
     elif 'type' not in kwargs or 'type' in kwargs and kwargs['type'] == 'final':
         target = get_erp_final_target(pydt, **kwargs)
     else:
-      msg = '[ERROR] codeerp::get_erp Invalid erp type: {:}'.format(kwargs['type'])
-      raise RuntimeError(msg)
+        msg = '[ERROR] codeerp::get_erp Invalid erp type: {:}'.format(
+            kwargs['type'])
+        raise RuntimeError(msg)
 
-    indct = {}
+    indct = {'type': kwargs['type']}
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
     if 'save_dir' in kwargs:
@@ -206,8 +215,9 @@ def get_erp(pydt, **kwargs):
     status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
 
+
 def list_products():
-  print(""" Information on EarthRotation Parameters (ERP) products available 
+    print(""" Information on EarthRotation Parameters (ERP) products available 
   via CODE's ftp site can be found at: {:}. Here is a table of products that
   can be downloaded via this script:\n
       
@@ -253,4 +263,4 @@ def list_products():
   (-) under /CODE/yyyy_M
   (**) files in brackets (aka []) are not considered
   """.format(FTP_TXT))
-  return
+    return

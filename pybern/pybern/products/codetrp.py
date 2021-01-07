@@ -55,17 +55,17 @@ def get_trp_final_target(pydt, **kwargs):
 
     yy, ddd = _pydt2yydoy(pydt)
     if kwargs['acid'] == 'coe':
-      if kwargs['format'] in ['sinex', 'tro']:
-        msg = '[ERROR] code::get_trp_final No product in SINEX format for EUREF solution'
-        raise RuntimeError(msg)
-      url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
-      acn = 'COE'
-      sdate = '{:02d}{:03d}'.format(yy, ddd)
+        if kwargs['format'] in ['sinex', 'tro']:
+            msg = '[ERROR] code::get_trp_final No product in SINEX format for EUREF solution'
+            raise RuntimeError(msg)
+        url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
+        acn = 'COE'
+        sdate = '{:02d}{:03d}'.format(yy, ddd)
     else:
         acn = 'COD'
         if kwargs['format'] in ['bernese', 'ion']:
-          url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
-          sdate = '{:02d}{:03d}'.format(yy, ddd)
+            url_dir = 'BSWUSER52/ATM/{:}'.format(pydt.strftime("%Y"))
+            sdate = '{:02d}{:03d}'.format(yy, ddd)
         else:
             url_dir = 'CODE/{:}'.format(pydt.strftime("%Y"))
             week, sow = pydt2gps(pydt)
@@ -109,7 +109,9 @@ def get_trp_rapid_target(pydt, **kwargs):
   """
     if 'format' in kwargs and kwargs['format'] not in ['sinex', 'tro']:
         raise RuntimeError('[ERROR] code::get_trp_rapid Invalid format.')
-    if 'type' in kwargs and kwargs['type'] not in ['rapid', 'urapid', 'urapid-sites']:
+    if 'type' in kwargs and kwargs['type'] not in [
+            'rapid', 'urapid', 'urapid-sites'
+    ]:
         raise RuntimeError('[ERROR] code::get_trp_rapid Invalid type.')
 
     if 'format' not in kwargs:
@@ -120,23 +122,22 @@ def get_trp_rapid_target(pydt, **kwargs):
     yy, ddd = _pydt2yydoy(pydt)
 
     if kwargs['format'] in ['sinex', 'tro']:
-      acn = 'COD'
-      if kwargs['type'] == 'rapid':
-        week, sow = pydt2gps(pydt)
-        sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
-        frmt = 'TRO_R'
-      elif kwargs['type'] == 'urapid':
-        sdate = ''
-        frmt = 'TRO_U'
-      elif kwargs['type'] == 'urapid-sites':
-        sdate = '_TRO'
-        frmt = 'SNX_U.Z'
-      else:
-        raise RuntimeError(
-            '[ERROR] code::get_trp_rapid invalid request (#1)')
+        acn = 'COD'
+        if kwargs['type'] == 'rapid':
+            week, sow = pydt2gps(pydt)
+            sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
+            frmt = 'TRO_R'
+        elif kwargs['type'] == 'urapid':
+            sdate = ''
+            frmt = 'TRO_U'
+        elif kwargs['type'] == 'urapid-sites':
+            sdate = '_TRO'
+            frmt = 'SNX_U.Z'
+        else:
+            raise RuntimeError(
+                '[ERROR] code::get_trp_rapid invalid request (#1)')
     else:
-        raise RuntimeError(
-            '[ERROR] code::get_ion_rapid invalid request (#2)')
+        raise RuntimeError('[ERROR] code::get_ion_rapid invalid request (#2)')
 
     tro = '{:}{:}.{:}'.format(acn, sdate, frmt)
     target = '{:}/CODE/{:}'.format(CODE_URL, tro)
@@ -181,13 +182,17 @@ def get_trp(pydt, **kwargs):
         target = get_trp_final_target(pydt, **kwargs)
 
     indct = {}
-    if 'save_as' in kwargs: indct['save_as'] = kwargs['save_as']
-    if 'save_dir' in kwargs: indct['save_dir'] = kwargs['save_dir']
+    if 'save_as' in kwargs:
+        indct['save_as'] = kwargs['save_as']
+    if 'save_dir' in kwargs:
+        indct['save_dir'] = kwargs['save_dir']
     status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
 
+
 def list_products():
-  print(""" Information on Topospheric (and other) products available via CODE's 
+    print(
+        """ Information on Topospheric (and other) products available via CODE's 
   ftp site can be found at: {:}. Here is a table of products that can be 
   downloaded via this script:\n
   
@@ -220,4 +225,4 @@ def list_products():
   CODwwwwd_TRO.SNX_R.Z  CODE early rapid solution, as above but with 
                     troposphere parameters for selected sites, SINEX format
   """.format(FTP_TXT))
-  return
+    return

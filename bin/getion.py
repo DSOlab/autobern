@@ -99,12 +99,12 @@ parser.add_argument(
     'Choose type of solution; can be any of (or multiple of) \"rapid, prediction, urapid, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,p5\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the p5 solution.'
 )
 
-parser.add_argument(
-    '-l',
-    '--list-products',
-    dest='list_products',
-    action='store_true',
-    help='List available ionospheric products and exit')
+parser.add_argument('-l',
+                    '--list-products',
+                    dest='list_products',
+                    action='store_true',
+                    help='List available ionospheric products and exit')
+
 
 def validate_interval(pydt, filename, informat):
     dct = {
@@ -115,36 +115,37 @@ def validate_interval(pydt, filename, informat):
     filename, decomp_filename = dc.os_decompress(filename)
     status = 0
     try:
-      ion = BernIon(decomp_filename) if informat == 'bernese' else Ionex(
-          decomp_filename)
-      fstart, fstop = ion.time_span()
-      dstart, dstop = pydt, pydt + datetime.timedelta(seconds=86400)
-      if dstart < fstart or dstop > fstop:
-          status = 10
-      print('Validation: File  start epoch: {:} stop epoch {:}'.format(
-          fstart.strftime('%Y-%m-%d %H:%M:%S'),
-          fstop.strftime('%Y-%m-%d %H:%M:%S')))
-      print('Validation: Given start epoch: {:} stop epoch {:}'.format(
-          dstart.strftime('%Y-%m-%d %H:%M:%S'),
-          dstop.strftime('%Y-%m-%d %H:%M:%S')))
-      if dct['compressed']:
-          cc.os_compress(decomp_filename, dct['ctype'], True)
-      return status
+        ion = BernIon(decomp_filename) if informat == 'bernese' else Ionex(
+            decomp_filename)
+        fstart, fstop = ion.time_span()
+        dstart, dstop = pydt, pydt + datetime.timedelta(seconds=86400)
+        if dstart < fstart or dstop > fstop:
+            status = 10
+        print('Validation: File  start epoch: {:} stop epoch {:}'.format(
+            fstart.strftime('%Y-%m-%d %H:%M:%S'),
+            fstop.strftime('%Y-%m-%d %H:%M:%S')))
+        print('Validation: Given start epoch: {:} stop epoch {:}'.format(
+            dstart.strftime('%Y-%m-%d %H:%M:%S'),
+            dstop.strftime('%Y-%m-%d %H:%M:%S')))
+        if dct['compressed']:
+            cc.os_compress(decomp_filename, dct['ctype'], True)
+        return status
     except:
-      return 20
+        return 20
+
 
 if __name__ == '__main__':
 
     args = parser.parse_args()
 
     if args.list_products:
-      list_products()
-      sys.exit(0)
+        list_products()
+        sys.exit(0)
 
     if args.year is None or args.doy is None:
-      print('[ERROR] Need to specify both Year and DayOfYear')
-      sys.exit(1)
-    
+        print('[ERROR] Need to specify both Year and DayOfYear')
+        sys.exit(1)
+
     pydt = datetime.datetime.strptime(
         '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
 
@@ -164,7 +165,8 @@ if __name__ == '__main__':
         try:
             status, remote, local = get_ion(pydt, **input_dct)
         except:
-            pass
+            #pass
+            status = 50
         if not status:
             print('Downloaded Ionospheric Information File: {:} as {:}'.format(
                 remote, local))
