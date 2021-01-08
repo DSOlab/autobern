@@ -5,8 +5,8 @@ from __future__ import print_function
 import sys
 import argparse
 import datetime
-from pybern.products.codeerp import get_erp, list_products
-from pybern.products.formats.erp import Erp
+from pybern.products.codesp3 import get_sp3, list_products
+from pybern.products.formats.sp3 import Sp3
 import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
@@ -22,8 +22,7 @@ class myFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 parser = argparse.ArgumentParser(
     formatter_class=myFormatter,
-    description=
-    'Download Earth Rotation Parameter (erp) files estimated at CODE ac',
+    description='Download Orbit INformation (SP3) files estimated at CODE ac',
     epilog=('''National Technical University of Athens,
     Dionysos Satellite Observatory\n
     Send bug reports to:
@@ -52,19 +51,16 @@ parser.add_argument(
     dest='validate_interval',
     action='store_true',
     help=
-    'Check that the passed in date (via \'-y\' and \'-d\') is spanned in the time interval given by the ERP file.'
+    'Check that the passed in date (via \'-y\' and \'-d\') is spanned in the time interval given by the SP3 file.'
 )
 
 parser.add_argument(
-    '-s',
-    '--time-span',
-    metavar='TIME_SPAN',
-    dest='span',
-    required=False,
-    choices=['daily', 'weekly'],
-    default='daily',
+    '-x',
+    '--glonass-only',
+    dest='glonass_only',
+    action='store_true',
     help=
-    'Choose between daily of weekly ERP files; note that weekly ERP files are only available for final products.'
+    'Use CODE\'s GLONASS-only solution products (note: only available for type=\'final\' and for a limited time span).'
 )
 
 parser.add_argument(
@@ -91,7 +87,7 @@ parser.add_argument(
     dest='types',
     required=False,
     help=
-    'Choose type of solution; can be any of (or multiple of) \"final, ultra-rapid, final-rapid, early-rapid, current, prediction, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,p5\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the p5 solution.'
+    'Choose type of solution; can be any of (or multiple of) \"final, current, current-5d, urapid, ultra-rapid, frapid, final-rapid, erapid, early-rapid, prediction, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \--type=final,urapid,p5\ means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the ultra-rapid solution and then the p5 solution.'
 )
 
 parser.add_argument('-l',
@@ -110,8 +106,8 @@ def validate_interval(pydt, filename):
     filename, decomp_filename = dc.os_decompress(filename)
     status = 0
     try:
-        erp = Erp(decomp_filename)
-        fstart, fstop = erp.time_span()
+        sp3 = Sp3(decomp_filename)
+        fstart, fstop = sp3.time_span()
         dstart, dstop = pydt, pydt + datetime.timedelta(seconds=86400)
         if dstart < fstart or dstop > fstop:
             status = 10
@@ -144,11 +140,11 @@ if __name__ == '__main__':
         '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
 
     types = args.types.split(',')
-    if args.span == 'weekly' and (len(types) == 1 and types[0] != 'final'):
-        print('[ERROR] Weekly ERP files only available for final products')
+    if args.glonass_only and not all([x == 'final' for x in types]):
+        print('[ERROR] GLONASS-only files only available for final products')
         sys.exit(10)
 
-    input_dct = {'span': args.span}
+    input_dct = {'acid': 'cox' if args.glonass_only else 'cod'}
     if args.save_as:
         input_dct['save_as'] = args.save_as
     if args.save_dir:
@@ -157,21 +153,20 @@ if __name__ == '__main__':
     status = 10
     for t in types:
         input_dct['type'] = t
-        try:
-            status, remote, local = get_erp(pydt, **input_dct)
-        except:
-            status = 50
+        #try:
+        status, remote, local = get_sp3(pydt, **input_dct)
+        #except:
+        #    status = 50
         if not status:
-            print('Downloaded ERP Information File: {:} as {:}'.format(
+            print('Downloaded SP3 Information File: {:} as {:}'.format(
                 remote, local))
             if args.validate_interval:
                 j = validate_interval(pydt, local)
                 if not j:
                     sys.exit(0)
                 else:
-                    print('ERP file {:} does not include the correct interval!'.
+                    print('SP3 file {:} does not include the correct interval!'.
                           format(local))
             else:
                 sys.exit(0)
-
     sys.exit(status)

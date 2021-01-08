@@ -98,6 +98,7 @@ def get_erp_rapid_target(pydt, **kwargs):
       kwargs that matter:
       acid='cod' Optional but if given must be cod
       format='bernese' Optional but if given must be 'bernese'
+      span='daily' Optional but if given must be 'daily'
       type=[...] If not given, default value is 'frapid'
 
       CODwwwwd.ERP_M.Z  CODE final rapid ERPs belonging to the final rapid 
@@ -119,20 +120,25 @@ def get_erp_rapid_target(pydt, **kwargs):
 
       (-) under /CODE/yyyy_M
 
-      type=urapid or ultra-rapid | CODwwwwd.ERP_U or COD.ERP_U
-      type=frapid or final-rapid | CODwwwwd.ERP_M or CODwwwwd.ERP_M.Z
+      type=current               | COD.ERP_U
+      type=urapid or ultra-rapid | CODwwwwd.ERP_U
+      type=frapid or final-rapid | CODwwwwd.ERP_M [or CODwwwwd.ERP_M.Z]
       type=erapid or early-rapid | CODwwwwd.ERP_R
       type=prediction            | CODwwwwd.ERP_P
       type=p2                    | CODwwwwd.ERP_P2
       type=p5                    | CODwwwwd.ERP_5D
+
+      files in brackets not available!
   """
     if 'format' in kwargs and kwargs['format'] not in ['bernese']:
         raise RuntimeError('[ERROR] code::get_erp_rapid Invalid format.')
+    if 'span' in kwargs and kwargs['span'] not in ['daily']:
+        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid span.')
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
         raise RuntimeError('[ERROR] code::get_erp_rapid Invalid acid.')
     if 'type' in kwargs and kwargs['type'] not in [
             'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid',
-            'early-rapid', 'prediction', 'p2', 'p5'
+            'early-rapid', 'prediction', 'p2', 'p5', 'current'
     ]:
         raise RuntimeError('[ERROR] code::get_erp_rapid Invalid type.')
 
@@ -156,6 +162,9 @@ def get_erp_rapid_target(pydt, **kwargs):
         frmt = 'ERP_P2'
     elif kwargs['type'] in ['p5']:
         frmt = 'ERP_5D'
+    elif kwargs['type'] in ['current']:
+        sdate = ''
+        frmt = 'ERP_U'
 
     erp = '{:}{:}.{:}'.format(acn, sdate, frmt)
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
@@ -167,7 +176,9 @@ def get_erp(pydt, **kwargs):
       kwargs that matter:
       format Optional but if it exists it must be 'bernese'
       acid Optional but if it exists it must be 'cod'
-      type='final', rapid, prediction, current, .... (see Table)
+      span='daily' or 'weekly'; note however that only final products have
+          weekly erp products
+      type='final', rapid, prediction, .... (see Table)
       save_as: '/some/path/foo.ION' Rename downloaded file to this filename
       save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
           save_as are given, then the local file will be the concatenation
@@ -177,6 +188,7 @@ def get_erp(pydt, **kwargs):
       kwargs['format'] = bernese
       kwargs['acid'] = cod
       kwargs['type'] = final
+      kwargs['span'] = daily
 
       type=final
                         |span=daily                          | span=weekly                        |
@@ -184,7 +196,8 @@ def get_erp(pydt, **kwargs):
       code_dir=code     | /CODE/yyyy/CODwwwwd.ERP.Z          | /CODE/yyyy/CODwwww7.ERP.Z          |
       code_dir=bswuser52| /BSWUSER52/ORB/yyyy/CODyyddd.ERP.Z | /BSWUSER52/ORB/yyyy/CODwwww7.ERP.Z |
       
-      type=urapid or ultra-rapid | CODwwwwd.ERP_U or COD.ERP_U
+      type=current               | COD.ERP_U
+      type=urapid or ultra-rapid | CODwwwwd.ERP_U
       type=frapid or final-rapid | CODwwwwd.ERP_M or CODwwwwd.ERP_M.Z
       type=erapid or early-rapid | CODwwwwd.ERP_R
       type=prediction            | CODwwwwd.ERP_P
@@ -195,9 +208,20 @@ def get_erp(pydt, **kwargs):
       (*) under /BSWUSER52/ORB/yyyy
       (+) under /CODE/yyyy
   """
+    if 'span' in kwargs and kwargs['span'] not in ['daily', 'weekly']:
+        msg = '[ERROR] codeerp::get_erp Invalid span: {:}'.format(
+            kwargs['span'])
+        raise RuntimeError(msg)
+    if 'span' not in kwargs:
+        kwargs['span'] = 'daily'
+    if kwargs['span'] == 'weekly' and kwargs['type'] != 'final':
+        msg = '[ERROR] codeerp::get_erp Invalid span: {:} for non-final product: {:}'.format(
+            kwargs['span'], kwargs['type'])
+        raise RuntimeError(msg)
+
     if 'type' in kwargs and kwargs['type'] in [
             'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid',
-            'early-rapid', 'prediction', 'p2', 'p5'
+            'early-rapid', 'prediction', 'p2', 'p5', 'current'
     ]:
         target = get_erp_rapid_target(pydt, **kwargs)
     elif 'type' not in kwargs or 'type' in kwargs and kwargs['type'] == 'final':
@@ -207,7 +231,7 @@ def get_erp(pydt, **kwargs):
             kwargs['type'])
         raise RuntimeError(msg)
 
-    indct = {'type': kwargs['type']}
+    indct = {}
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
     if 'save_dir' in kwargs:
@@ -221,26 +245,12 @@ def list_products():
   via CODE's ftp site can be found at: {:}. Here is a table of products that
   can be downloaded via this script:\n
       
+  _Available files in FTP____________________________________________________
   CODwwww7.ERP.Z    Weekly CODE final ERP files as from week 0978 (*)
   CODyyddd.ERP.Z    Daily CODE final ERP files as from week 1706 (*)
   CODwwwwd.ERP.Z    CODE final ERPs belonging to the final orbits (+)
   CODwwww7.ERP.Z    Collection of the 7 daily COD-ERP solutions of the 
                     week (+)
-
-  type=final
-                    |span=daily                          | span=weekly                        |
-  ------------------+------------------------------------+------------------------------------+
-  code_dir=code     | /CODE/yyyy/CODwwwwd.ERP.Z          | /CODE/yyyy/CODwwww7.ERP.Z          |
-  code_dir=bswuser52| /BSWUSER52/ORB/yyyy/CODyyddd.ERP.Z | /BSWUSER52/ORB/yyyy/CODwwww7.ERP.Z |
-  ------------------+------------------------------------+------------------------------------+
-  type=urapid or ultra-rapid | CODwwwwd.ERP_U [or COD.ERP_U] (**)
-  type=frapid or final-rapid | CODwwwwd.ERP_M [or CODwwwwd.ERP_M.Z] (**)
-  type=erapid or early-rapid | CODwwwwd.ERP_R
-  type=prediction            | CODwwwwd.ERP_P
-  type=p2                    | CODwwwwd.ERP_P2
-  type=p5                    | CODwwwwd.ERP_5D
-
-
   CODwwwwd.ERP_M.Z  CODE final rapid ERPs belonging to the final rapid 
                       orbits (-)(**)
   COD.ERP_U         CODE ultra-rapid ERPs belonging to the ultra-rapid 
@@ -257,6 +267,22 @@ def list_products():
                       48-hour orbits
   CODwwwwd.ERP_5D   CODE predicted ERPs belonging to the predicted
                       5-day orbits
+
+  _Arguments for Products____________________________________________________
+  type=final
+                    |span=daily                          | span=weekly                        |
+  ------------------+------------------------------------+------------------------------------+
+  code_dir=code     | /CODE/yyyy/CODwwwwd.ERP.Z          | /CODE/yyyy/CODwwww7.ERP.Z          |
+  code_dir=bswuser52| /BSWUSER52/ORB/yyyy/CODyyddd.ERP.Z | /BSWUSER52/ORB/yyyy/CODwwww7.ERP.Z |
+  ------------------+------------------------------------+------------------------------------+
+  type=current               | COD.ERP_U
+  type=urapid or ultra-rapid | CODwwwwd.ERP_U
+  type=frapid or final-rapid | CODwwwwd.ERP_M [or CODwwwwd.ERP_M.Z] (**)
+  type=erapid or early-rapid | CODwwwwd.ERP_R
+  type=prediction            | CODwwwwd.ERP_P
+  type=p2                    | CODwwwwd.ERP_P2
+  type=p5                    | CODwwwwd.ERP_5D
+
 
   (*) under /BSWUSER52/ORB/yyyy
   (+) under /CODE/yyyy

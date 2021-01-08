@@ -110,7 +110,7 @@ def get_ion_rapid_target(pydt, **kwargs):
       type=p2        |                    | CODE/CODwwwwd.ION_P2|
       type=p5        |                    | CODE/CODwwwwd.ION_P5|
 
-      TODO cuurent should be an alias for urapid or ultra-rapid
+      TODO current should be an alias for urapid or ultra-rapid
   """
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
@@ -221,6 +221,21 @@ def list_products():
   ftp site can be found at: {:}. Here is a table of products that can be 
   downloaded via this script:\n
   
+  _Available files in FTP____________________________________________________
+  COEyyddd.INX.Z    Ionosphere information in IONEX format from EUREF solution
+  COEyyddd.ION.Z    Ionosphere information in Bernese format from EUREF solution
+  CORGddd0.yyI.Z    CODE rapid ionosphere product, IONEX format
+  COPGddd0.yyI.Z    CODE 1-day or 2-day ionosphere predictions,
+                    in IONEX format
+  CODwwwwd.ION_R    CODE rapid ionosphere product, Bernese format
+  CODwwwwd.ION_P    CODE 1-day ionosphere predictions, Bernese format
+  CODwwwwd.ION_P2   CODE 2-day ionosphere predictions, Bernese format
+  CODwwwwd.ION_P5   CODE 5-day ionosphere predictions, Bernese format
+  COD.ION_U         Last update of CODE rapid ionosphere product
+                    (1 day) complemented with ionosphere predictions 
+                    (2 days)
+
+  _Arguments for Products____________________________________________________
   type=final
   kwargs         |format=ionex                 | format=bernese               |
   ---------------+-----------------------------+------------------------------+
@@ -238,17 +253,5 @@ def list_products():
   (for non-final products, EUREF solutions, aka acid=coe, not available)
   (*) 'urapid' can be used interchangably with 'current' and 'ultra-rapid'
 
-  COEyyddd.INX.Z    Ionosphere information in IONEX format from EUREF solution
-  COEyyddd.ION.Z    Ionosphere information in Bernese format from EUREF solution
-  CORGddd0.yyI.Z    CODE rapid ionosphere product, IONEX format
-  COPGddd0.yyI.Z    CODE 1-day or 2-day ionosphere predictions,
-                    in IONEX format
-  CODwwwwd.ION_R    CODE rapid ionosphere product, Bernese format
-  CODwwwwd.ION_P    CODE 1-day ionosphere predictions, Bernese format
-  CODwwwwd.ION_P2   CODE 2-day ionosphere predictions, Bernese format
-  CODwwwwd.ION_P5   CODE 5-day ionosphere predictions, Bernese format
-  COD.ION_U         Last update of CODE rapid ionosphere product
-                    (1 day) complemented with ionosphere predictions 
-                    (2 days)
   """.format(FTP_TXT))
     return
