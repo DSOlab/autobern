@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import datetime
+from math import fmod
 """ Global Variables (Constants)
 """
 JAN61980 = 44244
@@ -198,6 +199,13 @@ def pydt2gps(datetm):
         return ydoy2gps(year, doy, hour, _min, sec)
     except:
         raise
+
+
+def gps2pydt(week, sow):
+    week = int(week)
+    mjd = week * 7 + sow // SEC_PER_DAY + JAN61980
+    fmjd = fmod(sow, SEC_PER_DAY) / SEC_PER_DAY
+    return mjd2pydt(mjd, fmjd)
 
 
 def sow2dow(sow):

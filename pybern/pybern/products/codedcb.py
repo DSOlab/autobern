@@ -5,17 +5,20 @@ from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
+from sys import version_info as version_info
+if version_info.major == 2:
+    from produtils import utils_whatever2pydt as _date
+    from produtils import utils_pydt2yydoy as pydt2yydoy
+else:
+    from .produtils import utils_whatever2pydt as _date
+    from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
 
-def _pydt2yydoy(pydt):
-    return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
-
-
-def get_dcb_final_target(pydt, **kwargs):
+def get_dcb_final_target(**kwargs):
     """ Final Differential Code Bias (DCB) in DCB format from COD
 
       *type=final
@@ -24,7 +27,7 @@ def get_dcb_final_target(pydt, **kwargs):
         span=monthly, obs=p1p2           | CODE/yyyy/P1P2yymm.DCB.Z
         span=monthly, obs=p1p2all        | CODE/yyyy/P1P2yymm_ALL.DCB.Z
         span=monthly, obs=p1c1rnx        | CODE/yyyy/P1C1yymm_RINEX.DCB
-        span=monthly, obs=p1c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
+        span=monthly, obs=p2c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
 
       kwargs that matter:
       format='dcb' Optional but if given it must be dcb
@@ -32,6 +35,9 @@ def get_dcb_final_target(pydt, **kwargs):
       acid='cod' Optional but if it exists it must be 'cod'
       span= daily or monthly
       obs= Choose from above table
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = dcb
@@ -50,7 +56,7 @@ def get_dcb_final_target(pydt, **kwargs):
     if 'span' in kwargs and kwargs['span'] not in ['monthly', 'daily']:
         raise RuntimeError('[ERROR] code::get_dcb_final Invalid span.')
     if 'obs' in kwargs and kwargs['obs'] not in [
-            'p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p1c2rnx'
+            'p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx'
     ]:
         raise RuntimeError('[ERROR] code::get_dcb_final Invalid obs.')
 
@@ -65,7 +71,8 @@ def get_dcb_final_target(pydt, **kwargs):
     if 'obs' not in kwargs:
         kwargs['obs'] = 'p1c1'
 
-    yy, ddd = _pydt2yydoy(pydt)
+    pydt = _date(**kwargs)  ## this may throw
+    yy, ddd = pydt2yydoy(pydt)
     mm, yyyy = pydt.strftime('%m'), pydt.strftime('%Y')
 
     spec = ''
@@ -90,13 +97,13 @@ def get_dcb_final_target(pydt, **kwargs):
         elif kwargs['obs'] == 'p1c1rnx':
             acn = 'P1C1'
             spec = '_RINEX'
-            frmt = 'DCB'
-        elif kwargs['obs'] == 'p1c2rnx':
-            acn = 'P1C2'
+            frmt = 'DCB.Z'
+        elif kwargs['obs'] == 'p2c2rnx':
+            acn = 'P2C2'
             spec = '_RINEX'
-            frmt = 'DCB'
+            frmt = 'DCB.Z'
     try:
-        dcb = '{:}{:}{:}.{:}.Z'.format(acn, sdate, spec, frmt)
+        dcb = '{:}{:}{:}.{:}'.format(acn, sdate, spec, frmt)
         target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, dcb)
     except:
         msg = '[ERROR] code::get_dcb_final Failed to formulate DCB file'
@@ -104,7 +111,7 @@ def get_dcb_final_target(pydt, **kwargs):
     return target
 
 
-def get_dcb_rapid_target(pydt, **kwargs):
+def get_dcb_rapid_target(**kwargs):
     """ Rapid and Ultra-Rapid Differential Code Bias (DCB) in DCB format from 
       COD
 
@@ -124,6 +131,10 @@ def get_dcb_rapid_target(pydt, **kwargs):
       acid='cod' Optional but if it exists it must be 'cod'
       span= daily or monthly
       obs= Choose from above table
+      To provide a date if needed, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
+      A date is needed only in case [1]
 
       Default values:
       kwargs['format'] = dcb
@@ -158,13 +169,13 @@ def get_dcb_rapid_target(pydt, **kwargs):
     if 'obs' not in kwargs:
         kwargs['obs'] = 'full'
 
-    yy, ddd = _pydt2yydoy(pydt)
-    mm, yyyy = pydt.strftime('%m'), pydt.strftime('%Y')
-
     spec = ''
     if kwargs['type'] == 'rapid' and kwargs['span'] == 'daily' and kwargs[
             'obs'] == 'p1p2':
-        url_dir = 'BSWUSER/ORB/{:}'.format(yyyy)
+        pydt = _date(**kwargs)
+        yy, ddd = pydt2yydoy(pydt)
+        mm, yyyy = pydt.strftime('%m'), pydt.strftime('%Y')
+        url_dir = 'BSWUSER52/ORB/{:}'.format(yyyy)
         acn = 'COR'
         sdate = '{:02d}{:03d}'.format(yy, ddd)
         frmt = 'DCB.Z'
@@ -191,11 +202,14 @@ def get_dcb_rapid_target(pydt, **kwargs):
         elif kwargs['obs'] == 'p1c2rnx':
             acn = 'CODE'
             spec = ''
+        elif kwargs['obs'] == 'p1p2p1c1':
+            acn = 'CODE'
+            spec = ''
         elif kwargs['obs'] == 'full':
             acn = 'CODE'
             spec = '_FULL'
     try:
-        dcb = '{:}{:}{:}.{:}.Z'.format(acn, sdate, spec, frmt)
+        dcb = '{:}{:}{:}.{:}'.format(acn, sdate, spec, frmt)
         target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, dcb)
     except:
         msg = '[ERROR] code::get_dcb_rapid Failed to formulate DCB file'
@@ -203,7 +217,7 @@ def get_dcb_rapid_target(pydt, **kwargs):
     return target
 
 
-def get_dcb(pydt, **kwargs):
+def get_dcb(**kwargs):
     """ Get Differential Code Bias (DCB) in DCB format from COD
 
       *type=final
@@ -212,7 +226,7 @@ def get_dcb(pydt, **kwargs):
         span=monthly, obs=p1p2           | CODE/yyyy/P1P2yymm.DCB.Z
         span=monthly, obs=p1p2all        | CODE/yyyy/P1P2yymm_ALL.DCB.Z
         span=monthly, obs=p1c1rnx        | CODE/yyyy/P1C1yymm_RINEX.DCB
-        span=monthly, obs=p1c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
+        span=monthly, obs=p2c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
        [1] type=rapid, span=daily, obs=p1p2        | BSWUSER52/ORB/yyyy/CORyyddd.DCB.Z
        [2] type=current, span=monthly, obs=p1c1    | P1C1.DCB (GPS sats only)
        [3] type=current, span=monthly, obs=p1p2    | P1P2.DCB
@@ -233,6 +247,9 @@ def get_dcb(pydt, **kwargs):
       save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = dcb
@@ -251,7 +268,7 @@ def get_dcb(pydt, **kwargs):
     if 'span' in kwargs and kwargs['span'] not in ['monthly', 'daily']:
         raise RuntimeError('[ERROR] code::get_dcb Invalid span.')
     if 'obs' in kwargs and kwargs['obs'] not in (
-        ['p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p1c2rnx'] + [
+        ['p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx'] + [
             'p1p2', 'p1c1', 'p1p2all', 'p1p2gps', 'p1c1rnx', 'p1c2rnx',
             'p1p2p1c1', 'full'
         ]):
@@ -269,9 +286,9 @@ def get_dcb(pydt, **kwargs):
         kwargs['obs'] = 'p1c1'
 
     if kwargs['type'] == 'final':
-        target = get_dcb_final_target(pydt, **kwargs)
+        target = get_dcb_final_target(**kwargs)
     else:
-        target = get_dcb_rapid_target(pydt, **kwargs)
+        target = get_dcb_rapid_target(**kwargs)
 
     indct = {}
     if 'save_as' in kwargs:
@@ -342,7 +359,7 @@ def list_products():
     span=monthly, obs=p1p2           | CODE/yyyy/P1P2yymm.DCB.Z
     span=monthly, obs=p1p2all        | CODE/yyyy/P1P2yymm_ALL.DCB.Z
     span=monthly, obs=p1c1rnx        | CODE/yyyy/P1C1yymm_RINEX.DCB
-    span=monthly, obs=p1c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
+    span=monthly, obs=p2c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
   *non-final products
  [1] type=rapid, span=daily, obs=p1p2        | BSWUSER52/ORB/yyyy/CORyyddd.DCB.Z
  [2] type=current, span=monthly, obs=p1c1    | P1C1.DCB (GPS sats only)
