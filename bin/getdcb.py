@@ -66,12 +66,13 @@ parser.add_argument(
 parser.add_argument(
     '-t',
     '--type',
-    default='final',
+    #default='final',
+    choices=['final', 'rapid', 'current'],
     metavar='TYPE',
-    dest='types',
+    dest='type',
     required=False,
     help=
-    'Choose type of solution; can be any of (or multiple of) \"final, rapid, current\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \"--type=final,rapid\current\" means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the ultra-rapid solution and then the p5 solution.'
+    'Choose type of solution; can be any of \"final, rapid, current\". Can be ommited if CODE_TYPE unambiguously defines a DCB file.'
 )
 
 parser.add_argument('-s',
@@ -105,28 +106,26 @@ if __name__ == '__main__':
         list_products()
         sys.exit(0)
 
-    types = args.types.split(',')
-
     input_dct = {'span': args.span, 'obs': args.obs}
     if args.year is not None or args.doy is not None:
         pydt = datetime.datetime.strptime(
             '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
         input_dct['pydt'] = pydt
+    if args.type is not None:
+        input_dct['type'] = args.type
     if args.save_as:
         input_dct['save_as'] = args.save_as
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
 
     status = 10
-    for t in types:
-        input_dct['type'] = t
-        #try:
-        status, remote, local = get_dcb(**input_dct)
-        #except:
-        #    status = 50
-        if not status:
-            print('Downloaded ERP Information File: {:} as {:}'.format(
-                remote, local))
-            sys.exit(0)
+    #try:
+    status, remote, local = get_dcb(**input_dct)
+    #except:
+    #    status = 50
+    if not status:
+        print('Downloaded DCB Information File: {:} as {:}'.format(
+            remote, local))
+        sys.exit(0)
 
     sys.exit(status)

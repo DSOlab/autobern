@@ -5,6 +5,7 @@ from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.errors.errors import ArgumentError
 from sys import version_info as version_info
 if version_info.major == 2:
     from produtils import utils_whatever2pydt as _date
@@ -48,17 +49,22 @@ def get_dcb_final_target(**kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['dcb']:
-        raise RuntimeError('[ERROR] code::get_dcb_final Invalid format.')
+        raise ArgumentError('[ERROR] code::get_dcb_final Invalid format',
+                            'format', **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
-        raise RuntimeError('[ERROR] code::get_dcb_final Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_dcb_final Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] != 'final':
-        raise RuntimeError('[ERROR] code::get_dcb_final Invalid type.')
+        raise ArgumentError('[ERROR] code::get_dcb_final Invalid type', 'type',
+                            **kwargs)
     if 'span' in kwargs and kwargs['span'] not in ['monthly', 'daily']:
-        raise RuntimeError('[ERROR] code::get_dcb_final Invalid span.')
+        raise ArgumentError('[ERROR] code::get_dcb_final Invalid span', 'span',
+                            **kwargs)
     if 'obs' in kwargs and kwargs['obs'] not in [
             'p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx'
     ]:
-        raise RuntimeError('[ERROR] code::get_dcb_final Invalid obs.')
+        raise ArgumentError('[ERROR] code::get_dcb_final Invalid obs', 'obs',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'dcb'
@@ -145,18 +151,23 @@ def get_dcb_rapid_target(**kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['dcb']:
-        raise RuntimeError('[ERROR] code::get_dcb_rapid Invalid format.')
+        raise ArgumentError('[ERROR] code::get_dcb_rapid Invalid format',
+                            'format', **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
-        raise RuntimeError('[ERROR] code::get_dcb_rapid Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_dcb_rapid Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] not in ['rapid', 'current']:
-        raise RuntimeError('[ERROR] code::get_dcb_rapid Invalid type.')
+        raise ArgumentError('[ERROR] code::get_dcb_rapid Invalid type', 'type',
+                            **kwargs)
     if 'span' in kwargs and kwargs['span'] not in ['monthly', 'daily']:
-        raise RuntimeError('[ERROR] code::get_dcb_rapid Invalid span.')
+        raise ArgumentError('[ERROR] code::get_dcb_rapid Invalid span', 'span',
+                            **kwargs)
     if 'obs' in kwargs and kwargs['obs'] not in [
             'p1p2', 'p1c1', 'p1p2all', 'p1p2gps', 'p1c1rnx', 'p1c2rnx',
             'p1p2p1c1', 'full'
     ]:
-        raise RuntimeError('[ERROR] code::get_dcb_rapid Invalid obs.')
+        raise ArgumentError('[ERROR] code::get_dcb_rapid Invalid obs', 'obs',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'dcb'
@@ -239,7 +250,7 @@ def get_dcb(**kwargs):
 
       kwargs that matter:
       format:'dcb' Optional but if given it must be dcb
-      type: Choose from table above (e.g. final, current, rapid)
+      type: Choose from table above (e.g. final, current, rapid) [*]
       acid:'cod' Optional but if it exists it must be 'cod'
       span: daily or monthly
       obs: Choose from above table
@@ -258,32 +269,49 @@ def get_dcb(**kwargs):
       kwargs['span'] = monthly
       kwargs['obs'] = p1c1
 
+      [*] type can be skipped if it is unambiguous
+
   """
     if 'format' in kwargs and kwargs['format'] not in ['dcb']:
-        raise RuntimeError('[ERROR] code::get_dcb Invalid format.')
+        raise ArgumentError('[ERROR] code::get_dcb Invalid format', 'format',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
-        raise RuntimeError('[ERROR] code::get_dcb Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_dcb Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] not in ['final', 'rapid', 'current']:
-        raise RuntimeError('[ERROR] code::get_dcb Invalid type.')
+        raise ArgumentError('[ERROR] code::get_dcb Invalid type', 'type',
+                            **kwargs)
     if 'span' in kwargs and kwargs['span'] not in ['monthly', 'daily']:
-        raise RuntimeError('[ERROR] code::get_dcb Invalid span.')
+        raise ArgumentError('[ERROR] code::get_dcb Invalid span', 'span',
+                            **kwargs)
     if 'obs' in kwargs and kwargs['obs'] not in (
         ['p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx'] + [
             'p1p2', 'p1c1', 'p1p2all', 'p1p2gps', 'p1c1rnx', 'p1c2rnx',
             'p1p2p1c1', 'full'
         ]):
-        raise RuntimeError('[ERROR] code::get_dcb Invalid obs.')
+        raise ArgumentError('[ERROR] code::get_dcb Invalid obs', 'obs',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'dcb'
+    if 'obs' not in kwargs:
+        kwargs['obs'] = 'p1c1'
     if 'type' not in kwargs:
+        ## try an educated guess basesd on obs provided
+        final_obs = ['p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx']
+        rapid_obs = [
+            'p1p2', 'p1c1', 'p1p2all', 'p1p2gps', 'p1c1rnx', 'p1c2rnx',
+            'p1p2p1c1', 'full'
+        ]
         kwargs['type'] = 'final'
+        if kwargs['obs'] in final_obs and kwargs['obs'] not in rapid_obs:
+            kwargs['type'] = 'final'
+        if kwargs['obs'] in rapid_obs and kwargs['obs'] not in final_obs:
+            kwargs['type'] = 'current'
     if 'acid' not in kwargs:
         kwargs['acid'] = 'cod'
     if 'span' not in kwargs:
         kwargs['span'] = 'monthly'
-    if 'obs' not in kwargs:
-        kwargs['obs'] = 'p1c1'
 
     if kwargs['type'] == 'final':
         target = get_dcb_final_target(**kwargs)
