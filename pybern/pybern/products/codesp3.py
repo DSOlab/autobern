@@ -5,17 +5,20 @@ from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.errors.errors import ArgumentError
+from sys import version_info as version_info
+if version_info.major == 2:
+    from produtils import utils_whatever2pydt as _date
+    from produtils import utils_pydt2yydoy as pydt2yydoy
+else:
+    from .produtils import utils_whatever2pydt as _date
+    from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
-
-def _pydt2yydoy(pydt):
-    return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
-
-
-def get_sp3_final_target(pydt, **kwargs):
+def get_sp3_final_target(**kwargs):
     """ Final Orbit information in SP3 format from COD
 
       CODwwwwd.EPH.Z    CODE final GNSS orbits
@@ -28,6 +31,9 @@ def get_sp3_final_target(pydt, **kwargs):
       acid='cod' to get the GNSS solution, 'cox' to get GLONASS only solution.
         The latter (cox) are only available within the interval for GPS weeks
         0990 to 1066
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = sp3
@@ -36,11 +42,14 @@ def get_sp3_final_target(pydt, **kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['sp3']:
-        raise RuntimeError('[ERROR] code::get_sp3_final Invalid format.')
+        raise ArgumentError('[ERROR] code::get_sp3_final Invalid format', 'format',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'cox']:
-        raise RuntimeError('[ERROR] code::get_sp3_final Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_sp3_final Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] != 'final':
-        raise RuntimeError('[ERROR] code::get_sp3_final Invalid type.')
+        raise ArgumentError('[ERROR] code::get_sp3_final Invalid type', 'type',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'sp3'
@@ -49,6 +58,7 @@ def get_sp3_final_target(pydt, **kwargs):
     if 'acid' not in kwargs:
         kwargs['acid'] = 'cod'
 
+    pydt = _date(**kwargs)  ## this may throw
     week, sow = pydt2gps(pydt)
     acn = 'COD' if kwargs['acid'] == 'cod' else 'COX'
     sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
@@ -60,13 +70,16 @@ def get_sp3_final_target(pydt, **kwargs):
     return target
 
 
-def get_sp3_rapid_target(pydt, **kwargs):
+def get_sp3_rapid_target(**kwargs):
     """ Rapid or Ultra-rapid orbit information in SP3 format from COD
 
       kwargs that matter:
       format='sp3' Optional but if given it must be sp3
       type='frapid' Cn be any of current, current-5d, .... (see Table below)
       acid='cod' Optional but if given it must be 'cod'
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = sp3
@@ -118,10 +131,12 @@ def get_sp3_rapid_target(pydt, **kwargs):
     if 'acid' not in kwargs:
         kwargs['acid'] = 'cod'
 
-    week, sow = pydt2gps(pydt)
     acn = 'COD'
-    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
     url_dir = 'CODE'
+    if kwargs['type'] not in ['current', 'current-5d']:
+        pydt = _date(**kwargs)  ## this may throw
+        week, sow = pydt2gps(pydt)
+        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
 
     if kwargs['type'] == 'current':
         sdate = ''
@@ -149,7 +164,7 @@ def get_sp3_rapid_target(pydt, **kwargs):
     return target
 
 
-def get_sp3(pydt, **kwargs):
+def get_sp3(**kwargs):
     """
       kwargs that matter:
       format: Optional but if it exists it must be 'sp3'
@@ -159,6 +174,9 @@ def get_sp3(pydt, **kwargs):
       save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = sp3
@@ -179,14 +197,17 @@ def get_sp3(pydt, **kwargs):
       type=p5                    | CODwwwwd.EPH_5D
     """
     if 'format' in kwargs and kwargs['format'] not in ['sp3']:
-        raise RuntimeError('[ERROR] code::get_sp3 Invalid format.')
+        raise ArgumentError('[ERROR] code::get_sp3 Invalid format', 'format',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'cox']:
-        raise RuntimeError('[ERROR] code::get_sp3 Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_sp3 Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] not in [
             'final', 'current', 'current-5d', 'urapid', 'ultra-rapid', 'frapid',
             'final-rapid', 'erapid', 'early-rapid', 'prediction', 'p2', 'p5'
     ]:
-        raise RuntimeError('[ERROR] code::get_sp3 Invalid type.')
+        raise ArgumentError('[ERROR] code::get_sp3 Invalid type', 'type',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'sp3'
@@ -200,9 +221,9 @@ def get_sp3(pydt, **kwargs):
         raise RuntimeError(msg)
 
     if kwargs['type'] == 'final':
-        target = get_sp3_final_target(pydt, **kwargs)
+        target = get_sp3_final_target(**kwargs)
     else:
-        target = get_sp3_rapid_target(pydt, **kwargs)
+        target = get_sp3_rapid_target(**kwargs)
 
     indct = {}
     if 'save_as' in kwargs:

@@ -5,17 +5,21 @@ from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.errors.errors import ArgumentError
+from sys import version_info as version_info
+if version_info.major == 2:
+    from produtils import utils_whatever2pydt as _date
+    from produtils import utils_pydt2yydoy as pydt2yydoy
+else:
+    from .produtils import utils_whatever2pydt as _date
+    from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
 
-def _pydt2yydoy(pydt):
-    return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
-
-
-def get_trp_final_target(pydt, **kwargs):
+def get_trp_final_target(**kwargs):
     """ Final tropospheric information in SINEX or Bernese format from COD
 
       CODwwwwd.TRO.Z  CODE final troposphere product, SINEX format
@@ -27,6 +31,9 @@ def get_trp_final_target(pydt, **kwargs):
       format='trp' or format='bernese' to get the Bernese format.
       acid='coe' to get the EUREF solution.
       type='final' Optional but if given must be 'final'
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = bernese
@@ -40,11 +47,14 @@ def get_trp_final_target(pydt, **kwargs):
     if 'format' in kwargs and kwargs['format'] not in [
             'sinex', 'tro', 'trp', 'bernese'
     ]:
-        raise RuntimeError('[ERROR] code::get_trp_final Invalid format.')
+        raise ArgumentError('[ERROR] code::get_trp_final Invalid format', 'format',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'coe']:
-        raise RuntimeError('[ERROR] code::get_trp_final Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_trp_final Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] != 'final':
-        raise RuntimeError('[ERROR] code::get_trp_final Invalid type.')
+        raise ArgumentError('[ERROR] code::get_trp_final Invalid type', 'type',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'bernese'
@@ -53,6 +63,7 @@ def get_trp_final_target(pydt, **kwargs):
 
     frmt = 'TRP' if kwargs['format'] in ['bernese', 'trp'] else 'TRO'
 
+    pydt = _date(**kwargs)  ## this may throw
     yy, ddd = _pydt2yydoy(pydt)
     if kwargs['acid'] == 'coe':
         if kwargs['format'] in ['sinex', 'tro']:
@@ -76,7 +87,7 @@ def get_trp_final_target(pydt, **kwargs):
     return target
 
 
-def get_trp_rapid_target(pydt, **kwargs):
+def get_trp_rapid_target(**kwargs):
     """ Rapid or Ultra-rapid tropospheric information in SINEX or Bernese format 
       from COD
   
@@ -98,6 +109,9 @@ def get_trp_rapid_target(pydt, **kwargs):
       Default Values
       kwargs['format'] = 'sinex'
       kwargs['type'] = 'rapid'
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       aka:
       kwargs           |format=sinex        | format=bernese      |
@@ -108,18 +122,21 @@ def get_trp_rapid_target(pydt, **kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['sinex', 'tro']:
-        raise RuntimeError('[ERROR] code::get_trp_rapid Invalid format.')
+        raise ArgumentError('[ERROR] code::get_trp_rapid Invalid format', 'format',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] not in [
             'rapid', 'urapid', 'urapid-sites'
     ]:
-        raise RuntimeError('[ERROR] code::get_trp_rapid Invalid type.')
+        raise ArgumentError('[ERROR] code::get_trp_rapid Invalid type', 'type',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'sinex'
     if 'type' not in kwargs:
         kwargs['type'] = 'rapid'
 
-    yy, ddd = _pydt2yydoy(pydt)
+    if kwargs['type'] == 'rapid':
+        yy, ddd = _pydt2yydoy(pydt)
 
     if kwargs['format'] in ['sinex', 'tro']:
         acn = 'COD'
@@ -144,7 +161,7 @@ def get_trp_rapid_target(pydt, **kwargs):
     return target
 
 
-def get_trp(pydt, **kwargs):
+def get_trp(**kwargs):
     """
       kwargs that matter:
       format='sinex' or format='tro' to get the (tropospheric) SINEX format.
@@ -155,6 +172,9 @@ def get_trp(pydt, **kwargs):
       save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = bernese
@@ -177,9 +197,9 @@ def get_trp(pydt, **kwargs):
     if 'type' in kwargs and kwargs['type'] in [
             'rapid', 'urapid', 'urapid-sites'
     ]:
-        target = get_trp_rapid_target(pydt, **kwargs)
+        target = get_trp_rapid_target(**kwargs)
     elif 'type' not in kwargs or 'type' in kwargs and kwargs['type'] == 'final':
-        target = get_trp_final_target(pydt, **kwargs)
+        target = get_trp_final_target(**kwargs)
 
     indct = {}
     if 'save_as' in kwargs:

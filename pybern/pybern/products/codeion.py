@@ -5,17 +5,21 @@ from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.errors.errors import ArgumentError
+from sys import version_info as version_info
+if version_info.major == 2:
+    from produtils import utils_whatever2pydt as _date
+    from produtils import utils_pydt2yydoy as pydt2yydoy
+else:
+    from .produtils import utils_whatever2pydt as _date
+    from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
 
-def _pydt2yydoy(pydt):
-    return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
-
-
-def get_ion_final_target(pydt, **kwargs):
+def get_ion_final_target(**kwargs):
     """ Final ionosphere information in IONEX or Bernese format from COD
 
       kwargs that matter:
@@ -23,6 +27,9 @@ def get_ion_final_target(pydt, **kwargs):
       format='ion' or format='bernese' to get the Bernese format.
       acid='coe' to get the EUREF solution.
       type='final' Optional but if given must be 'final'
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = bernese
@@ -36,18 +43,22 @@ def get_ion_final_target(pydt, **kwargs):
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
     ]:
-        raise RuntimeError('[ERROR] code::get_ion_final Invalid format.')
+        raise ArgumentError('[ERROR] code::get_ion_final Invalid format', 'format',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'coe']:
-        raise RuntimeError('[ERROR] code::get_ion_final Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_ion_final Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] != 'final':
-        raise RuntimeError('[ERROR] code::get_ion_final Invalid type.')
+        raise ArgumentError('[ERROR] code::get_ion_final Invalid type', 'type',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'bernese'
     if 'acid' not in kwargs:
         kwargs['acid'] = 'cod'
 
-    yy, ddd = _pydt2yydoy(pydt)
+    pydt = _date(**kwargs)  ## this may throw
+    yy, ddd = pydt2yydoy(pydt)
     if kwargs['format'] in ['bernese', 'ion']:
         frmt = 'ION'
     else:
@@ -94,6 +105,9 @@ def get_ion_rapid_target(pydt, **kwargs):
       format='ionex' or format='inx' to get the IONEX format.
       format='ion' or format='bernese' to get the Bernese format.
       acid='coe' to get the EUREF solution.
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
   
       Default Values
       kwargs['format'] = 'bernese'
@@ -115,19 +129,25 @@ def get_ion_rapid_target(pydt, **kwargs):
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
     ]:
-        raise RuntimeError('[ERROR] code::get_ion_rapid Invalid format.')
+        raise ArgumentError('[ERROR] code::get_ion_rapid Invalid format', 'format',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] not in [
             'rapid', 'prediction', 'current', 'p2', 'p5', 'urapid',
             'ultra-rapid'
     ]:
-        raise RuntimeError('[ERROR] code::get_ion_rapid Invalid type.')
+        raise ArgumentError('[ERROR] code::get_ion_rapid Invalid type', 'type',
+                            **kwargs)
 
     if 'format' not in kwargs:
         kwargs['format'] = 'bernese'
+    if 'type' in kwargs and kwargs['type'] in ['urapid', 'ultra-rapid']:
+        kwargs['type'] = 'current'
     if 'type' not in kwargs:
         kwargs['type'] = 'rapid'
 
-    yy, ddd = _pydt2yydoy(pydt)
+    if kwargs['type'] != 'current':
+        pydt = _date(**kwargs)  ## this may throw
+        yy, ddd = pydt2yydoy(pydt)
 
     if kwargs['format'] in ['ionex', 'inx']:
         sdate = '{:03d}0'.format(ddd)
@@ -142,29 +162,30 @@ def get_ion_rapid_target(pydt, **kwargs):
 
     if kwargs['format'] in ['bernese', 'ion']:
         acn = 'COD'
-        week, sow = pydt2gps(pydt)
-        sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
-        if kwargs['type'] == 'rapid':
-            frmt = 'ION_R'
-        elif kwargs['type'] == 'prediction':
-            frmt = 'ION_P'
-        elif kwargs['type'] == 'p2':
-            frmt = 'ION_P2'
-        elif kwargs['type'] == 'p5':
-            frmt = 'ION_P5'
-        elif kwargs['type'] in ['current', 'urapid', 'ultra-rapid']:
+        if kwargs['type'] == 'current':
             frmt = 'ION_U'
             sdate = ''
         else:
-            raise RuntimeError(
-                '[ERROR] code::get_ion_rapid invalid request (#2)')
+            week, sow = pydt2gps(pydt)
+            sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
+            if kwargs['type'] == 'rapid':
+                frmt = 'ION_R'
+            elif kwargs['type'] == 'prediction':
+                frmt = 'ION_P'
+            elif kwargs['type'] == 'p2':
+                frmt = 'ION_P2'
+            elif kwargs['type'] == 'p5':
+                frmt = 'ION_P5'
+            else:
+                raise RuntimeError(
+                    '[ERROR] code::get_ion_rapid invalid request (#2)')
 
     ion = '{:}{:}.{:}'.format(acn, sdate, frmt)
     target = '{:}/CODE/{:}'.format(CODE_URL, ion)
     return target
 
 
-def get_ion(pydt, **kwargs):
+def get_ion(**kwargs):
     """
       kwargs that matter:
       format='ionex' or format='inx' to get the IONEX format.
@@ -175,6 +196,9 @@ def get_ion(pydt, **kwargs):
       save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['format'] = bernese
@@ -202,9 +226,9 @@ def get_ion(pydt, **kwargs):
     if 'type' in kwargs and kwargs['type'] in [
             'rapid', 'prediction', 'current', 'p2', 'p5'
     ]:
-        target = get_ion_rapid_target(pydt, **kwargs)
+        target = get_ion_rapid_target(**kwargs)
     elif 'type' not in kwargs or 'type' in kwargs and kwargs['type'] == 'final':
-        target = get_ion_final_target(pydt, **kwargs)
+        target = get_ion_final_target(**kwargs)
 
     indct = {}
     if 'save_as' in kwargs:

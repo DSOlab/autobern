@@ -5,17 +5,21 @@ from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.errors.errors import ArgumentError
+from sys import version_info as version_info
+if version_info.major == 2:
+    from produtils import utils_whatever2pydt as _date
+    from produtils import utils_pydt2yydoy as pydt2yydoy
+else:
+    from .produtils import utils_whatever2pydt as _date
+    from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
 
-def _pydt2yydoy(pydt):
-    return [int(_) for _ in [pydt.strftime("%y"), pydt.strftime("%j")]]
-
-
-def get_erp_final_target(pydt, **kwargs):
+def get_erp_final_target( **kwargs):
     """ Final Earth Rotation Parameters (ERP) files in from COD
 
       kwargs that matter:
@@ -25,6 +29,9 @@ def get_erp_final_target(pydt, **kwargs):
       acid='cod' Optional but if given must be cod
       type='final' Optional but if given must be 'final'
       format='bernese' Optional but if given must be 'bernese'
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
 
       Default values:
       kwargs['span'] = daily
@@ -53,22 +60,28 @@ def get_erp_final_target(pydt, **kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['bernese']:
-        raise RuntimeError('[ERROR] code::get_erp_final Invalid format.')
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid format', 'format',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
-        raise RuntimeError('[ERROR] code::get_erp_final Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] != 'final':
-        raise RuntimeError('[ERROR] code::get_erp_final Invalid type.')
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid type', 'type',
+                            **kwargs)
     if 'span' in kwargs and kwargs['span'] not in ['daily', 'weekly']:
-        raise RuntimeError('[ERROR] code::get_erp_final Invalid span.')
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid span', 'span',
+                            **kwargs)
     if 'code_dir' in kwargs and kwargs['code_dir'] not in ['bswuser52', 'code']:
-        raise RuntimeError('[ERROR] code::get_erp_final Invalid code_dir.')
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid code_dir', 'code_dir',
+                            **kwargs)
 
     if 'span' not in kwargs:
         kwargs['span'] = 'daily'
     if 'code_dir' not in kwargs:
         kwargs['code_dir'] = 'code'
 
-    yy, ddd = _pydt2yydoy(pydt)
+    pydt = _date(**kwargs)  ## this may throw
+    yy, ddd = pydt2yydoy(pydt)
     week, sow = pydt2gps(pydt)
 
     if kwargs['code_dir'] == 'code':
@@ -91,7 +104,7 @@ def get_erp_final_target(pydt, **kwargs):
     return target
 
 
-def get_erp_rapid_target(pydt, **kwargs):
+def get_erp_rapid_target(**kwargs):
     """ Rapid , Ultra-Rapid and Predicted Final Earth Rotation Parameters (ERP) 
       files in from COD
         
@@ -100,6 +113,10 @@ def get_erp_rapid_target(pydt, **kwargs):
       format='bernese' Optional but if given must be 'bernese'
       span='daily' Optional but if given must be 'daily'
       type=[...] If not given, default value is 'frapid'
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
+      A datetime is only optional if type=='current'
 
       CODwwwwd.ERP_M.Z  CODE final rapid ERPs belonging to the final rapid 
                           orbits (-)
@@ -131,22 +148,28 @@ def get_erp_rapid_target(pydt, **kwargs):
       files in brackets not available!
   """
     if 'format' in kwargs and kwargs['format'] not in ['bernese']:
-        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid format.')
+        raise ArgumentError('[ERROR] code::get_erp_rapid Invalid format', 'format',
+                            **kwargs)
     if 'span' in kwargs and kwargs['span'] not in ['daily']:
-        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid span.')
+        raise ArgumentError('[ERROR] code::get_erp_rapid Invalid span', 'span',
+                            **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
-        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid acid.')
+        raise ArgumentError('[ERROR] code::get_erp_rapid Invalid acid', 'acid',
+                            **kwargs)
     if 'type' in kwargs and kwargs['type'] not in [
             'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid',
             'early-rapid', 'prediction', 'p2', 'p5', 'current'
     ]:
-        raise RuntimeError('[ERROR] code::get_erp_rapid Invalid type.')
+        raise ArgumentError('[ERROR] code::get_erp_rapid Invalid type', 'type',
+                            **kwargs)
 
     if 'type' not in kwargs:
         kwargs['type'] = 'frapid'
 
-    week, sow = pydt2gps(pydt)
-    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+    if kwargs['type'] != 'frapid':
+        pydt = _date(**kwargs)  ## this may throw
+        week, sow = pydt2gps(pydt)
+        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
     acn = 'COD'
     url_dir = 'CODE'
 
@@ -171,7 +194,7 @@ def get_erp_rapid_target(pydt, **kwargs):
     return target
 
 
-def get_erp(pydt, **kwargs):
+def get_erp(**kwargs):
     """
       kwargs that matter:
       format Optional but if it exists it must be 'bernese'
@@ -183,6 +206,10 @@ def get_erp(pydt, **kwargs):
       save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
+      To provide a date, use either:
+        * pydt=datetime.datetime(...) or 
+        * year=... and doy=...
+      A datetime is only optional if type=='current'
 
       Default values:
       kwargs['format'] = bernese
@@ -209,27 +236,25 @@ def get_erp(pydt, **kwargs):
       (+) under /CODE/yyyy
   """
     if 'span' in kwargs and kwargs['span'] not in ['daily', 'weekly']:
-        msg = '[ERROR] codeerp::get_erp Invalid span: {:}'.format(
-            kwargs['span'])
-        raise RuntimeError(msg)
+        raise ArgumentError('[ERROR] code::get_erp Invalid span', 'span',
+                            **kwargs)
     if 'span' not in kwargs:
         kwargs['span'] = 'daily'
     if kwargs['span'] == 'weekly' and kwargs['type'] != 'final':
         msg = '[ERROR] codeerp::get_erp Invalid span: {:} for non-final product: {:}'.format(
-            kwargs['span'], kwargs['type'])
+           kwargs['span'], kwargs['type'])
         raise RuntimeError(msg)
 
     if 'type' in kwargs and kwargs['type'] in [
             'urapid', 'ultra-rapid', 'frapid', 'final-rapid', 'erapid',
             'early-rapid', 'prediction', 'p2', 'p5', 'current'
     ]:
-        target = get_erp_rapid_target(pydt, **kwargs)
+        target = get_erp_rapid_target(**kwargs)
     elif 'type' not in kwargs or 'type' in kwargs and kwargs['type'] == 'final':
-        target = get_erp_final_target(pydt, **kwargs)
+        target = get_erp_final_target(**kwargs)
     else:
-        msg = '[ERROR] codeerp::get_erp Invalid erp type: {:}'.format(
-            kwargs['type'])
-        raise RuntimeError(msg)
+        raise ArgumentError('[ERROR] code::get_erp Invalid type', 'type',
+                            **kwargs)
 
     indct = {}
     if 'save_as' in kwargs:
