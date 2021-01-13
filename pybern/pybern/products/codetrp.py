@@ -47,8 +47,8 @@ def get_trp_final_target(**kwargs):
     if 'format' in kwargs and kwargs['format'] not in [
             'sinex', 'tro', 'trp', 'bernese'
     ]:
-        raise ArgumentError('[ERROR] code::get_trp_final Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_trp_final Invalid format',
+                            'format', **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'coe']:
         raise ArgumentError('[ERROR] code::get_trp_final Invalid acid', 'acid',
                             **kwargs)
@@ -122,8 +122,8 @@ def get_trp_rapid_target(**kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['sinex', 'tro']:
-        raise ArgumentError('[ERROR] code::get_trp_rapid Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_trp_rapid Invalid format',
+                            'format', **kwargs)
     if 'type' in kwargs and kwargs['type'] not in [
             'rapid', 'urapid', 'urapid-sites'
     ]:

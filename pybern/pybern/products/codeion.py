@@ -43,8 +43,8 @@ def get_ion_final_target(**kwargs):
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
     ]:
-        raise ArgumentError('[ERROR] code::get_ion_final Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_ion_final Invalid format',
+                            'format', **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'coe']:
         raise ArgumentError('[ERROR] code::get_ion_final Invalid acid', 'acid',
                             **kwargs)
@@ -129,8 +129,8 @@ def get_ion_rapid_target(pydt, **kwargs):
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
     ]:
-        raise ArgumentError('[ERROR] code::get_ion_rapid Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_ion_rapid Invalid format',
+                            'format', **kwargs)
     if 'type' in kwargs and kwargs['type'] not in [
             'rapid', 'prediction', 'current', 'p2', 'p5', 'urapid',
             'ultra-rapid'

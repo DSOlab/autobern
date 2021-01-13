@@ -272,6 +272,7 @@ def get_dcb(**kwargs):
       [*] type can be skipped if it is unambiguous
 
   """
+    """ redundant; these checks are performed in the final/rapid functions
     if 'format' in kwargs and kwargs['format'] not in ['dcb']:
         raise ArgumentError('[ERROR] code::get_dcb Invalid format', 'format',
                             **kwargs)
@@ -291,6 +292,7 @@ def get_dcb(**kwargs):
         ]):
         raise ArgumentError('[ERROR] code::get_dcb Invalid obs', 'obs',
                             **kwargs)
+    """
 
     if 'format' not in kwargs:
         kwargs['format'] = 'dcb'

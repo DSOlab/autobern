@@ -18,6 +18,7 @@ CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
+
 def get_sp3_final_target(**kwargs):
     """ Final Orbit information in SP3 format from COD
 
@@ -42,8 +43,8 @@ def get_sp3_final_target(**kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['sp3']:
-        raise ArgumentError('[ERROR] code::get_sp3_final Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_sp3_final Invalid format',
+                            'format', **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod', 'cox']:
         raise ArgumentError('[ERROR] code::get_sp3_final Invalid acid', 'acid',
                             **kwargs)
@@ -196,6 +197,7 @@ def get_sp3(**kwargs):
       type=p2                    | CODwwwwd.EPH_P2
       type=p5                    | CODwwwwd.EPH_5D
     """
+    """ redundant checks; performed in final/rapid functions
     if 'format' in kwargs and kwargs['format'] not in ['sp3']:
         raise ArgumentError('[ERROR] code::get_sp3 Invalid format', 'format',
                             **kwargs)
@@ -208,6 +210,7 @@ def get_sp3(**kwargs):
     ]:
         raise ArgumentError('[ERROR] code::get_sp3 Invalid type', 'type',
                             **kwargs)
+    """
 
     if 'format' not in kwargs:
         kwargs['format'] = 'sp3'

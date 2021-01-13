@@ -19,7 +19,7 @@ CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
 
-def get_erp_final_target( **kwargs):
+def get_erp_final_target(**kwargs):
     """ Final Earth Rotation Parameters (ERP) files in from COD
 
       kwargs that matter:
@@ -60,8 +60,8 @@ def get_erp_final_target( **kwargs):
 
   """
     if 'format' in kwargs and kwargs['format'] not in ['bernese']:
-        raise ArgumentError('[ERROR] code::get_erp_final Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid format',
+                            'format', **kwargs)
     if 'acid' in kwargs and kwargs['acid'] not in ['cod']:
         raise ArgumentError('[ERROR] code::get_erp_final Invalid acid', 'acid',
                             **kwargs)
@@ -72,8 +72,8 @@ def get_erp_final_target( **kwargs):
         raise ArgumentError('[ERROR] code::get_erp_final Invalid span', 'span',
                             **kwargs)
     if 'code_dir' in kwargs and kwargs['code_dir'] not in ['bswuser52', 'code']:
-        raise ArgumentError('[ERROR] code::get_erp_final Invalid code_dir', 'code_dir',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_erp_final Invalid code_dir',
+                            'code_dir', **kwargs)
 
     if 'span' not in kwargs:
         kwargs['span'] = 'daily'
@@ -148,8 +148,8 @@ def get_erp_rapid_target(**kwargs):
       files in brackets not available!
   """
     if 'format' in kwargs and kwargs['format'] not in ['bernese']:
-        raise ArgumentError('[ERROR] code::get_erp_rapid Invalid format', 'format',
-                            **kwargs)
+        raise ArgumentError('[ERROR] code::get_erp_rapid Invalid format',
+                            'format', **kwargs)
     if 'span' in kwargs and kwargs['span'] not in ['daily']:
         raise ArgumentError('[ERROR] code::get_erp_rapid Invalid span', 'span',
                             **kwargs)
@@ -235,14 +235,16 @@ def get_erp(**kwargs):
       (*) under /BSWUSER52/ORB/yyyy
       (+) under /CODE/yyyy
   """
+    """ redundant checks
     if 'span' in kwargs and kwargs['span'] not in ['daily', 'weekly']:
         raise ArgumentError('[ERROR] code::get_erp Invalid span', 'span',
                             **kwargs)
+    """
     if 'span' not in kwargs:
         kwargs['span'] = 'daily'
     if kwargs['span'] == 'weekly' and kwargs['type'] != 'final':
         msg = '[ERROR] codeerp::get_erp Invalid span: {:} for non-final product: {:}'.format(
-           kwargs['span'], kwargs['type'])
+            kwargs['span'], kwargs['type'])
         raise RuntimeError(msg)
 
     if 'type' in kwargs and kwargs['type'] in [
