@@ -20,21 +20,21 @@ MAX_STA_DATE = datetime.datetime.max
 FILE_FORMAT = '.STA (Bernese v5.2)'
 
 class StationInformationError(PybernError):
-    def __init__(self, station, message, StationRecord, ErrorRecord):
-        message = '\n\tFile Format       : {:}'.format(FILE_FORMAT)
-        message+= '\n\tError for station :\'{:}\''.format(station)
-        message+= '\n\tStation Record    :\'{:}\''.format(StationRecord.compact_str())
-        message+= '\n\tErronuous Record  :\'{:}\''.format(ErrorRecord)
-        if version_info.major == 2:
-            super(ArgumentError, self).__init__(message)
-        else:
-            super().__init__(message)
+  def __init__(self, station, message, StationRecord, ErrorRecord):
+    message = '\n\tFile Format       : {:}'.format(FILE_FORMAT)
+    message+= '\n\tError for station :\'{:}\''.format(station)
+    message+= '\n\tStation Record    :\'{:}\''.format(StationRecord.compact_str())
+    message+= '\n\tErronuous Record  :\'{:}\''.format(ErrorRecord)
+    if version_info.major == 2:
+      super(ArgumentError, self).__init__(message)
+    else:
+      super().__init__(message)
 
 class StationRecord:
-    def __init__(self, Type001Record, Type002Records=[]):
+    def __init__(self, Type001Record, Type002Records=[], Type003Records=[]):
       self.t001rec = Type001Record
-      self.t002recs = []
-      self.t003recs = []
+      self.t002recs = Type002Records
+      self.t003recs = Type003Records
 
     def compact_str(self):
       str_ = '{:}'.format(self.t001rec)
