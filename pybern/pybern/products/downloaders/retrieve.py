@@ -7,9 +7,10 @@ import re
 import os
 import shutil
 from contextlib import closing
+import requests
 
 if sys.version_info.major == 3:
-    import urllib.request as request
+    import urllib.request
 else:
     import urllib2
 
@@ -83,6 +84,8 @@ def http_retrieve(url, filename=None, **kwargs):
              denotes an error
 
     kwargs:
+    username:  Use this username to access the url.
+    password:  Use this password to access the url.
     save_as:  'foobar' Save remote file as 'foobar' (can include path)
     save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
                save_as are given, then the local file will be the concatenation
@@ -101,22 +104,38 @@ def http_retrieve(url, filename=None, **kwargs):
         saveas = os.path.join(kwargs['save_dir'], saveas)
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
+    
+    use_credentials = False
+    if set(['username', 'password']).intersection(set(kwargs)):
+        use_credentials = True
+        username = kwargs['username'] if 'username' in kwargs else ''
+        password = kwargs['password'] if 'password' in kwargs else ''
 
     target = '{:}/{:}'.format(url, filename)
 
     status = 0
-    try:
-        if sys.version_info.major == 2:
-            response = urllib2.urlopen(target)
-            data = response.read()
-            with open(saveas, 'wb') as f:
-                f.write(data)
-        else:
-            urllib.request.urlretrieve(target, saveas)
-        if not os.path.isfile(saveas):
-            status += 1
-    except:
-        status = 1
+    if not use_credentials: ## download with no credentials
+        try:
+            if sys.version_info.major == 2:
+                response = urllib2.urlopen(target)
+                data = response.read()
+                with open(saveas, 'wb') as f:
+                    f.write(data)
+            else:
+                urllib.request.urlretrieve(target, saveas)
+            if not os.path.isfile(saveas):
+                status += 1
+        except:
+            status = 1
+    else: ## download with credentials (not sure if this works for python 2)
+        try:
+            with requests.get(target, auth=(username, password)) as r:
+                r.raise_for_status()
+                with open(saveas, 'wb') as f:
+                    shutil.copyfileobj(r.raw, f)
+                if not os.path.isfile(saveas): status += 1
+        except:
+            status = 1
 
     if status > 0 and kwargs['fail_error'] == True:
         msg = '[ERROR] retrieve::http_retrieve Failed to download file {:}'.format(
