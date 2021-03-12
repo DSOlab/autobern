@@ -132,7 +132,8 @@ def http_retrieve(url, filename=None, **kwargs):
             with requests.get(target, auth=(username, password)) as r:
                 r.raise_for_status()
                 with open(saveas, 'wb') as f:
-                    shutil.copyfileobj(r.raw, f)
+                    #shutil.copyfileobj(r.raw, f)
+                    f.write(r.content)
                 if not os.path.isfile(saveas): status += 1
         except:
             status = 1

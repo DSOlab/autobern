@@ -13,6 +13,3 @@ VAR_3=somestring
 VAR4=some string with whitespaces
 VAR5="some-string with sp!@#$%ecial char^&*()acters"
 VAR6=some-string with sp!@#$%ecial char^&*()acters
-
-TUWIEN_VMF1_USER="ntua"
-TUWIEN_VMF1_PASS="NtuA!vMf_fc"
