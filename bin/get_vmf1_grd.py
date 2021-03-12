@@ -9,6 +9,7 @@ import argparse
 import datetime
 from shutil import copyfileobj
 from pybern.products.downloaders.retrieve import http_retrieve
+from pybern.products.fileutils.keyholders import parse_key_file
 
 ## https://vmf.geo.tuwien.ac.at/trop_products/GRID/2.5x2/VMF1/VMF1_OP/2021/
 TUW_URL = 'https://vmf.geo.tuwien.ac.at'
@@ -27,6 +28,22 @@ def remove_local(dct):
                 os.remove(idct['fn'])
             except:
                 pass
+
+def get_credentials_from_args(**arg_dict):
+    if 'config_file' in arg_dict:
+        d = parse_key_file(arg_dict['config_file']);
+        username = d['TUWIEN_VMF1_USER'] if 'TUWIEN_VMF1_USER' in d else None
+        password = d['TUWIEN_VMF1_PASS'] if 'TUWIEN_VMF1_PASS' in d else None
+    if 'username' in arg_dict:
+        username = arg_dict['username']
+    if 'password' in arg_dict:
+        password = arg_dict['password']
+    try:
+        assert(username != None)
+        assert(password != None)
+    except:
+        raise RuntimeError('[ERROR] Could not resolve credentials for forecast grid file access')
+    return username, password
 
 def final_dir(dt):
     return '{:}/{:}/{:4d}'.format(TUW_URL, OP_URL_DIR, dt.year)
@@ -120,6 +137,31 @@ parser.add_argument(
     dest='del_after_merge',
     action='store_true',
     help='Delete individual grid files after a successeful merge (aka only valid if \'--merge []\' is set).')
+##  merge individual (hourly) files
+parser.add_argument('-c',
+                    '--config-file',
+                    action='store',
+                    required=False,
+                    help='If you request forecast grid files, you need credentials to access the data; if you provide a CONFIG_FILE here, the program will try to parse lines: \'TUWIEN_VMF1_USER=\"username\" and TUWIEN_VMF1_PASS=\"mypassword\" \' and use the \"username\"  and \"mypassword\" credentials to access the forecast data center',
+                    metavar='CONFIG_FILE',
+                    dest='config_file',
+                    default=None)
+parser.add_argument('-u',
+                    '--username',
+                    action='store',
+                    required=False,
+                    help='If you request forecast grid files, you need credentials to access the data; use this username to access the forecast data center. Note: this will overwite any \"username\" value found in the CONFIG_FILE (if you also specify one).',
+                    metavar='USERNAME',
+                    dest='username',
+                    default=None)
+parser.add_argument('-p',
+                    '--password',
+                    action='store',
+                    required=False,
+                    help='If you request forecast grid files, you need credentials to access the data; use this password to access the forecast data center. Note: this will overwite any \"password\" value found in the CONFIG_FILE (if you also specify one).',
+                    metavar='PASSWORD',
+                    dest='password',
+                    default=None)
 
 if __name__ == '__main__':
 
@@ -172,15 +214,23 @@ if __name__ == '__main__':
                 sys.exit(1)
     
     ## If forecast allowed and date is close to the current, try downloading
-    ## forecast files. If we fail, exit.
+    ## forecast files. If we fail, exit. Of course we need to have credentials
+    ## for that!
+    try:
+        user, passwd = get_credentials_from_args(args)
+    except Exception as e:
+        remove_local(grid_files_dict)
+        print('{:}'.format(e), file=sys.stderr)
+        print('[ERROR] Aborting!', file=sys.stderr)
+        sys.exit(1)
     for fn in grid_files_remote:
         if not grid_files_dict[fn]['op'] and (datetime.datetime.now().date() -
                                               dt.date()).days < 2:
             try:
                 status, target, saveas = http_retrieve(forecast_dir(dt),
                                                        fn,
-                                                       username='ntua',
-                                                       password='NtuA!vMf_fc')
+                                                       username=user,
+                                                       password=passwd)
                 if not status:
                     grid_files_dict[fn]['fc'] = 1
                     grid_files_dict[fn]['fn'] = saveas

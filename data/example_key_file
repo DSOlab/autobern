@@ -1,0 +1,18 @@
+## Example of a key file parsed by out module
+## Every line starting with '#' is comment
+
+## Empty lines are just ignored
+
+## Ok let's see some example:
+VAR1 = 5
+VAR_1 = 5
+VAR2=6
+VAR_2 =6
+VAR3= 7
+VAR_3=somestring
+VAR4=some string with whitespaces
+VAR5="some-string with sp!@#$%ecial char^&*()acters"
+VAR6=some-string with sp!@#$%ecial char^&*()acters
+
+TUWIEN_VMF1_USER="ntua"
+TUWIEN_VMF1_PASS="NtuA!vMf_fc"
