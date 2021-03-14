@@ -89,6 +89,10 @@ parser.add_argument('-c',
                     required=False,
                     default='p1c1',
                     help='Choose the code type(s) that the DCB file includes')
+parser.add_argument('--verbose',
+                    dest='verbose',
+                    action='store_true',
+                    help='Trigger verbose run (prints debug messages).')
 
 parser.add_argument('-l',
                     '--list-products',
@@ -99,6 +103,9 @@ parser.add_argument('-l',
 if __name__ == '__main__':
 
     args = parser.parse_args()
+    
+    ## verbose print
+    verboseprint = print if args.verbose else lambda *a, **k: None
 
     ## if we are just listing products, print them and exit.
     if args.list_products:
@@ -128,7 +135,7 @@ if __name__ == '__main__':
     try:
         status, remote, local = get_dcb(**input_dct)
     except Exception as e:
-        print("{:}".format(str(e)), file=sys.stderr)
+        verboseprint("{:}".format(str(e)), file=sys.stderr)
         status = 50
     if not status:
         print('Downloaded DCB Information File: {:} as {:}'.format(

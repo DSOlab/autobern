@@ -92,6 +92,10 @@ parser.add_argument(
     help=
     'Choose type of solution; can be any of (or multiple of) \"final, ultra-rapid, final-rapid, early-rapid, current, prediction, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,p5\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the p5 solution.'
 )
+parser.add_argument('--verbose',
+                    dest='verbose',
+                    action='store_true',
+                    help='Trigger verbose run (prints debug messages).')
 
 parser.add_argument('-l',
                     '--list-products',
@@ -100,7 +104,7 @@ parser.add_argument('-l',
                     help='List available ERP products and exit')
 
 
-def validate_interval(pydt, filename):
+def validate_interval(pydt, filename, verbose=False):
     dct = {
         'compressed': is_compressed(filename),
         'ctype': find_os_compression_type(filename)
@@ -114,12 +118,13 @@ def validate_interval(pydt, filename):
         dstart, dstop = pydt, pydt + datetime.timedelta(seconds=86400)
         if dstart < fstart or dstop > fstop:
             status = 10
-        print('Validation: File  start epoch: {:} stop epoch {:}'.format(
-            fstart.strftime('%Y-%m-%d %H:%M:%S'),
-            fstop.strftime('%Y-%m-%d %H:%M:%S')))
-        print('Validation: Given start epoch: {:} stop epoch {:}'.format(
-            dstart.strftime('%Y-%m-%d %H:%M:%S'),
-            dstop.strftime('%Y-%m-%d %H:%M:%S')))
+        if verbose:
+            print('Validation: File  start epoch: {:} stop epoch {:}'.format(
+                fstart.strftime('%Y-%m-%d %H:%M:%S'),
+                fstop.strftime('%Y-%m-%d %H:%M:%S')))
+            print('Validation: Given start epoch: {:} stop epoch {:}'.format(
+                dstart.strftime('%Y-%m-%d %H:%M:%S'),
+                dstop.strftime('%Y-%m-%d %H:%M:%S')))
         if dct['compressed']:
             cc.os_compress(decomp_filename, dct['ctype'], True)
         return status
@@ -131,6 +136,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    ## verbose print
+    verboseprint = print if args.verbose else lambda *a, **k: None
+    
     ## if we are just listing products, print them and exit.
     if args.list_products:
         list_products()
@@ -166,14 +174,15 @@ if __name__ == '__main__':
         input_dct['type'] = t
         try:
             status, remote, local = get_erp(**input_dct)
-        except:
+        except Exception as e:
+            verboseprint("{:}".format(str(e)), file=sys.stderr)
             status = 50
         if not status:
             ## file downloaded; if we need to, check the file's time interval.
             print('Downloaded ERP Information File: {:} as {:}'.format(
                 remote, local))
             if args.validate_interval:
-                j = validate_interval(input_dct['pydt'], local)
+                j = validate_interval(input_dct['pydt'], local, args.verbose)
                 if not j:
                     ## file's time interval ok, exit with OK
                     sys.exit(0)

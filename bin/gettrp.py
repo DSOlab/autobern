@@ -6,8 +6,6 @@ import sys
 import argparse
 import datetime
 from pybern.products.codetrp import get_trp, list_products
-#from pybern.products.formats.ion import BernIon
-#from pybern.products.formats.ionex import Ionex
 import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
@@ -105,25 +103,36 @@ parser.add_argument(
     help=
     'Choose type of solution; can be any of (or multiple of) \"final, rapid, urapid, urapid-sites\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,urapid\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the urapid solution.'
 )
+parser.add_argument('--verbose',
+                    dest='verbose',
+                    action='store_true',
+                    help='Trigger verbose run (prints debug messages).')
 
 if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    ## if we are just listing products, print them and exit.
     if args.list_products:
         list_products()
         sys.exit(0)
+    
+    ## verbose print
+    verboseprint = print if args.verbose else lambda *a, **k: None
 
-    if args.year is None or args.doy is None:
+    ## if we have a year or a doy then both args must be there!
+    if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
         print('[ERROR] Need to specify both Year and DayOfYear')
         sys.exit(1)
-
-    pydt = datetime.datetime.strptime(
-        '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
-
+    
+    ## make a list with all posible product types.
     types = args.types.split(',')
 
+    ## store user options in a dictionary to pass to the download function.
     input_dct = {'format': args.format}
+    if args.year:
+        input_dct['pydt'] = datetime.datetime.strptime(
+            '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
     if args.code_euref:
         input_dct['acid'] = 'coe'
     if args.save_as:
@@ -131,14 +140,16 @@ if __name__ == '__main__':
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
 
+    ## try downloading the trp file; if we fail do not throw, print the error
+    ## message and return an intger > 0 to the shell.
     status = 10
     for t in types:
         input_dct['type'] = t
         try:
-            status, remote, local = get_trp(pydt, **input_dct)
-        except:
+            status, remote, local = get_trp(**input_dct)
+        except Exception as e:
+            verboseprint("{:}".format(str(e)), file=sys.stderr)
             status = 50
-            #pass
         if not status:
             print('Downloaded Tropospheric Information File: {:} as {:}'.format(
                 remote, local))
