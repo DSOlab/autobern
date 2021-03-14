@@ -62,7 +62,7 @@ def ftp_retrieve(url, filename=None, **kwargs):
                 with open(saveas, 'wb') as f:
                     shutil.copyfileobj(r, f)
         else:
-            with closing(request.urlopen(target)) as r:
+            with closing(urllib.request.urlopen(target)) as r:
                 with open(saveas, 'wb') as f:
                     shutil.copyfileobj(r, f)
         if not os.path.isfile(saveas):

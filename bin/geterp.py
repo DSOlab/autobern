@@ -2,7 +2,7 @@
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
-import sys
+import sys, os
 import argparse
 import datetime
 from pybern.products.codeerp import get_erp, list_products
@@ -10,7 +10,6 @@ from pybern.products.formats.erp import Erp
 import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
-
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -132,46 +131,62 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    ## if we are just listing products, print them and exit.
     if args.list_products:
         list_products()
         sys.exit(0)
 
-    if args.year is None or args.doy is None:
+    ## if we have a year or a doy then both args must be there!
+    if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
         print('[ERROR] Need to specify both Year and DayOfYear')
         sys.exit(1)
 
-    pydt = datetime.datetime.strptime(
-        '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
-
+    ## get the types array (list)
     types = args.types.split(',')
     if args.span == 'weekly' and (len(types) == 1 and types[0] != 'final'):
         print('[ERROR] Weekly ERP files only available for final products')
         sys.exit(10)
 
+    ## store user options in a dictionary to pass to the download function.
     input_dct = {'span': args.span}
+    if args.year:
+        input_dct['pydt'] = datetime.datetime.strptime(
+            '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
     if args.save_as:
         input_dct['save_as'] = args.save_as
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
 
+    ## try downloading the erp file; if we fail do not throw, print the error
+    ## message and return an intger > 0 to the shell. We will try downloading
+    ## for all types provided by the user and stored in the 'types' array. When
+    ## we succed, stop downloading.
     status = 10
     for t in types:
         input_dct['type'] = t
         try:
-            status, remote, local = get_erp(pydt, **input_dct)
+            status, remote, local = get_erp(**input_dct)
         except:
             status = 50
         if not status:
+            ## file downloaded; if we need to, check the file's time interval.
             print('Downloaded ERP Information File: {:} as {:}'.format(
                 remote, local))
             if args.validate_interval:
-                j = validate_interval(pydt, local)
+                j = validate_interval(input_dct['pydt'], local)
                 if not j:
+                    ## file's time interval ok, exit with OK
                     sys.exit(0)
                 else:
+                    ## file's time interval not ok; set the status acorrdingly, 
+                    ## delete file and continue trying ....
                     print('ERP file {:} does not include the correct interval!'.
                           format(local))
+                    os.remove(local)
+                    status=10
             else:
+                ## file downloaded and file interval is not to be checked. exit
+                ## with ok status.
                 sys.exit(0)
 
     sys.exit(status)

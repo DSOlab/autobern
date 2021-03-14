@@ -138,20 +138,24 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    ## if we are just listing products, print them and exit.
     if args.list_products:
         list_products()
         sys.exit(0)
 
-    if args.year is None or args.doy is None:
+    ## if we have a year or a doy then both args must be there!
+    if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
         print('[ERROR] Need to specify both Year and DayOfYear')
         sys.exit(1)
 
-    pydt = datetime.datetime.strptime(
-        '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
-
+    ## make a list with all posible product types.
     types = args.types.split(',')
 
+    ## store user options in a dictionary to pass to the download function.
     input_dct = {'format': args.format}
+    if args.year:
+        input_dct['pydt'] = datetime.datetime.strptime(
+            '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
     if args.code_euref:
         input_dct['acid'] = 'coe'
     if args.save_as:
@@ -159,26 +163,38 @@ if __name__ == '__main__':
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
 
+    ## try downloading the ion file; if we fail do not throw, print the error
+    ## message and return an intger > 0 to the shell. We will try downloading
+    ## for all types provided by the user and stored in the 'types' array. When
+    ## we succed, stop downloading.
     status = 10
     for t in types:
         input_dct['type'] = t
-        try:
-            status, remote, local = get_ion(pydt, **input_dct)
-        except:
-            #pass
-            status = 50
+        #try:
+        print(input_dct)
+        status, remote, local = get_ion(**input_dct)
+        #except:
+        #    status = 50
         if not status:
+            ## file downloaded; if we need to, check the file's time interval.
             print('Downloaded Ionospheric Information File: {:} as {:}'.format(
                 remote, local))
             if args.validate_interval:
-                j = validate_interval(pydt, local, input_dct['format'])
+                j = validate_interval(input_dct['pydt'], local, input_dct['format'])
                 if not j:
+                    ## file's time interval ok, exit with OK
                     sys.exit(0)
                 else:
+                    ## file's time interval not ok; set the status acorrdingly, 
+                    ## delete file and continue trying ....
                     print(
                         'Ionospheric file {:} does not include the correct interval!'
                     )
+                    os.remove(local)
+                    status=10
             else:
+                ## file downloaded and file interval is not to be checked. exit
+                ## with ok status.
                 sys.exit(0)
 
     sys.exit(status)

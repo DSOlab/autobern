@@ -86,7 +86,7 @@ def get_ion_final_target(**kwargs):
     return target
 
 
-def get_ion_rapid_target(pydt, **kwargs):
+def get_ion_rapid_target(**kwargs):
     """ Rapid or Ultra-rapid ionosphere information in IONEX or Bernese format 
       from COD
 

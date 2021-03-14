@@ -11,7 +11,6 @@ import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
 
-
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
 ##  Seems to work with multiple inheritance!
@@ -66,7 +65,6 @@ parser.add_argument(
 parser.add_argument(
     '-t',
     '--type',
-    #default='final',
     choices=['final', 'rapid', 'current'],
     metavar='TYPE',
     dest='type',
@@ -102,15 +100,21 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    ## if we are just listing products, print them and exit.
     if args.list_products:
         list_products()
         sys.exit(0)
+    
+    ## if we have a year or a doy then both args must be there!
+    if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
+        print('[ERROR] Need to specify both Year and DayOfYear')
+        sys.exit(1)
 
+    ## store user options in a dictionary to pass to the download function.
     input_dct = {'span': args.span, 'obs': args.obs}
-    if args.year is not None or args.doy is not None:
-        pydt = datetime.datetime.strptime(
+    if args.year:
+        input_dct['pydt'] = datetime.datetime.strptime(
             '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
-        input_dct['pydt'] = pydt
     if args.type is not None:
         input_dct['type'] = args.type
     if args.save_as:
@@ -118,14 +122,19 @@ if __name__ == '__main__':
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
 
+    ## try downloading the dcb file; if we fail do not throw, print the error
+    ## message and return an intger > 0 to the shell.
     status = 10
-    #try:
-    status, remote, local = get_dcb(**input_dct)
-    #except:
-    #    status = 50
+    try:
+        status, remote, local = get_dcb(**input_dct)
+    except Exception as e:
+        print("{:}".format(str(e)), file=sys.stderr)
+        status = 50
     if not status:
         print('Downloaded DCB Information File: {:} as {:}'.format(
             remote, local))
         sys.exit(0)
+    else:
+        print('[ERROR] Failed to download DCB product', file=sys.stderr)
 
     sys.exit(status)
