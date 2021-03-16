@@ -27,7 +27,13 @@ class Type003Record:
                 FILE_FORMAT, line,
                 '[ERROR] Type003Record::init_from_line Failed to parse station name'
             )
-        self.flag = line[22:25].rstrip()
+        try:
+            self.flag = int(line[22:25].rstrip())
+        except:
+            raise FileFormatError(
+                FILE_FORMAT, line,
+                '[ERROR] Type003Record::init_from_line Failed to parse station flag'
+            )
         ## resolve the start date (or set to min if empty)
         t_str = line[27:46].strip()
         if len(t_str) == 0:

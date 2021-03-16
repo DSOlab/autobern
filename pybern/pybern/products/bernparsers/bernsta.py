@@ -153,7 +153,7 @@ class BernSta:
                     self.dct[new_rec.sta_name]['type002'] = [new_rec]
             line = stream.readline()
 
-    def __parse_block_003(self, stream):
+    def __parse_block_003(self, stream, missing_is_error=False):
         ''' Stream should be open and at any line before the line:
     '''
         line = stream.readline()
@@ -188,13 +188,19 @@ class BernSta:
         while line and len(line) > 20:
             new_rec = Type003Record(line)
             if new_rec.sta_name not in self.stations:
-                raise RuntimeError(
-                    '[ERROR] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
-                    .format(new_rec.sta_name))
-            if 'type003' in self.dct[new_rec.sta_name]:
-                self.dct[new_rec.sta_name]['type003'].append(new_rec)
+                if missing_is_error:
+                    raise RuntimeError(
+                        '[ERROR] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
+                        .format(new_rec.sta_name))
+                else:
+                    print('[WRNNG] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
+                        .format(new_rec.sta_name))
+                    print('        Record will be skipped!')
             else:
-                self.dct[new_rec.sta_name]['type003'] = [new_rec]
+                if 'type003' in self.dct[new_rec.sta_name]:
+                    self.dct[new_rec.sta_name]['type003'].append(new_rec)
+                else:
+                    self.dct[new_rec.sta_name]['type003'] = [new_rec]
             line = stream.readline()
 
     def parse(self):
@@ -202,7 +208,9 @@ class BernSta:
             raise RuntimeError(
                 '[ERROR] BernSta::parse file does not exist: {:}'.format(
                     self.filename))
-        with open(self.filename, 'r') as f:
+        ## could be that the input file is in whatever encoding; replace any
+        ## coding errors.
+        with open(self.filename, 'r', errors="replace") as f:
             line = f.readline()
             if not line.startswith(
                     'STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2'):

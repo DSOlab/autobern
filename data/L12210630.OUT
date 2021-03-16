@@ -1,0 +1,110 @@
+
+ ===============================================================================
+ Bernese GNSS Software, Version 5.2
+ -------------------------------------------------------------------------------
+ Program        : BASLST
+ Purpose        : Select baselines
+ -------------------------------------------------------------------------------
+ Campaign       : ${P}/GREECE
+ Default session: 0630 year 2021
+ Date           : 08-Mar-2021 15:48:52
+ User name      : bpe
+ ===============================================================================
+
+
+ RNX2SNX_210630: Direct L1/L2 Ambiguity Resolution
+ -------------------------------------------------------------------------------
+
+
+ INPUT AND OUTPUT FILENAMES
+ --------------------------
+
+ -------------------------------------------------------------------------------
+ General constants               : ${X}/GEN/CONST.
+ Geodetic datum                  : ${X}/GEN/DATUM.
+ Abbreviation table              : ${P}/GREECE/STA/GREECE.ABB
+ Station coordinates             : ${P}/GREECE/STA/APR210630.CRD
+ Ambiguity resolution summary    :  ---
+ List with accepted baselines    : ${P}/GREECE/STA/L12210630.BSL
+ List with rejected baselines    :  ---
+ Program output                  : ${P}/GREECE/OUT/L12210630.OUT
+ Error message                   : ${U}/WORK/ERROR.MSG
+ Session table                   : ${P}/GREECE/STA/SESSIONS.SES
+ -------------------------------------------------------------------------------
+
+
+ Options for baseline selection
+ ------------------------------
+ Observations from:            Any system 
+ Maximum baseline length:         10.0 km
+ Minimum baseline length:          0.0 km
+ Station receiver name:                             
+ Exclude receiver name pattern:                     
+
+
+ -------------------------------------------------------------------------------
+ File  Phase single difference files    
+ -------------------------------------------------------------------------------
+    1  ${P}/GREECE/OBS/A1PK0630.PSH     
+    2  ${P}/GREECE/OBS/A1PY0630.PSH     
+    3  ${P}/GREECE/OBS/A8PK0630.PSH     
+    4  ${P}/GREECE/OBS/A8TU0630.PSH     
+    5  ${P}/GREECE/OBS/AAEG0630.PSH     
+    6  ${P}/GREECE/OBS/AALA0630.PSH     
+    7  ${P}/GREECE/OBS/AANO0630.PSH     
+    8  ${P}/GREECE/OBS/ANPR0630.PSH     
+    9  ${P}/GREECE/OBS/AUDU0630.PSH     
+   10  ${P}/GREECE/OBS/AULA0630.PSH     
+   11  ${P}/GREECE/OBS/AUPE0630.PSH     
+   12  ${P}/GREECE/OBS/BOPE0630.PSH     
+   13  ${P}/GREECE/OBS/BOTR0630.PSH     
+   14  ${P}/GREECE/OBS/DUPR0630.PSH     
+   15  ${P}/GREECE/OBS/EGRL0630.PSH     
+   16  ${P}/GREECE/OBS/GLPE0630.PSH     
+   17  ${P}/GREECE/OBS/GLPO0630.PSH     
+   18  ${P}/GREECE/OBS/HEZI0630.PSH     
+   19  ${P}/GREECE/OBS/IITU0630.PSH     
+   20  ${P}/GREECE/OBS/KLLA0630.PSH     
+   21  ${P}/GREECE/OBS/PEZI0630.PSH     
+   22  ${P}/GREECE/OBS/PNSP0630.PSH     
+   23  ${P}/GREECE/OBS/PNVL0630.PSH     
+   24  ${P}/GREECE/OBS/PYRL0630.PSH     
+   25  ${P}/GREECE/OBS/RLVL0630.PSH     
+ -------------------------------------------------------------------------------
+
+
+
+
+ FL File name       Sta1 Sta2  Length  Receiver1             Receiver2            AR (%) G R
+ -------------------------------------------------------------------------------------------
+    A1PK0630.PSH    ANI1 PTK1    48.6  TPS NET-G5            LEICA GR25            -1.0  x x
+    A1PY0630.PSH    ANI1 PYLO    53.3  TPS NET-G5            LEICA GR10            -1.0  x x
+    A8PK0630.PSH    ANK1 PTK1    95.5  LEICA GR25            LEICA GR25            -1.0  x x
+    A8TU0630.PSH    ANK1 TUC2    78.9  LEICA GR25            LEICA GRX1200+GNSS    -1.0  x x
+    AAEG0630.PSH    ATAL EGIO    92.0  TPS NET-G3A           TPS NET-G5            -1.0  x x
+    AALA0630.PSH    ATAL LARM   119.1  TPS NET-G3A           LEICA GRX1200+GNSS    -1.0  x x
+    AANO0630.PSH    ATAL NOA1   101.2  TPS NET-G3A           LEICA GRX1200PRO      -1.0  x  
+    ANPR0630.PSH    ANKR PRKV   562.3  LEICA GR30            LEICA GRX1200PRO      -1.0  x  
+    AUDU0630.PSH    AUT1 DUTH   173.4  LEICA GRX1200PRO      LEICA GRX1200GGPRO    -1.0  x  
+    AULA0630.PSH    AUT1 LARM   118.1  LEICA GRX1200PRO      LEICA GRX1200+GNSS    -1.0  x  
+    AUPE0630.PSH    AUT1 PENC   855.1  LEICA GRX1200PRO      LEICA GRX1200GGPRO    -1.0  x  
+    BOPE0630.PSH    BOR1 PENC   523.4  TRIMBLE NETR9         LEICA GRX1200GGPRO    -1.0  x x
+    BOTR0630.PSH    BOR1 TRO1  1932.2  TRIMBLE NETR9         TRIMBLE NETR9         -1.0  x x
+    DUPR0630.PSH    DUTH PRKV   239.6  LEICA GRX1200GGPRO    LEICA GRX1200PRO      -1.0  x  
+    EGRL0630.PSH    EGIO RLSO    57.9  TPS NET-G5            LEICA GMX902GG        -1.0  x x
+    GLPE0630.PSH    GLSV PENC   866.3  TRIMBLE NETR9         LEICA GRX1200GGPRO    -1.0  x x
+    GLPO0630.PSH    GLSV POLV   302.2  TRIMBLE NETR9         LEICA GR10            -1.0  x x
+    HEZI0630.PSH    HERS ZIMM   685.0  SEPT POLARX5TR        TRIMBLE NETR9         -1.0  x  
+    IITU0630.PSH    IDI1 TUC2    79.3  TPS NET-G3A           LEICA GRX1200+GNSS    -1.0  x x
+    KLLA0630.PSH    KLOK LARM    32.6  LEICA GRX1200PRO      LEICA GRX1200+GNSS    -1.0  x  
+    PEZI0630.PSH    PENC ZIMM   897.3  LEICA GRX1200GGPRO    TRIMBLE NETR9         -1.0  x  
+    PNSP0630.PSH    PONT SPAN    19.6  LEICA GRX1200PRO      LEICA GRX1200PRO      -1.0  x  
+    PNVL0630.PSH    PONT VLSM    49.1  LEICA GRX1200PRO      LEICA GR10            -1.0  x  
+    PYRL0630.PSH    PYLO RLSO   128.3  LEICA GR10            LEICA GMX902GG        -1.0  x x
+    RLVL0630.PSH    RLSO VLSM    78.0  LEICA GMX902GG        LEICA GR10            -1.0  x x
+
+
+-----------------------------------------------------------------
+>>> CPU/Real time for pgm "BASLST": 0:00:00.031 / 0:00:00.031
+>>> Program finished successfully
+

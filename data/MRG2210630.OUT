@@ -1,0 +1,693 @@
+
+ ===============================================================================
+ Bernese GNSS Software, Version 5.2
+ -------------------------------------------------------------------------------
+ Program        : CRDMERGE
+ Purpose        : Merge coordinate/velocity files
+ -------------------------------------------------------------------------------
+ Campaign       : ${P}/GREECE
+ Default session: 0630 year 2021
+ Date           : 08-Mar-2021 15:49:37
+ User name      : bpe
+ ===============================================================================
+
+
+ NTUA_DDP_210630: Merge a priori into reference frame coordinates
+ -------------------------------------------------------------------------------
+
+
+ INPUT AND OUTPUT FILENAMES
+ --------------------------
+
+ -------------------------------------------------------------------------------
+ Coordinates master file         : ${P}/GREECE/STA/REF210630.CRD
+ Velocities master file          :  ---
+ Coordinates                     : ${P}/GREECE/STA/APR210630.CRD
+ Velocities                      :  ---
+ Station selection file          :  ---
+ Program output                  : ${P}/GREECE/OUT/MRG2210630.OUT
+ Error message                   : ${U}/WORK/ERROR.MSG
+ Session table                   : ${P}/GREECE/STA/SESSIONS.SES
+ -------------------------------------------------------------------------------
+
+
+ Files to be merged
+ ------------------
+
+ -------------------------------------------------------------------------------
+ File  Coordinate file(s)               
+ -------------------------------------------------------------------------------
+    1  ${P}/GREECE/STA/DSP210630.CRD    
+ -------------------------------------------------------------------------------
+
+
+ Flag priority
+ -------------
+
+ R C U T P M A W N I (default)                                                   
+
+
+ --------------------
+ Flag    replaced by 
+ --------------------
+ P          PPP  
+ A          PPP  
+ W          PPP  
+ I          IGS14
+ --------------------
+
+
+ -------------------------------------
+ File    #Stations   #Stations merged 
+ -------------------------------------
+    0        505            505
+    1        612            107
+ -------------------------------------
+            1117            612
+ -------------------------------------
+
+
+ ----------------------------------------
+ Num  Station           File    Flag  FIX
+ ----------------------------------------
+   1  004A                 1           
+   2  014A                 1           
+   3  016A                 1           
+   4  021A                 1           
+   5  027A                 1           
+   6  034A                 1           
+   7  044A                 1           
+   8  061A                 1           
+   9  063A                 1           
+  10  066A                 1           
+  11  068A                 1           
+  12  069A                 1           
+  13  074A                 1           
+  14  075A                 1           
+  15  076A                 1           
+  16  081A                 1           
+  17  088A                 1           
+  18  089A                 1           
+  19  091A                 1           
+  20  092A                 1           
+  21  093A                 1           
+  22  ABMF 97103M001       0    IGS14  
+  23  ABPO 33302M001       0    IGS14  
+  24  ACOR 13434M001       0    IGS14  
+  25  ADAR 19161M001       0    IGS14  
+  26  ADE1 50109S001       0    IGS14  
+  27  ADE2 50109S001       0    IGS14  
+  28  ADIS 31502M001       0    IGS14  
+  29  AJAC 10077M005       0    IGS14  
+  30  AKYR                 1           
+  31  ALAC 13433M001       0    IGS14  
+  32  ALBA 13452M001       0    IGS14  
+  33  ALBH 40129M003       0    IGS14  
+  34  ALCI 12371S001       0    IGS14  
+  35  ALGO 40104M002       0    IGS14  
+  36  ALIC 50137M001       0    IGS14  
+  37  ALME 13437M001       0    IGS14  
+  38  ALRT 40162M001       0    IGS14  
+  39  AMC2 40472S004       0    IGS14  
+  40  ANIK 12666M001       1    A      
+  41  ANKR 20805M002       1    A      
+  42  ANKY 18594M001       1    A      
+  43  ANOP                 1           
+  44  AOML 49914S001       0    IGS14  
+  45  AREQ 42202M005       0    IGS14  
+  46  AREV 42202M005       0    IGS14  
+  47  ARGI 10117M002       0    IGS14  
+  48  ARIS 19190M001       0    IGS14  
+  49  ARJ6 10428M002       0    IGS14  
+  50  ARK2                 1           
+  51  ARKI                 1           
+  52  ARTU 12362M001       0    IGS14  
+  53  ASC1 30602M001       0    IGS14  
+  54  ATAL 12630M001       1    A      
+  55  ATRS                 1           
+  56  AUBG 10913M001       0    IGS14  
+  57  AUCK 50209M001       0    IGS14  
+  58  AUT1 12619M002       1    A      
+  59  AUTN 10080M001       0    IGS14  
+  60  AXPV 10057M001       0    IGS14  
+  61  BACA 11405M001       0    IGS14  
+  62  BADG 12338M002       0    IGS14  
+  63  BADH 14288M001       0    IGS14  
+  64  BAHR 24901M002       0    IGS14  
+  65  BAIA 11406M001       0    IGS14  
+  66  BARH 49927S001       0    IGS14  
+  67  BBYS 11514M001       0    IGS14  
+  68  BCLN 13412M001       0    IGS14  
+  69  BELL 13431M001       0    IGS14  
+  70  BHR1 24901M002       0    IGS14  
+  71  BHR2 24901M002       0    IGS14  
+  72  BILI 12363M001       0    IGS14  
+  73  BISK 11520M001       0    IGS14  
+  74  BJCO 32701M001       0    IGS14  
+  75  BJFS 21601M001       0    IGS14  
+  76  BJNM 21616M001       0    IGS14  
+  77  BOGI 12207M003       0    IGS14  
+  78  BOGO 12207M002       0    IGS14  
+  79  BOR1 12205M002       0    IGS14  
+  80  BORJ 14268M002       0    IGS14  
+  81  BORK 14268M001       0    IGS14  
+  82  BORR 13480M001       0    IGS14  
+  83  BRAZ 41606M001       0    IGS14  
+  84  BREW 40473M001       0    IGS14  
+  85  BRFT 41602M002       0    IGS14  
+  86  BRMF 19686M002       0    IGS14  
+  87  BRMU 42501S004       0    IGS14  
+  88  BRST 10004M004       0    IGS14  
+  89  BRUS 13101M004       0    IGS14  
+  90  BRUX 13101M010       0    IGS14  
+  91  BSCN 10028M007       0    IGS14  
+  92  BSHM 20705M001       0    IGS14  
+  93  BUCU 11401M001       0    IGS14  
+  94  BUDP 10101M003       0    IGS14  
+  95  BUTE 11209M001       0    IGS14  
+  96  BYDG 12224M001       0    IGS14  
+  97  BZRG 12751M001       0    IGS14  
+  98  CACE 13447M001       0    IGS14  
+  99  CAEN 19994M001       0    IGS14  
+ 100  CAG1 12702M002       0    IGS14  
+ 101  CAGL 12725M003       0    IGS14  
+ 102  CAGZ 12725M004       0    IGS14  
+ 103  CANT 13438M001       0    IGS14  
+ 104  CARG 19412M001       0    IGS14  
+ 105  CAS1 66011M001       0    IGS14  
+ 106  CASC 13909S001       0    IGS14  
+ 107  CASE 13494M001       0    IGS14  
+ 108  CEBR 13408M001       0    IGS14  
+ 109  CEDU 50138M001       0    IGS14  
+ 110  CEU1 13449M002       0    IGS14  
+ 111  CFAG 41517S001       0    IGS14  
+ 112  CFRM 11525M001       0    IGS14  
+ 113  CHAN 21611M002       0    IGS14  
+ 114  CHAT 50207M001       0    IGS14  
+ 115  CHIO 19194M001       0    IGS14  
+ 116  CHIZ 10020M001       0    IGS14  
+ 117  CHPI 41609M003       0    IGS14  
+ 118  CHTI 50242M001       0    IGS14  
+ 119  CHUM 25601M001       0    IGS14  
+ 120  CHUR 40128M002       0    IGS14  
+ 121  CKIS 50213M003       0    IGS14  
+ 122  CLIB 11526M001       0    IGS14  
+ 123  CNIV 15501M001       0    IGS14  
+ 124  CNMR 50512M001       0    IGS14  
+ 125  COBA 13453M001       0    IGS14  
+ 126  COCO 50127M001       0    IGS14  
+ 127  COMO 12761M001       0    IGS14  
+ 128  CONX 41719M002       0    IGS14  
+ 129  CONZ 41719M002       0    IGS14  
+ 130  COST 11407M001       0    IGS14  
+ 131  CPAR 11527M001       0    IGS14  
+ 132  CRAK 11528M001       0    IGS14  
+ 133  CRAO 12337M002       0    IGS14  
+ 134  CREI 10016M001       0    IGS14  
+ 135  CREU 13432M001       0    IGS14  
+ 136  CRO1 43201M001       0    IGS14  
+ 137  CTAB 11529M001       0    IGS14  
+ 138  DAEJ 23902M002       0    IGS14  
+ 139  DARE 13208S001       0    IGS14  
+ 140  DARR 50134M001       0    IGS14  
+ 141  DARW 50134M001       0    IGS14  
+ 142  DAV1 66010M001       0    IGS14  
+ 143  DAVR 66010M001       0    IGS14  
+ 144  DELF 13502M004       0    IGS14  
+ 145  DENT 13112M001       0    IGS14  
+ 146  DGAR 30802M001       0    IGS14  
+ 147  DGAV 30802M001       0    IGS14  
+ 148  DIEP 14287M001       0    IGS14  
+ 149  DILL 14286M001       0    IGS14  
+ 150  DION                 1           
+ 151  DIOP                 1           
+ 152  DLF1 13502M009       0    IGS14  
+ 153  DNMU 12369M001       0    IGS14  
+ 154  DOUR 13113M001       0    IGS14  
+ 155  DRAG 20710S001       0    IGS14  
+ 156  DRAO 40105M002       0    IGS14  
+ 157  DRES 14108M001       0    IGS14  
+ 158  DUB2 11901M002       0    IGS14  
+ 159  DUBO 40137M001       0    IGS14  
+ 160  DUM1 91501M001       0    IGS14  
+ 161  DUTH 12621M001       1    A      
+ 162  DYNG 12602M006       0    IGS14  
+ 163  EBRE 13410M001       0    IGS14  
+ 164  EGIO 12658M001       1    A      
+ 165  EGLT 10032M001       0    IGS14  
+ 166  EIJS 13533M001       0    IGS14  
+ 167  EISL 41703M003       0    IGS14  
+ 168  ELBA 12721M002       0    IGS14  
+ 169  ENIS 13246M001       0    IGS14  
+ 170  ENTZ 10014M002       0    IGS14  
+ 171  ESCO 13435M001       0    IGS14  
+ 172  EUSK 14258M003       0    IGS14  
+ 173  EVPA 12344M001       0    IGS14  
+ 174  EYPA                 1           
+ 175  FAA1 92201M012       0    IGS14  
+ 176  FAIR 40408M001       0    IGS14  
+ 177  FALK 80602M001       0    IGS14  
+ 178  FLIN 40135M001       0    IGS14  
+ 179  FLRS 31907M001       0    IGS14  
+ 180  FORT 41602M001       0    IGS14  
+ 181  FUNC 13911S001       0    IGS14  
+ 182  GAIA 13902M001       0    IGS14  
+ 183  GANP 11515M001       0    IGS14  
+ 184  GARD                 1           
+ 185  GARI 19517M001       0    IGS14  
+ 186  GELL 10908M001       0    IGS14  
+ 187  GENO 12712M002       0    IGS14  
+ 188  GLPS 42005M002       0    IGS14  
+ 189  GLSV 12356M001       0    IGS14  
+ 190  GMAS 31303S004       0    IGS14  
+ 191  GODE 40451M123       0    IGS14  
+ 192  GODZ 40451M123       0    IGS14  
+ 193  GOL2 40405S031       0    IGS14  
+ 194  GOLD 40405S031       0    IGS14  
+ 195  GOP6 11502M006       0    IGS14  
+ 196  GOPE 11502M002       0    IGS14  
+ 197  GOR2 14115M002       0    IGS14  
+ 198  GOUG 30608M001       0    IGS14  
+ 199  GRAC 10002M010       0    IGS14  
+ 200  GRAS 10002M006       0    IGS14  
+ 201  GRAZ 11001M002       0    IGS14  
+ 202  GSR1 14501M001       0    IGS14  
+ 203  GUAM 50501M002       0    IGS14  
+ 204  GUAO 21612M003       0    IGS14  
+ 205  GUAT 40901S001       0    IGS14  
+ 206  GUIP 10004M501       0    IGS14  
+ 207  GUUG 82301M001       0    IGS14  
+ 208  GVDS                 1           
+ 209  GWWL 12225M001       0    IGS14  
+ 210  HARB 30302M009       0    IGS14  
+ 211  HAS6 10429M002       0    IGS14  
+ 212  HEL2 14264M002       0    IGS14  
+ 213  HELG 14264M001       0    IGS14  
+ 214  HERS 13212M007       0    IGS14  
+ 215  HERT 13212M010       0    IGS14  
+ 216  HLFX 40120M001       0    IGS14  
+ 217  HNLC 49970S001       0    IGS14  
+ 218  HOB2 50116M004       0    IGS14  
+ 219  HOBU 14202M003       0    IGS14  
+ 220  HOE2 14284M002       0    IGS14  
+ 221  HOFJ 14289M001       0    IGS14  
+ 222  HOFN 10204M002       0    IGS14  
+ 223  HOLB 40130M001       0    IGS14  
+ 224  HOLM 40148M001       0    IGS14  
+ 225  HRAO 30302M004       0    IGS14  
+ 226  HUEL 13451M001       0    IGS14  
+ 227  HYDE 22307M001       0    IGS14  
+ 228  IBIZ 13454S001       0    IGS14  
+ 229  IDI0 12667M001       1    A      
+ 230  IDI1                 1           
+ 231  IENG 12724S001       0    IGS14  
+ 232  IGEO 15101M001       0    IGS14  
+ 233  IGMI 12701M003       0    IGS14  
+ 234  IISC 22306M002       0    IGS14  
+ 235  IJMU 13537M001       0    IGS14  
+ 236  ILDX 19724M001       0    IGS14  
+ 237  INVE 13221S001       0    IGS14  
+ 238  INVK 40150M001       0    IGS14  
+ 239  INVR 13221M001       0    IGS14  
+ 240  IQAL 40194M001       0    IGS14  
+ 241  IRKM 12313M001       0    IGS14  
+ 242  IRKT 12313M001       0    IGS14  
+ 243  ISPA 41703M007       0    IGS14  
+ 244  IZAN 31309M002       0    IGS14  
+ 245  JOEN 10512M001       0    IGS14  
+ 246  JON6 10430M002       0    IGS14  
+ 247  JOZ2 12204M002       0    IGS14  
+ 248  JOZE 12204M001       0    IGS14  
+ 249  KAD6 10431M002       0    IGS14  
+ 250  KARL 14216M001       0    IGS14  
+ 251  KARR 50139M001       0    IGS14  
+ 252  KASI 12627M001       1           
+ 253  KAT1 59968M001       0    IGS14  
+ 254  KATC                 1           
+ 255  KATO 12219S001       0    IGS14  
+ 256  KEFA                 1           
+ 257  KELY 43005M002       0    IGS14  
+ 258  KERA                 1           
+ 259  KERG 91201M002       0    IGS14  
+ 260  KERY                 1           
+ 261  KIPO 12631M001       1           
+ 262  KIR0 10422M001       0    IGS14  
+ 263  KIRI 50305M001       0    IGS14  
+ 264  KIRU 10403M002       0    IGS14  
+ 265  KIT3 12334M001       0    IGS14  
+ 266  KITH                 1           
+ 267  KLOK 12632M001       1    A      
+ 268  KLOP 14214M002       0    IGS14  
+ 269  KOKB 40424M004       0    IGS14  
+ 270  KOKV 40424M004       0    IGS14  
+ 271  KORO 12668M001       1           
+ 272  KOSG 13504M003       0    IGS14  
+ 273  KOUN                 1           
+ 274  KOUR 97301M210       0    IGS14  
+ 275  KRA1 12218M002       0    IGS14  
+ 276  KRAW 12218M001       0    IGS14  
+ 277  KRGG 91201M007       0    IGS14  
+ 278  KRPS                 1           
+ 279  KRYO                 1           
+ 280  KTCH                 1           
+ 281  KTHA 18414M001       1           
+ 282  KUNZ 11524M001       0    IGS14  
+ 283  KURE 10604S001       0    IGS14  
+ 284  KWJ1 50506M001       0    IGS14  
+ 285  LAGO 13903M001       0    IGS14  
+ 286  LAMA 12209M001       0    IGS14  
+ 287  LAMB                 1           
+ 288  LAMP 12706M002       0    IGS14  
+ 289  LARM 12610M002       1    A      
+ 290  LAUT 50804M002       0    IGS14  
+ 291  LEIJ 14267M001       0    IGS14  
+ 292  LEK6 10433M002       0    IGS14  
+ 293  LEMN 12633M001       1           
+ 294  LEPE                 1           
+ 295  LERI 19159M003       0    IGS14  
+ 296  LHAS 21613M001       0    IGS14  
+ 297  LHAZ 21613M002       0    IGS14  
+ 298  LIDO                 1           
+ 299  LIL2 10051M003       0    IGS14  
+ 300  LINZ 11033S001       0    IGS14  
+ 301  LLIV 13436M001       0    IGS14  
+ 302  LMMF 97205M001       0    IGS14  
+ 303  LODZ 12226M001       0    IGS14  
+ 304  LOV6 10434M002       0    IGS14  
+ 305  LPAL 81701M001       0    IGS14  
+ 306  LPGS 41510M001       0    IGS14  
+ 307  LROC 10023M001       0    IGS14  
+ 308  M0SE 12772M001       0    IGS14  
+ 309  MAC1 50135M001       0    IGS14  
+ 310  MAL2 33201M003       0    IGS14  
+ 311  MALI 33201M001       0    IGS14  
+ 312  MALL 13444M001       0    IGS14  
+ 313  MAN2 10091M002       0    IGS14  
+ 314  MANS 10091M001       0    IGS14  
+ 315  MAR6 10405M002       0    IGS14  
+ 316  MARJ 11517M001       0    IGS14  
+ 317  MARP 15556M001       0    IGS14  
+ 318  MARS 10073M008       0    IGS14  
+ 319  MAS1 31303M002       0    IGS14  
+ 320  MAT1 12734M009       0    IGS14  
+ 321  MATE 12734M008       0    IGS14  
+ 322  MAUI 40445S008       0    IGS14  
+ 323  MAW1 66004M001       0    IGS14  
+ 324  MBAR 33901M001       0    IGS14  
+ 325  MCIL 21789S001       0    IGS14  
+ 326  MCM4 66001M003       0    IGS14  
+ 327  MDO1 40442M012       0    IGS14  
+ 328  MDOR 10018M001       0    IGS14  
+ 329  MDVJ 12309M005       0    IGS14  
+ 330  MDVO 12309M002       0    IGS14  
+ 331  MEDI 12711M003       0    IGS14  
+ 332  MELI 19379M001       0    IGS14  
+ 333  MET3 10503M010       0    IGS14  
+ 334  METS 10503S011       0    IGS14  
+ 335  MIKL 12335M001       0    IGS14  
+ 336  MILO 12758M001       0    IGS14  
+ 337  MKEA 40477M001       0    IGS14  
+ 338  MLOS                 1           
+ 339  MLVL 10092M001       0    IGS14  
+ 340  MOBS 50182M001       0    IGS14  
+ 341  MONP 40497M004       0    IGS14  
+ 342  MOP2 11507M002       0    IGS14  
+ 343  MQZG 50214M001       0    IGS14  
+ 344  MR6G 10405M002       0    IGS14  
+ 345  MSEL 12711M008       0    IGS14  
+ 346  MTHA                 1           
+ 347  MTHO                 1           
+ 348  MTNA 12673M001       1           
+ 349  MTS2                 1           
+ 350  MTSV 12669M001       1           
+ 351  NAFP 12634M001       1           
+ 352  NAIN 40164M001       0    IGS14  
+ 353  NAMA 20103M001       0    IGS14  
+ 354  NANO 40138M001       0    IGS14  
+ 355  NAUR 50701M001       0    IGS14  
+ 356  NEAB 12635M001       1           
+ 357  NEAP                 1           
+ 358  NEWL 13273M103       0    IGS14  
+ 359  NICO 14302M001       0    IGS14  
+ 360  NIST 49507M002       0    IGS14  
+ 361  NISU 49507M001       0    IGS14  
+ 362  NISY                 1           
+ 363  NIUM 50210M001       0    IGS14  
+ 364  NKLG 32809M002       0    IGS14  
+ 365  NLIB 40465M001       0    IGS14  
+ 366  NNOR 50181M001       0    IGS14  
+ 367  NOA1 12620M001       1    A      
+ 368  NOR7 10410M003       0    IGS14  
+ 369  NOT1 12717M004       0    IGS14  
+ 370  NOUM 92701M003       0    IGS14  
+ 371  NPLD 13234M003       0    IGS14  
+ 372  NRC1 40114M001       0    IGS14  
+ 373  NRIL 12364M001       0    IGS14  
+ 374  NRMD 92701M005       0    IGS14  
+ 375  NRMG 92701M005       0    IGS14  
+ 376  NURK 34001M001       0    IGS14  
+ 377  NVRK                 1           
+ 378  NYA1 10317M003       0    IGS14  
+ 379  NYAL 10317M001       0    IGS14  
+ 380  OBE2 14208M003       0    IGS14  
+ 381  OBE4 14208M007       0    IGS14  
+ 382  OBER 14208M001       0    IGS14  
+ 383  OHI2 66008M005       0    IGS14  
+ 384  OHI3 66008M006       0    IGS14  
+ 385  OHIG 66008M001       0    IGS14  
+ 386  OHIX 66008M006       0    IGS14  
+ 387  ONS1 10402M007       0    IGS14  
+ 388  ONSA 10402M004       0    IGS14  
+ 389  ORID 15601M001       0    IGS14  
+ 390  OROS 11207M001       0    IGS14  
+ 391  OS0G 10402M004       0    IGS14  
+ 392  OSJE 11902M001       0    IGS14  
+ 393  OSK6 10435M002       0    IGS14  
+ 394  OSLO 10307M001       0    IGS14  
+ 395  OSN1 23904S001       0    IGS14  
+ 396  OSN2 23904S001       0    IGS14  
+ 397  OST6 10436M002       0    IGS14  
+ 398  OUS2 50212M002       0    IGS14  
+ 399  OVE6 10437M002       0    IGS14  
+ 400  PADO 12750S001       0    IGS14  
+ 401  PARC 41716S001       0    IGS14  
+ 402  PASA 19351S001       0    IGS14  
+ 403  PAT0 12622M001       0    IGS14  
+ 404  PDEL 31906M004       0    IGS14  
+ 405  PENC 11206M006       0    IGS14  
+ 406  PERT 50133M001       0    IGS14  
+ 407  PFA2 11005M003       0    IGS14  
+ 408  PIE1 40456M001       0    IGS14  
+ 409  PKMN                 1           
+ 410  PMTH 13229M001       0    IGS14  
+ 411  POHN 51601M001       0    IGS14  
+ 412  POL2 12348M001       0    IGS14  
+ 413  POLV 12336M001       0    IGS14  
+ 414  POLY                 1           
+ 415  PONT 12626M001       1    A      
+ 416  PORE 11907M001       0    IGS14  
+ 417  POTS 14106M003       0    IGS14  
+ 418  POUS 11518M001       0    IGS14  
+ 419  POZE 11908M001       0    IGS14  
+ 420  PRAT 12760M001       0    IGS14  
+ 421  PRDS 40124M001       0    IGS14  
+ 422  PRE1 30310S001       0    IGS14  
+ 423  PRE2 30310S001       0    IGS14  
+ 424  PRKV 12636M001       1    A      
+ 425  PRYL 15502M001       0    IGS14  
+ 426  PSAR                 1           
+ 427  PT07                 1           
+ 428  PTBB 14234M001       0    IGS14  
+ 429  PTKG 12664M001       1    A      
+ 430  PULK 12305M001       0    IGS14  
+ 431  PUYV 10065M001       0    IGS14  
+ 432  PVOG                 1           
+ 433  PYL2                 1           
+ 434  PYLO 12637M001       1    A      
+ 435  QAQ1 43007M001       0    IGS14  
+ 436  QIKI 40166M001       0    IGS14  
+ 437  QUIN 40433M004       0    IGS14  
+ 438  RABT 35001M002       0    IGS14  
+ 439  RAMO 20703S001       0    IGS14  
+ 440  RANT 10914M001       0    IGS14  
+ 441  RCMN 33203M001       0    IGS14  
+ 442  RECF 41617M001       0    IGS14  
+ 443  REDU 13102M001       0    IGS14  
+ 444  REDZ 12227M001       0    IGS14  
+ 445  RESO 40149M001       0    IGS14  
+ 446  RETS                 1           
+ 447  REUN 97401M003       0    IGS14  
+ 448  RGNI                 1           
+ 449  RIGA 12302M002       0    IGS14  
+ 450  RIO1 13448M002       0    IGS14  
+ 451  RIO2 41507M006       0    IGS14  
+ 452  RIOG 41507M004       0    IGS14  
+ 453  RLSO 12629M001       1    A      
+ 454  ROD3                 1           
+ 455  ROVE 12774M001       0    IGS14  
+ 456  SALA 13469M001       0    IGS14  
+ 457  SALU 41640M001       0    IGS14  
+ 458  SAN2                 1           
+ 459  SANT 41705M003       0    IGS14  
+ 460  SASS 14281M001       0    IGS14  
+ 461  SAVO 41643M001       0    IGS14  
+ 462  SBG2 11031M002       0    IGS14  
+ 463  SCH2 40133M002       0    IGS14  
+ 464  SCOA 10088M002       0    IGS14  
+ 465  SCOR 43006M002       0    IGS14  
+ 466  SCUB 40701M001       0    IGS14  
+ 467  SFER 13402M004       0    IGS14  
+ 468  SHAO 21605M002       0    IGS14  
+ 469  SHOE 19197M001       0    IGS14  
+ 470  SIVA                 1           
+ 471  SJDV 10090M001       0    IGS14  
+ 472  SKE0 10426M001       0    IGS14  
+ 473  SKE8 10426M002       0    IGS14  
+ 474  SKYR 12638M001       1           
+ 475  SMID 10114M001       0    IGS14  
+ 476  SMNE 10001M007       0    IGS14  
+ 477  SNEO 19135M002       0    IGS14  
+ 478  SNT2                 1           
+ 479  SNTR                 1           
+ 480  SODA 10513M001       1           
+ 481  SOFI 11101M002       0    IGS14  
+ 482  SONS 13446M001       0    IGS14  
+ 483  SPAN 12628M001       1    A      
+ 484  SPRN 11227M001       0    IGS14  
+ 485  SPRT                 1           
+ 486  SPT0 10425M001       0    IGS14  
+ 487  SRJV 11801S001       0    IGS14  
+ 488  STAS 10330M001       0    IGS14  
+ 489  STEF 12639M001       1           
+ 490  STHL 30606M003       0    IGS14  
+ 491  STJO 40101M001       0    IGS14  
+ 492  STRF 18452M001       1           
+ 493  SULD 10113M001       0    IGS14  
+ 494  SULP 12366M001       0    IGS14  
+ 495  SUN6 10440M002       0    IGS14  
+ 496  SUR4 10601M002       0    IGS14  
+ 497  SUTH 30314M002       0    IGS14  
+ 498  SUTM 30314M004       0    IGS14  
+ 499  SUTV 30314M002       0    IGS14  
+ 500  SUUR 10601M001       0    IGS14  
+ 501  SUWN 23903M001       0    IGS14  
+ 502  SVE6 10441M002       0    IGS14  
+ 503  SVTL 12350M001       0    IGS14  
+ 504  SWAS 19193M001       0    IGS14  
+ 505  SWKI 12228M001       0    IGS14  
+ 506  SYDN 50124M003       0    IGS14  
+ 507  SYOG 66006S002       0    IGS14  
+ 508  TAEJ 23902M001       0    IGS14  
+ 509  TAH1 92201S011       0    IGS14  
+ 510  TAH2 92201S011       0    IGS14  
+ 511  TASH 12327M001       0    IGS14  
+ 512  TCMS 23604S002       0    IGS14  
+ 513  TEHN 20404M002       0    IGS14  
+ 514  TEIS                 1           
+ 515  TERS 13534M001       0    IGS14  
+ 516  THIR 12640M001       1           
+ 517  THTI 92201M009       0    IGS14  
+ 518  THU2 43001M002       0    IGS14  
+ 519  THU3 43001M002       0    IGS14  
+ 520  TID1 50103M108       0    IGS14  
+ 521  TID2 50103M108       0    IGS14  
+ 522  TIDB 50103M108       0    IGS14  
+ 523  TILO                 1           
+ 524  TIXG 12360M001       0    IGS14  
+ 525  TIXI 12360M001       0    IGS14  
+ 526  TLLG 13630M001       0    IGS14  
+ 527  TLMF 10003M010       0    IGS14  
+ 528  TLSE 10003M009       0    IGS14  
+ 529  TNML 23604S001       0    IGS14  
+ 530  TOIL 10605S001       0    IGS14  
+ 531  TOR2 10602M001       0    IGS14  
+ 532  TORI 12724M002       0    IGS14  
+ 533  TOUL 10003M004       0    IGS14  
+ 534  TOW2 50140M001       0    IGS14  
+ 535  TRAB 20808M001       0    IGS14  
+ 536  TRDS 10331M001       0    IGS14  
+ 537  TRIZ                 1           
+ 538  TRO1 10302M006       0    IGS14  
+ 539  TROM 10302M003       0    IGS14  
+ 540  TUBO 11503M001       0    IGS14  
+ 541  TUC2 12617M003       0    IGS14  
+ 542  TUVA 51101M001       0    IGS14  
+ 543  UCAG 12702M003       0    IGS14  
+ 544  UFPR 41610M002       0    IGS14  
+ 545  UME6 10442M002       0    IGS14  
+ 546  UNB3 40146M002       0    IGS14  
+ 547  UNBJ 40146M002       0    IGS14  
+ 548  UNBN 40146M002       0    IGS14  
+ 549  UNBT 40146M002       0    IGS14  
+ 550  UNPG 12752M001       0    IGS14  
+ 551  UNSA 41514M001       0    IGS14  
+ 552  USAL 19527M001       0    IGS14  
+ 553  USDL 12229M001       0    IGS14  
+ 554  USN3 40451S007       0    IGS14  
+ 555  USN4 40451S007       0    IGS14  
+ 556  USN5 40451S007       0    IGS14  
+ 557  USNO 40451S003       0    IGS14  
+ 558  UZHL 12301M001       0    IGS14  
+ 559  VAAS 10511M001       0    IGS14  
+ 560  VACO 11516M001       0    IGS14  
+ 561  VACS 39003M001       0    IGS14  
+ 562  VAE6 10443M002       0    IGS14  
+ 563  VALA 13463M002       0    IGS14  
+ 564  VALE 13439M001       0    IGS14  
+ 565  VALY                 1           
+ 566  VAM1                 1           
+ 567  VARD 10322M002       0    IGS14  
+ 568  VASS                 1           
+ 569  VEN1 19513M001       0    IGS14  
+ 570  VESL 66009M001       0    IGS14  
+ 571  VFCH 10046M001       0    IGS14  
+ 572  VIGO 13450M001       0    IGS14  
+ 573  VIL0 10424M001       0    IGS14  
+ 574  VIL6 10424M002       0    IGS14  
+ 575  VILL 13406M001       0    IGS14  
+ 576  VIR2 10522M002       0    IGS14  
+ 577  VIS0 10423M001       0    IGS14  
+ 578  VIS6 10423M002       0    IGS14  
+ 579  VLIS 13538M001       0    IGS14  
+ 580  VLNS 10801M001       0    IGS14  
+ 581  VLSM 12625M001       1    A      
+ 582  VNDP 40420M007       0    IGS14  
+ 583  VOLI 12641M001       1           
+ 584  WARE 13114M001       0    IGS14  
+ 585  WARN 14277M002       0    IGS14  
+ 586  WES2 40440S020       0    IGS14  
+ 587  WHIT 40136M001       0    IGS14  
+ 588  WILL 40134M001       0    IGS14  
+ 589  WIND 31101M001       0    IGS14  
+ 590  WROC 12217M001       0    IGS14  
+ 591  WSRT 13506M005       0    IGS14  
+ 592  WTZR 14201M010       0    IGS14  
+ 593  WUHN 21602M001       0    IGS14  
+ 594  XMIS 50183M001       0    IGS14  
+ 595  XRSO                 1           
+ 596  YAKT 12353M002       0    IGS14  
+ 597  YAR1 50107M004       0    IGS14  
+ 598  YAR2 50107M004       0    IGS14  
+ 599  YEBE 13420M001       0    IGS14  
+ 600  YELL 40127M003       0    IGS14  
+ 601  YIBL 25001M001       0    IGS14  
+ 602  YSSK 12329M003       0    IGS14  
+ 603  ZADA 11905M001       0    IGS14  
+ 604  ZAMB 34601M001       0    IGS14  
+ 605  ZARA 13462M001       0    IGS14  
+ 606  ZECK 12351M001       0    IGS14  
+ 607  ZIM2 14001M008       0    IGS14  
+ 608  ZIM3 14001M008       0    IGS14  
+ 609  ZIMM 14001M004       0    IGS14  
+ 610  ZKRO                 1           
+ 611  ZOTI                 1           
+ 612  ZOUF 12763M001       0    IGS14  
+ ----------------------------------------
+
+
+
+
+-----------------------------------------------------------------
+>>> CPU/Real time for pgm "CRDMERGE": 0:00:00.035 / 0:00:00.035
+>>> Program finished successfully
+

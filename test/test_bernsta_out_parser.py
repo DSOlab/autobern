@@ -8,12 +8,13 @@ import re
 import argparse
 import datetime
 from shutil import copyfileobj
-import pybern.products.bernparsers.bernsta as bsta
+import pybern.products.bernparsers.bern_out_parse as bparse
 
 if len(sys.argv) != 2:
-    print('[ERROR] Need to provide a .STA file')
+    print('[ERROR] Need to provide a .OUT file')
     sys.exit(1)
 
-stafn = sys.argv[1]
-sta = bsta.BernSta(stafn)
-sta.parse()
+bout = sys.argv[1]
+with open(bout, 'r') as f:
+    dct = bparse.parse_generic_out_header(f)
+print(dct)
