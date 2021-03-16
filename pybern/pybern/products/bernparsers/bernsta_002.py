@@ -49,12 +49,13 @@ class Type002Record:
                 '[ERROR] Type002Record::init_from_line Failed to parse station name'
             )
         try:
-            self.flag = int(self.flag.lstrip('0'))
+            self.flag = int(self.flag)
         except:
             raise FileFormatError(
                 FILE_FORMAT, line,
                 '[ERROR] Type002Record::init_from_line Failed to parse station flag'
             )
+        """
         for cmp in zip(['north', 'east', 'up'],
                        [self.north, self.east, self.up]):
             try:
@@ -63,7 +64,16 @@ class Type002Record:
                 raise FileFormatError(
                     FILE_FORMAT, line,
                     '[ERROR] Type002Record::init_from_line Failed to parse {:}'.
-                    fotmat(cmp[0]))
+                    format(cmp[0]))
+        """
+        for k in [self.north, self.east, self.up]:
+            try:
+                k = float(k)
+            except:
+                raise FileFormatError(
+                    FILE_FORMAT, line,
+                    '[ERROR] Type002Record::init_from_line Failed to parse {:}'.
+                    format(' '.join([self.north, self.east, self.up])))
         ## resolve the start date (or set to min if empty)
         t_str = line[27:46].strip()
         if len(t_str) == 0:

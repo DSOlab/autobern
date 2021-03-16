@@ -104,7 +104,7 @@ def http_retrieve(url, filename=None, **kwargs):
         saveas = os.path.join(kwargs['save_dir'], saveas)
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
-    
+
     use_credentials = False
     if set(['username', 'password']).intersection(set(kwargs)):
         use_credentials = True
@@ -114,7 +114,7 @@ def http_retrieve(url, filename=None, **kwargs):
     target = '{:}/{:}'.format(url, filename)
 
     status = 0
-    if not use_credentials: ## download with no credentials
+    if not use_credentials:  ## download with no credentials
         try:
             if sys.version_info.major == 2:
                 response = urllib2.urlopen(target)
@@ -127,14 +127,15 @@ def http_retrieve(url, filename=None, **kwargs):
                 status += 1
         except:
             status = 1
-    else: ## download with credentials (not sure if this works for python 2)
+    else:  ## download with credentials (not sure if this works for python 2)
         try:
             with requests.get(target, auth=(username, password)) as r:
                 r.raise_for_status()
                 with open(saveas, 'wb') as f:
                     #shutil.copyfileobj(r.raw, f)
                     f.write(r.content)
-                if not os.path.isfile(saveas): status += 1
+                if not os.path.isfile(saveas):
+                    status += 1
         except:
             status = 1
 

@@ -3,7 +3,12 @@
 
 from __future__ import print_function
 import datetime
+import os, sys
 from pybern.products.errors.errors import FileFormatError, ArgumentError
+utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
+             '/utils/')
+sys.path.append(utils_dir)
+from dateutils import date_ranges_overlap
 
 MIN_STA_DATE = datetime.datetime.min
 MAX_STA_DATE = datetime.datetime.max
@@ -23,13 +28,39 @@ class Type001Record:
         if line is not None:
             self.init_from_line(line)
 
+    def merge(self, other_rec):
+        """ merge only if:
+        * sta_name is the same,
+        * flag is the same
+        * old_name is the same
+        * dates do not overlap and are continuous
+        remarks are concatenated
+        if self.sta_name == other_rec.sta_name and self.flag == other_rec.flag and self.old_name == other_rec.old_name:
+            first, last = (
+                self,
+                other_rec) if self.start_date < other_rec.start_date else (
+                    other_rec, self)
+            if not date_ranges_overlap(self.start_date, self.stop_date,
+                                       other_rec.start_date,
+                                       other_rec.stop_date):
+                if (first.stop_date - last.start_date).days < 2:
+                    return Type001Record(station=self.sta_name,
+                                         flag=self.flag,
+                                         old_name=self.old_name,
+                                         start=first.start_date,
+                                         end=last.stop_date,
+                                         remark='{:} {:}'.format(
+                                             self.remark, other_rec.remark))
+        return None
+        """
+
     def init_from_args(self, **kwargs):
         self.sta_name = kwargs['station'] if 'station' in kwargs else (' ' * 4)
         self.flag = kwargs['flag'] if 'flag' in kwargs else '1'
         self.old_name = kwargs['old_name'] if 'old_name' in kwargs else (' ' *
                                                                          4)
-        self.start_date = kwargs['from'] if 'from' in kwargs else MIN_STA_DATE
-        self.stop_date = kwargs['to'] if 'to' in kwargs else MAX_STA_DATE
+        self.start_date = kwargs['start'] if 'start' in kwargs else MIN_STA_DATE
+        self.stop_date = kwargs['end'] if 'end' in kwargs else MAX_STA_DATE
         self.remark = kwargs['remark'] if 'remark' in kwargs else ''
         if len(self.sta_name) < 4:
             raise ArgumentError(
@@ -40,9 +71,9 @@ class Type001Record:
                 '[ERROR] Type001Record::init_from_args Failed to parse station old name',
                 'old_name')
         try:
-            self.flag = int(self.flag.lstrip('0'))
+            self.flag = int(self.flag)
         except:
-            raise ArgumenttError(
+            raise ArgumentError(
                 '[ERROR] Type001Record::init_from_args Failed to parse flag',
                 'flag')
 
@@ -114,7 +145,7 @@ class Type001Record:
             t_start = self.start_date.strftime('%Y %m %d %H %M %S')
         if self.stop_date != MAX_STA_DATE:
             t_stop = self.stop_date.strftime('%Y %m %d %H %M %S')
-        return '{:-16s}      {:03d}  {:}  {:}  {:-20s}  {:}'.format(
+        return '{:<16s}      {:03d}  {:}  {:}  {:<20s}  {:}'.format(
             self.sta_name, self.flag, t_start, t_stop, self.old_name,
             self.remark)
 
