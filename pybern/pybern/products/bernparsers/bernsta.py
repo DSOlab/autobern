@@ -16,7 +16,6 @@ else:
     from .bernsta_002 import Type002Record
     from .bernsta_003 import Type003Record
     from .bernsta_station import StationRecord
-
 '''
 STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           16-JAN-21 13:11
 --------------------------------------------------------------------------------
@@ -144,7 +143,9 @@ class BernSta:
                         '[ERROR] BernSta::__parse_block_002 Station {:} has Type 002 record but not included in Type 001'
                         .format(new_rec.sta_name))
                 else:
-                    print('[WRNNG] BernSta::__parse_block_002 Station {:} has Type 002 record but not included in Type 001'.format(new_rec.sta_name))
+                    print(
+                        '[WRNNG] BernSta::__parse_block_002 Station {:} has Type 002 record but not included in Type 001'
+                        .format(new_rec.sta_name))
                     print('        Record will be skipped!')
             else:
                 if 'type002' in self.dct[new_rec.sta_name]:
@@ -178,7 +179,7 @@ class BernSta:
             )
         line = stream.readline()
         if not line.startswith(
-             '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ***********************************************************'
+                '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ***********************************************************'
         ):
             raise FileFormatError(
                 FILE_FORMAT, line,
@@ -193,7 +194,8 @@ class BernSta:
                         '[ERROR] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
                         .format(new_rec.sta_name))
                 else:
-                    print('[WRNNG] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
+                    print(
+                        '[WRNNG] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
                         .format(new_rec.sta_name))
                     print('        Record will be skipped!')
             else:

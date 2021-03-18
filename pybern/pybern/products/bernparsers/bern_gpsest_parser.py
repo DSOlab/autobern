@@ -8,6 +8,7 @@ from pybern.products.errors.errors import FileFormatError
 
 FILE_FORMAT = 'GPSEST .OUT (Bernese v5.2)'
 
+
 def parse_observation_files(istream, campaign_name, idx=1):
     search_str = '{:d}. OBSERVATION FILES'.format(idx)
     dct = {}
@@ -80,67 +81,87 @@ def parse_observation_files(istream, campaign_name, idx=1):
     if not line.lstrip().startswith(search_str):
         raise FileFormatError(
             FILE_FORMAT, line,
-            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''.format(search_str)
-        )
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''
+            .format(search_str))
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
+    assert (line.lstrip().startswith('------------'))
     line = istream.readline()
-    assert(line.lstrip().startswith(campaign_name))
+    assert (line.lstrip().startswith(campaign_name))
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
     line = istream.readline()
-    assert(line.lstrip().startswith('MAIN CHARACTERISTICS:'))
+    assert (line.lstrip().startswith('MAIN CHARACTERISTICS:'))
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
     line = istream.readline()
-    assert(line.lstrip().startswith('FILE  OBSERVATION FILE HEADER          OBSERVATION FILE                  SESS     RECEIVER 1            RECEIVER 2'))
-    assert(['O', 'O', 'S', 'R', 'R'] == [line[x] for x in [8, 41, 75, 84, 106]])
+    assert (line.lstrip().startswith(
+        'FILE  OBSERVATION FILE HEADER          OBSERVATION FILE                  SESS     RECEIVER 1            RECEIVER 2'
+    ))
+    assert (['O', 'O', 'S', 'R',
+             'R'] == [line[x] for x in [7, 40, 74, 83, 105]])
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
     line = istream.readline()
-    while len(line)>106 and not line.lstrip().startswith('AMB.'):
-        file_index = int(line[0:8)
+    while len(line) > 106 and not line.lstrip().startswith('AMB.'):
+        file_index = int(line[0:7])
         dct[file_index] = {}
-        dct[file_index]['observation_file_header'] = line[8:41].strip()
-        dct[file_index]['observation_file'] = line[41:75].strip()
-        dct[file_index]['sess'] = line[75:84].strip()
-        dct[file_index]['receiver_1'] = line[84:106].strip()
-        dct[file_index]['receiver_2'] = line[106:].strip()
+        dct[file_index]['observation_file_header'] = line[7:40].strip()
+        dct[file_index]['observation_file'] = line[40:74].strip()
+        dct[file_index]['sess'] = line[74:83].strip()
+        dct[file_index]['receiver_1'] = line[83:105].strip()
+        dct[file_index]['receiver_2'] = line[105:].strip()
         line = istream.readline()
     if not line.lstrip().startswith('AMB.I.+S.      #CLUSTERS'):
         while line and not line.lstrip().startswith('AMB.I.+S.      #CLUSTERS'):
             line = istream.readline()
-    assert(line.lstrip().startswith('AMB.I.+S.      #CLUSTERS'))
+    assert (line.lstrip().startswith('AMB.I.+S.      #CLUSTERS'))
     line = istream.readline()
-    assert(line.lstrip().startswith('FILE TYP FREQ.  STATION 1        STATION 2        SESS  FIRST OBSERV.TIME  #EPO  DT #EF #CLK ARC #SAT  W 12    #AMB  L1  L2  L5  RM'))
-    assert(['T', 'F', 'S', 'S', 'S','F', '#', 'D', '#', '#', 'A', '#', 'W', '1' '#', 'L', 'L', 'L'] = [line[x] for x in [7,11,18,35,52,58,77,83,86,90,95,99,105,107,113,119,123,127]])
+    assert (line.lstrip().startswith(
+        'FILE TYP FREQ.  STATION 1        STATION 2        SESS  FIRST OBSERV.TIME  #EPO  DT #EF #CLK ARC #SAT  W 12    #AMB  L1  L2  L5  RM'
+    ))
+    assert ([
+        'T', 'F', 'S', 'S', 'S', 'F', '#', 'D', '#', '#', 'A', '#', 'W', '1',
+        '#', 'L', 'L', 'L'
+    ] == [
+        line[x] for x in [
+            6, 10, 17, 34, 51, 57, 76, 82, 85, 89, 94, 98, 104, 106, 112, 118,
+            122, 126
+        ]
+    ])
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
-    line = istream.readline() ## empty line
-    while len(line)>=127:
-        file_index = int(line[0:8)
-        assert(file_index in dct)
-        dct[file_index]['typ'] = line[7:11].strip()
-        dct[file_index]['freq'] = line[11:18].strip()
-        dct[file_index]['station_1'] = line[18:35].strip()
-        dct[file_index]['station_2'] = line[35:52].strip()
-        assert(dct[file_index]['sess'] == line[52:58].strip())
-        dct[file_index]['first_obs'] = datetime.datetime.strptime(line[58:77].strip(), '%y-%m-%d %H:M:S')
-        dct[file_index]['epo'] = int(line[77-1:83].strip())
-        dct[file_index]['dt'] = int(line[83-1:86].strip())
-        dct[file_index]['ef'] = int(line[86:90].strip())
-        dct[file_index]['clk'] = line[90:95].strip()
-        dct[file_index]['arc'] = int(line[95:99].strip())
-        dct[file_index]['sat'] = int(line[99:105].strip())
-        dct[file_index]['amb'] = int(line[113:119].strip())
-        dct[file_index]['l1'], dct[file_index]['l2'], dct[file_index]['l5'], _ = [ int(x) for x in line[119-1:].split() ]
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()
+    while len(line) >= 120:
+        file_index = int(line[0:6])
+        assert (file_index in dct)
+        dct[file_index]['typ'] = line[6:10].strip()
+        dct[file_index]['freq'] = line[10:17].strip()
+        dct[file_index]['station_1'] = line[17:34].strip()
+        dct[file_index]['station_2'] = line[34:51].strip()
+        assert (dct[file_index]['sess'] == line[51:57].strip())
+        dct[file_index]['first_obs'] = datetime.datetime.strptime(
+            ' '.join(line[57:76].strip().split()), '%y-%m-%d %H:%M:%S')
+
+        dct[file_index]['epo'] = int(line[76 - 1:82].strip())
+        dct[file_index]['dt'] = int(line[82 - 1:85].strip())
+        dct[file_index]['ef'] = int(line[85:89].strip())
+        dct[file_index]['clk'] = line[89:94].strip()
+        dct[file_index]['arc'] = int(line[94:98].strip())
+        dct[file_index]['sat'] = int(line[98:104].strip())
+        dct[file_index]['amb'] = int(line[112-1:117].strip())
+        dct[file_index]['l1'], dct[file_index]['l2'], dct[file_index][
+            'l5'], _ = [int(x) for x in line[118 - 1:].split()]
+        ## some further checks ....
+        [ line[75:].split() ] == [ ['epo', 'dt', 'ef', 'clk', 'arc', 'sat', 'amb', 'l1', 'l2', 'l5']
         line = istream.readline()
+    return dct
 
 
 def parse_campaigns(istream, idx=1):
@@ -166,29 +187,35 @@ def parse_campaigns(istream, idx=1):
     if not line.lstrip().startswith(search_str):
         raise FileFormatError(
             FILE_FORMAT, line,
-            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''.format(search_str)
-        )
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''
+            .format(search_str))
     line = istream.readline()
-    assert(line.lstrip().startswith('------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
     line = istream.readline()
-    assert(line.lstrip().startswith('CAMPAIGN NAME'))
+    assert (line.lstrip().startswith('CAMPAIGN NAME'))
     ## how many columns? (aka NUM STATION NAME)
     cols = line.lstrip().count('NUM', len('CAMPAIGN NAME'))
-    assert(cols == line.lstrip().count('STATION', len('CAMPAIGN NAME')))
-    assert(cols == line.lstrip().count('NAME', len('CAMPAIGN NAME')))
+    assert (cols == line.lstrip().count('STATION', len('CAMPAIGN NAME')))
+    assert (cols == line.lstrip().count('NAME', len('CAMPAIGN NAME')))
     line = istream.readline()
-    assert(line.lstrip().startswith('-----------------------------------'))
-    line = istream.readline() ## empty line
-    line = istream.readline() ## first record line
+    assert (line.lstrip().startswith('-----------------------------------'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()  ## first record line
     dct['campaign'] = line.split(':')[0].strip()
-    start_idx = line.find(':')+1
-    while len(line)>=start_idx:
-        info = [line[start_idx+i*23:23+start_idx+i*23] for i in range(cols) if len(line)>start_idx+i*23+22]
+    start_idx = line.find(':') + 1
+    while len(line) >= start_idx:
+        info = [
+            line[start_idx + i * 23:23 + start_idx + i * 23]
+            for i in range(cols)
+            if len(line) > start_idx + i * 23 + 22
+        ]
         tpls = [(int(x.split()[0]), ' '.join(x.split()[1:])) for x in info]
-        for t in tpls: dct[t[1]] = t[0]
+        for t in tpls:
+            dct[t[1]] = t[0]
         line = istream.readline()
     return dct
+
 
 ## header must have been parsed already
 def parse_gpsest_out(istream):
@@ -221,11 +248,11 @@ def parse_gpsest_out(istream):
             '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'TABLE OF CONTENTS\''
         )
     line = istream.readline()
-    assert(line.lstrip().startswith('-----------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('-----------------'))
+    line = istream.readline()  ## empty line
     dct['table_of_contents'] = {}
     line = istream.readline()
-    while len(line)>5 and len(line.split('.')) >= 2:
+    while len(line) > 5 and len(line.split('.')) >= 2:
         l = line.split('.')
         idx, name = int(l[0]), '_'.join(l[1:]).strip().replace(' ', '_').lower()
         dct['table_of_contents'][name] = idx
@@ -252,18 +279,28 @@ def parse_gpsest_out(istream):
             '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'INPUT AND OUTPUT FILENAMES\''
         )
     line = istream.readline()
-    assert(line.lstrip().startswith('--------------------------'))
-    line = istream.readline() ## empty line
+    assert (line.lstrip().startswith('--------------------------'))
+    line = istream.readline()  ## empty line
     line = istream.readline()
-    assert(line.lstrip().startswith('--------------------------------------------------------------------------'))
+    assert (line.lstrip().startswith(
+        '--------------------------------------------------------------------------'
+    ))
     line = istream.readline()
     dct['input_and_output_filenames'] = {}
-    while not line.lstrip().startswith('--------------------------------------------------------------------------'):
-        name, value = [ _.strip() for _ in line.split(':')]
-        dct['input_and_output_filenames'][name.replace(' ', '_').lower()] = value if value != '---' else None
+    while not line.lstrip().startswith(
+            '--------------------------------------------------------------------------'
+    ):
+        name, value = [_.strip() for _ in line.split(':')]
+        dct['input_and_output_filenames'][name.replace(
+            ' ', '_').lower()] = value if value != '---' else None
         line = istream.readline()
     ## parse CAMPAIGNS if in contents
     if 'campaigns' in dct['table_of_contents']:
         chapter = dct['table_of_contents']['campaigns']
         dct['campaigns'] = parse_campaigns(istream, chapter)
+    ## parse OBSERVATION FILES if in contents
+    if 'observation_files' in dct['table_of_contents']:
+        chapter = dct['table_of_contents']['observation_files']
+        dct['observation_files'] = parse_observation_files(
+            istream, dct['campaigns']['campaign'], chapter)
     return dct

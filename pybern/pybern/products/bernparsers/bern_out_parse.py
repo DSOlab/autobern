@@ -5,7 +5,6 @@ from __future__ import print_function
 import os, sys
 import datetime
 from pybern.products.errors.errors import FileFormatError
-
 """
  ===============================================================================
  Bernese GNSS Software, Version 5.2                                             
@@ -20,11 +19,15 @@ from pybern.products.errors.errors import FileFormatError
  ===============================================================================
 
 """
+
+
 def parse_generic_out_header(istream):
     FILE_FORMAT = 'Generic .OUT (Bernese v5.2)'
     dct = {}
     line = istream.readline()
-    while not line.lstrip().startswith('==============================================================================='):
+    while not line.lstrip().startswith(
+            '==============================================================================='
+    ):
         line = istream.readline()
     line = istream.readline()
     if not line.lstrip().startswith('Bernese GNSS Software, Version 5.2'):
@@ -33,7 +36,9 @@ def parse_generic_out_header(istream):
             '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Expected \'Bernese GNSS Software, Version 5.2\''
         )
     line = istream.readline()
-    if not line.lstrip().startswith('-------------------------------------------------------------------------------'):
+    if not line.lstrip().startswith(
+            '-------------------------------------------------------------------------------'
+    ):
         raise FileFormatError(
             FILE_FORMAT, line,
             '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Error (#2)'
@@ -55,7 +60,9 @@ def parse_generic_out_header(istream):
     else:
         dct['purpose'] = line.split(':')[1].strip()
     line = istream.readline()
-    if not line.lstrip().startswith('-------------------------------------------------------------------------------'):
+    if not line.lstrip().startswith(
+            '-------------------------------------------------------------------------------'
+    ):
         raise FileFormatError(
             FILE_FORMAT, line,
             '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Error (#3)'
@@ -84,7 +91,8 @@ def parse_generic_out_header(istream):
             '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Expected Date line'
         )
     else:
-        dct['date'] = datetime.datetime.strptime(' '.join(line.split()[2:4]), '%d-%b-%Y %H:%M:%S')
+        dct['date'] = datetime.datetime.strptime(' '.join(line.split()[2:4]),
+                                                 '%d-%b-%Y %H:%M:%S')
     line = istream.readline()
     if not line.lstrip().startswith('User name'):
         raise FileFormatError(
@@ -94,7 +102,9 @@ def parse_generic_out_header(istream):
     else:
         dct['user'] = line.split(':')[1].strip()
     line = istream.readline()
-    if not line.lstrip().startswith('==============================================================================='):
+    if not line.lstrip().startswith(
+            '==============================================================================='
+    ):
         raise FileFormatError(
             FILE_FORMAT, line,
             '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Error (#4)'
