@@ -13,6 +13,8 @@ def parse_observation_files(istream, campaign_name, idx=1):
     search_str = '{:d}. OBSERVATION FILES'.format(idx)
     dct = {}
     line = istream.readline()
+    file_index_list = []
+    tmp_index_list = []
     """
      2. OBSERVATION FILES
      --------------------
@@ -116,6 +118,7 @@ def parse_observation_files(istream, campaign_name, idx=1):
         dct[file_index]['sess'] = line[74:83].strip()
         dct[file_index]['receiver_1'] = line[83:105].strip()
         dct[file_index]['receiver_2'] = line[105:].strip()
+        file_index_list.append(file_index)
         line = istream.readline()
     if not line.lstrip().startswith('AMB.I.+S.      #CLUSTERS'):
         while line and not line.lstrip().startswith('AMB.I.+S.      #CLUSTERS'):
@@ -138,8 +141,14 @@ def parse_observation_files(istream, campaign_name, idx=1):
     assert (line.lstrip().startswith('------------'))
     line = istream.readline()  ## empty line
     line = istream.readline()
+    tmp_index_list = []
     while len(line) >= 120:
         file_index = int(line[0:6])
+        if file_index not in dct:
+            raise FileFormatError(
+                FILE_FORMAT, line,
+                '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; File index \'{:}\' does not match (#2)'
+                .format(file_index))
         assert (file_index in dct)
         dct[file_index]['typ'] = line[6:10].strip()
         dct[file_index]['freq'] = line[10:17].strip()
@@ -157,9 +166,65 @@ def parse_observation_files(istream, campaign_name, idx=1):
         dct[file_index]['sat'] = int(line[98:104].strip())
         dct[file_index]['amb'] = int(line[112-1:117].strip())
         dct[file_index]['l1'], dct[file_index]['l2'], dct[file_index][
-            'l5'], _ = [int(x) for x in line[118 - 1:].split()]
+            'l5'], dct[file_index]['rm'] = [int(x) for x in line[118 - 1:].split()]
         ## some further checks ....
-        [ line[75:].split() ] == [ ['epo', 'dt', 'ef', 'clk', 'arc', 'sat', 'amb', 'l1', 'l2', 'l5']
+        ## This whole mess happens for two reasons:
+        ## 1. First, we do not parse values for 'AMB.I.+S.' cause i don't know 
+        ##    what that is.
+        ## 2. Second, the value in the '#CLK' column can contain whitespace 
+        ##    characters; actually, it is usually something like 'E E'.
+        assert([val.replace('_',' ') for val in ' '.join([line[75:90],line[90:94].strip().replace(' ','_'),line[94:104],line[112:]]).split()] == [ str(dct[file_index][key]) for key in ['epo', 'dt', 'ef', 'clk', 'arc', 'sat', 'amb', 'l1', 'l2', 'l5', 'rm'] ])
+        tmp_index_list.append(file_index)
+        line = istream.readline()
+    ## should have parsed all file indexes ....
+    if file_index_list != tmp_index_list:
+        raise FileFormatError(
+            FILE_FORMAT, line,
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; File index mismatch (#2)'
+            .format(file_index))
+    line = istream.readline()
+    if not line.lstrip().startswith('SATELLITES:'):
+        while line and not line.lstrip().startswith('SATELLITES:'):
+            line = istream.readline()
+    assert (line.lstrip().startswith('SATELLITES:'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('----------'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()
+    assert (line.lstrip().startswith('FILE  #SAT  SATELLITES'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('------------'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()
+    cur_file_idx = -1
+    tmp_index_list = []
+    while len(line)>15:
+        if line[0:13].strip() != '':
+            cur_file_idx, num_sats = [int(x) for x in line[0:13].split()]
+            dct[cur_file_idx]['sats'] = [int(sv) for sv in line[13:].split()]
+            tmp_index_list.append(cur_file_idx)
+        else:
+            dct[cur_file_idx]['sats'] += [int(sv) for sv in line[13:].split()]
+        line = istream.readline()
+    ## should have parsed all file indexes ....
+    if file_index_list != tmp_index_list:
+        raise FileFormatError(
+            FILE_FORMAT, line,
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; File index mismatch (#3)'
+            .format(file_index))
+    if not line.lstrip().startswith('OBSERVATION SELECTION:'):
+        while line and not line.lstrip().startswith('OBSERVATION SELECTION:'):
+            line = istream.readline()
+    assert (line.lstrip().startswith('OBSERVATION SELECTION:'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('----------'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()
+    dct['observation_selection'] = {}
+    while len(line)>50 and line.find(':')>0:
+        cols = [ x.strip() for x in line.split(':')]
+        assert(len(cols)==2)
+        dct['observation_selection'][cols[0].replace(' ','_').lower()] = cols[1]
         line = istream.readline()
     return dct
 
