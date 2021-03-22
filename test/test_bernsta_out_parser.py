@@ -20,6 +20,11 @@ bout = sys.argv[1]
 with open(bout, 'r') as f:
     dct = bparse.parse_generic_out_header(f)
     if dct['program'] == 'GPSEST':
+        #try:
         full_dct = bgpsest.parse_gpsest_out(f)
-        print(json.dumps(full_dct, indent=4, default=str))
+        #print(json.dumps(full_dct, indent=4, default=str))
+        #except Exception as e:
+        #  print('OOPS! exception thrown!')
+        #  print(e)
+
 print(dct)

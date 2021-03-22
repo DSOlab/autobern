@@ -14,6 +14,7 @@ else:
     from .bernsta_001 import Type001Record as Type001Record
     from .bernsta_002 import Type002Record as Type002Record
     from .bernsta_003 import Type003Record as Type003Record
+
 utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
              '/utils/')
 sys.path.append(utils_dir)

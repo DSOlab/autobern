@@ -9,6 +9,180 @@ from pybern.products.errors.errors import FileFormatError
 FILE_FORMAT = 'GPSEST .OUT (Bernese v5.2)'
 
 
+def parse_stations(istream, campaign_dict=None, idx=1):
+    search_str = '{:d}. STATIONS'.format(idx)
+    dct = {}
+    line = istream.readline()
+    station_index_list = []
+    tmp_index_list = []
+    """
+    campaign_dict example:
+    {'campaign': 'GREECE', 'ANIK 12666M001': 40, 'PTKG 12664M001': 429, 'PYLO 12637M001': 434,...}
+    """
+    """
+     4. STATIONS
+     -----------
+
+     Local geodetic datum:                      ${X}/GEN/DATUM.
+     
+     Datum name         Ell. param./ Scale      Shifts to WGS-84       Rotations to WGS-84
+     -----------------------------------------------------------------------------------------------------------------------------------
+     IGS14              A  =  6378137.000 m     DX =      0.0000 m     RX =     0.00000 arcsec
+                        1/F=  298.2572221       DY =      0.0000 m     RY =     0.00000 arcsec
+                        SC =  0.00000D+00       DZ =      0.0000 m     RZ =     0.00000 arcsec
+
+
+     A priori station coordinates:              ${P}/GREECE/STA/DSP210630.CRD
+
+                                                A priori station coordinates                 A priori station coordinates
+                                                          IGS14                          Ellipsoidal in local geodetic datum
+    ------------------------------------------------------------------------------------------------------------------------------------
+     num  Station name     obs e/f/h        X (m)           Y (m)           Z (m)        Latitude       Longitude    Height (m)
+    ------------------------------------------------------------------------------------------------------------------------------------
+      40  ANIK 12666M001    Y  ESTIM   4729934.24724   1938158.24406   3801984.49618     36.8260208     22.2820675     47.75303
+     429  PTKG 12664M001    Y  ESTIM   4747739.79162   1965562.83418   3766013.03968     36.4212591     22.4895401    178.38963
+     434  PYLO 12637M001    Y  ESTIM   4744074.20190   1887446.29485   3809805.54744     36.9141724     21.6953068     39.26566
+      42  ANKY 18594M001    Y  ESTIM   4752742.59963   2046958.05616   3716342.57387     35.8669631     23.3010547    176.22475
+     
+     A priori sigma:                            
+
+                                Station coordinates a priori sigma
+                                     in local geodetic datum
+     -----------------------------------------------------------------------------------------------------------------------------------
+     num  Station name          N (m)        E (m)        U (m)
+     -----------------------------------------------------------------------------------------------------------------------------------
+      40  ANIK 12666M001        0.10000      0.10000      0.10000
+      41  ANKR 20805M002        0.10000      0.10000      0.10000
+      42  ANKY 18594M001        0.10000      0.10000      0.10000
+    """
+    while line and not line.lstrip().startswith(search_str):
+        line = istream.readline()
+    if not line.lstrip().startswith(search_str):
+        raise FileFormatError(
+            FILE_FORMAT, line,
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''
+            .format(search_str))
+    line = istream.readline()
+    assert (line.lstrip().startswith('-----------'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()
+    ## ignore lines until we entounter: 'A priori station coordinates:'
+    while line and not line.lstrip().startswith(
+            'A priori station coordinates:'):
+        line = istream.readline()
+    if not line.lstrip().startswith('A priori station coordinates:'):
+        raise FileFormatError(
+            FILE_FORMAT, line,
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''
+            .format('A priori station coordinates:'))
+    key, val = line.strip().split(':')
+    dct[key.replace(' ', '_').lower()] = val
+    line = istream.readline()
+    while line and not line.lstrip().startswith(
+            'num  Station name     obs e/f/h        X (m)           Y (m)           Z (m)        Latitude       Longitude    Height (m)'
+    ):
+        line = istream.readline()
+    if not line.lstrip().startswith(
+            'num  Station name     obs e/f/h        X (m)           Y (m)           Z (m)        Latitude       Longitude    Height (m)'
+    ):
+        raise FileFormatError(
+            FILE_FORMAT, line,
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''
+            .format('A priori station coordinates table'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('-----------'))
+    line = istream.readline()
+    while line and len(line) > 115:
+        sta_num, sta_nam = int(line[0:5]), line[5:22].strip()
+        if campaign_dict:
+            if sta_nam not in campaign_dict:
+                raise FileFormatError(
+                    FILE_FORMAT, line,
+                    '[ERROR] parse_gpsest_out Invalid BERNESE GPSEST file; Station {:} found has a-priori coordinates but is not included in CAMPAIGN'
+                    .format(sta_nam))
+            if campaign_dict[sta_nam] != sta_num:
+                raise FileFormatError(
+                    FILE_FORMAT, line,
+                    '[ERROR] parse_gpsest_out Invalid BERNESE GPSEST file; station #{:} differs in CAMPAIGN and STATION ({:} vs {:})'
+                    .format(sta_num, campaign_dict[sta_nam]))
+        tmp_index_list.append(sta_nam)
+        cols = line[22:].split()
+        assert (len(cols) == 8)
+        dct[sta_num] = {
+            'station_name': sta_nam,
+            'obs': cols[0],
+            'e/f/h': cols[1]
+        }
+        for k, v in zip(['X', 'Y', 'Z', 'Latitude', 'Longitude', 'Height'],
+                        [float(c) for c in cols[2:]]):
+            dct[sta_num][k] = v
+        line = istream.readline()
+    if campaign_dict:  ## check
+        for name, index in campaign_dict.items():
+            try:
+                int(index)
+                if name not in tmp_index_list:
+                    raise FileFormatError(
+                        FILE_FORMAT, line,
+                        '[ERROR] parse_gpsest_out Invalid BERNESE GPSEST file; failed to find a-priori coordinates for: {:} {:}'
+                        .format(name, index))
+            except ValueError:  ## int(index)
+                pass
+    while line and not line.lstrip().startswith('A priori sigma:'):
+        line = istream.readline()
+    if not line.lstrip().startswith('A priori sigma:'):
+        raise FileFormatError(
+            FILE_FORMAT, line,
+            '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to find \'{:}\''
+            .format('A priori sigma:'))
+    line = istream.readline()  ## empty line
+    line = istream.readline()
+    assert (line.lstrip().startswith('Station coordinates a priori sigma'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('in local geodetic datum'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('-----------'))
+    line = istream.readline()
+    assert (line.lstrip().startswith(
+        'num  Station name          N (m)        E (m)        U (m)'))
+    line = istream.readline()
+    assert (line.lstrip().startswith('-----------'))
+    line = istream.readline()
+    tmp_index_list = []
+    while line and len(line) > 55:
+        sta_num, sta_nam = int(line[0:5]), line[5:22].strip()
+        if campaign_dict:
+            if sta_nam not in campaign_dict:
+                raise FileFormatError(
+                    FILE_FORMAT, line,
+                    '[ERROR] parse_gpsest_out Invalid BERNESE GPSEST file; Station #{:} aka \'{:}\' found has a-priori sigmas but is not included in CAMPAIGN'
+                    .format(sta_num, sta_nam))
+            if campaign_dict[sta_nam] != sta_num:
+                raise FileFormatError(
+                    FILE_FORMAT, line,
+                    '[ERROR] parse_gpsest_out Invalid BERNESE GPSEST file; station #{:} differes in CAMPAIGN and STATION ({:} vs {:})'
+                    .format(sta_nam, sta_num, campaign_dict[sta_nam]))
+        tmp_index_list.append(sta_nam)
+        cols = line[22:].split()
+        assert (len(cols) == 3)
+        for k, v in zip(['sigmaN', 'sigmaE', 'sigmU'],
+                        [float(c) for c in cols]):
+            dct[sta_num][k] = v
+        line = istream.readline()
+    if campaign_dict:  ## check
+        for name, index in campaign_dict.items():
+            try:
+                int(index)
+                if name not in tmp_index_list:
+                    raise FileFormatError(
+                        FILE_FORMAT, line,
+                        '[ERROR] parse_gpsest_out Invalid BERNESE GPSEST file; failed to find a-priori sigmas for: {:} {:}'
+                        .format(name, index))
+            except ValueError:  ## int(index)
+                pass
+    return dct
+
+
 def parse_observation_files(istream, campaign_name, idx=1):
     search_str = '{:d}. OBSERVATION FILES'.format(idx)
     dct = {}
@@ -164,16 +338,28 @@ def parse_observation_files(istream, campaign_name, idx=1):
         dct[file_index]['clk'] = line[89:94].strip()
         dct[file_index]['arc'] = int(line[94:98].strip())
         dct[file_index]['sat'] = int(line[98:104].strip())
-        dct[file_index]['amb'] = int(line[112-1:117].strip())
+        dct[file_index]['amb'] = int(line[112 - 1:117].strip())
         dct[file_index]['l1'], dct[file_index]['l2'], dct[file_index][
-            'l5'], dct[file_index]['rm'] = [int(x) for x in line[118 - 1:].split()]
+            'l5'], dct[file_index]['rm'] = [
+                int(x) for x in line[118 - 1:].split()
+            ]
         ## some further checks ....
         ## This whole mess happens for two reasons:
-        ## 1. First, we do not parse values for 'AMB.I.+S.' cause i don't know 
+        ## 1. First, we do not parse values for 'AMB.I.+S.' cause i don't know
         ##    what that is.
-        ## 2. Second, the value in the '#CLK' column can contain whitespace 
+        ## 2. Second, the value in the '#CLK' column can contain whitespace
         ##    characters; actually, it is usually something like 'E E'.
-        assert([val.replace('_',' ') for val in ' '.join([line[75:90],line[90:94].strip().replace(' ','_'),line[94:104],line[112:]]).split()] == [ str(dct[file_index][key]) for key in ['epo', 'dt', 'ef', 'clk', 'arc', 'sat', 'amb', 'l1', 'l2', 'l5', 'rm'] ])
+        assert ([
+            val.replace('_', ' ') for val in ' '.join([
+                line[75:90], line[90:94].strip().replace(' ', '_'),
+                line[94:104], line[112:]
+            ]).split()
+        ] == [
+            str(dct[file_index][key]) for key in [
+                'epo', 'dt', 'ef', 'clk', 'arc', 'sat', 'amb', 'l1', 'l2', 'l5',
+                'rm'
+            ]
+        ])
         tmp_index_list.append(file_index)
         line = istream.readline()
     ## should have parsed all file indexes ....
@@ -198,7 +384,7 @@ def parse_observation_files(istream, campaign_name, idx=1):
     line = istream.readline()
     cur_file_idx = -1
     tmp_index_list = []
-    while len(line)>15:
+    while len(line) > 15:
         if line[0:13].strip() != '':
             cur_file_idx, num_sats = [int(x) for x in line[0:13].split()]
             dct[cur_file_idx]['sats'] = [int(sv) for sv in line[13:].split()]
@@ -221,10 +407,11 @@ def parse_observation_files(istream, campaign_name, idx=1):
     line = istream.readline()  ## empty line
     line = istream.readline()
     dct['observation_selection'] = {}
-    while len(line)>50 and line.find(':')>0:
-        cols = [ x.strip() for x in line.split(':')]
-        assert(len(cols)==2)
-        dct['observation_selection'][cols[0].replace(' ','_').lower()] = cols[1]
+    while len(line) > 50 and line.find(':') > 0:
+        cols = [x.strip() for x in line.split(':')]
+        assert (len(cols) == 2)
+        dct['observation_selection'][cols[0].replace(' ',
+                                                     '_').lower()] = cols[1]
         line = istream.readline()
     return dct
 
@@ -368,4 +555,8 @@ def parse_gpsest_out(istream):
         chapter = dct['table_of_contents']['observation_files']
         dct['observation_files'] = parse_observation_files(
             istream, dct['campaigns']['campaign'], chapter)
+    ## parse STATIONS if in contents
+    if 'stations' in dct['table_of_contents']:
+        chapter = dct['table_of_contents']['stations']
+        dct['stations'] = parse_stations(istream, dct['campaigns'], chapter)
     return dct

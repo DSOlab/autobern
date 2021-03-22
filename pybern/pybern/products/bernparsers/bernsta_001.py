@@ -5,6 +5,7 @@ from __future__ import print_function
 import datetime
 import os, sys
 from pybern.products.errors.errors import FileFormatError, ArgumentError
+
 utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
              '/utils/')
 sys.path.append(utils_dir)

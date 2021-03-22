@@ -37,8 +37,9 @@ class ArgumentError(PybernError):
 
 class FileFormatError(PybernError):
 
-    def __init__(self, fileformat, line, message):
-        message = '\n\tFile Format: {:}'.format(fileformat)
+    def __init__(self, fileformat, line, errmsg):
+        message = errmsg
+        message += '\n\tFile Format: {:}'.format(fileformat)
         message += '\n\tError line :\'{:}\''.format(line.strip())
         if version_info.major == 2:
             super(ArgumentError, self).__init__(message)
