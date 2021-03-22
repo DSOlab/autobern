@@ -11,6 +11,7 @@ import json
 from shutil import copyfileobj
 import pybern.products.bernparsers.bern_out_parse as bparse
 import pybern.products.bernparsers.bern_gpsest_parser as bgpsest
+import pybern.products.bernparsers.bern_addneq_parser as baddneq
 
 if len(sys.argv) != 2:
     print('[ERROR] Need to provide a .OUT file')
@@ -26,5 +27,9 @@ with open(bout, 'r') as f:
         #except Exception as e:
         #  print('OOPS! exception thrown!')
         #  print(e)
+    elif dct['program'] == 'ADDNEQ2':
+        #try:
+        full_dct = baddneq.parse_addneq_out(f)
+        print(json.dumps(full_dct, indent=4, default=str))
 
 print(dct)
