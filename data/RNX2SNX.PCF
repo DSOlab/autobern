@@ -1,0 +1,231 @@
+#
+# ============================================================================
+# RNX2SNX.PCF
+# ============================================================================
+#
+# Purpose:      RINEX-TO-SINEX (RNX2SNX): standard double difference
+#               processing for regional networks for static, dual-frequency
+#               stations.
+#
+#               The purpose of this BPE is to compute station coordinates
+#               and troposphere parameters for all included stations in
+#               a given reference frame using the translation conditions
+#               from a minimum constraint solution. In addition normal
+#               equation files are generated.
+#
+# ----------------------------------------------------------------------------
+#
+# A description of the BPE, the use of the BPE server variables, input and
+# output files as well as the important points to be checked in the processing
+# summary are provided in 
+#               ${U}/PCF/RNX2SNX.README    (UNIX/Linux)
+#                %U%\PCF\RNX2SNX.README    (Windows)
+#
+# ----------------------------------------------------------------------------
+#
+# Author     :  R. Dach
+# Created    :  10-Aug-2011               Last modified: 10-Aug-2011
+#
+# Changes    :
+#
+# ============================================================================
+#
+#
+PID SCRIPT   OPT_DIR  CAMPAIGN CPU      F WAIT FOR....
+3** 8******* 8******* 8******* 8******* 1 3** 3** 3** 3** 3** 3** 3** 3** 3** 3**
+#
+# Skip session (reprocessing)
+# ---------------------------
+000 SKIP_SES R2S_GEN           ANY      1
+#
+# Copy required files
+# -------------------
+001 R2S_COP  R2S_GEN           ANY      1 000
+002 ATX2PCV  R2S_GEN           ANY      1 001
+003 COOVEL   R2S_GEN           ANY      1 001
+004 COOVEL   R2S_GE2           ANY      1 001
+005 CRDMERGE R2S_GEN           ANY      1 003 004
+011 RNX_COP  R2S_GEN           ANY      1 001
+021 OBSMRGAP R2S_GEN           ANY      1 011
+022 OBSMRG_P R2S_GEN           ANY      1 021
+031 ION_MRG  R2S_GEN           ANY      1 011
+099 DUMMY    R2S_GEN           ANY      1 002 005 022 031
+#
+# Prepare the pole and orbit information
+# --------------------------------------
+101 POLUPDH  R2S_GEN           ANY      1 001
+111 ORBMRGH  R2S_GEN           ANY      1 001
+112 PRETAB   R2S_GEN           ANY      1 101 111
+113 ORBGENH  R2S_GEN           ANY      1 112
+199 DUMMY    NO_OPT            ANY      1 113
+#
+# Preprocess, convert, and synchronize observation data
+# -----------------------------------------------------
+201 RNXGRA   R2S_GEN           ANY      1 099
+211 RNXSMTAP R2S_GEN           ANY      1 201
+212 RNXSMT_H R2S_GEN           ANY      1 211
+221 RXOBV3AP R2S_GEN           ANY      1 212
+222 RXOBV3_H R2S_GEN           ANY      1 221
+231 CODSPPAP R2S_GEN           ANY      1 199 222
+232 CODSPP_P R2S_GEN           ANY      1 231
+233 CODXTR   R2S_GEN           ANY      1 232
+299 DUMMY    NO_OPT            ANY      1 233
+#
+# Form baselines and pre-process phase data (incl. residual screening)
+# --------------------------------------------------------------------
+301 INIT_BSL R2S_GEN           ANY      1 299
+302 SNGDIF   R2S_GEN           ANY      1 301
+303 SNGDIF   R2S_GE2           ANY      1 302
+311 MAUPRPAP R2S_GEN           ANY      1 302
+312 MAUPRP_P R2S_GEN           ANY      1 311
+313 MPRXTR   R2S_GEN           ANY      1 312
+321 GPSEDTAP R2S_EDT           ANY      1 313
+322 GPSEDT_P R2S_EDT           ANY      1 321
+323 GPSXTR   R2S_EDT           ANY      1 322
+331 RES_SUM  R2S_GEN           ANY      1 322
+341 ADDNEQ2  R2S_GEN           ANY      1 331
+342 GPSXTR   R2S_GEN           ANY      1 341
+399 DUMMY    NO_OPT            ANY      1 303 323 342
+#
+# Resolve phase ambiguities
+# -------------------------
+401 SATMRK   R2S_GEN           ANY      1 399
+411 GNSAMBAP R2S_AMB           ANY      1 401
+412 GNSAMB_P R2S_AMB           ANY      1 411
+421 GNSL53AP R2S_L53           ANY      1 412
+422 GNSL53_P R2S_L53           ANY      1 421
+431 GNSQIFAP R2S_QIF           ANY      1 422
+432 GNSQIF_P R2S_QIF           ANY      1 431
+441 GNSL12AP R2S_L12           ANY      1 432
+442 GNSL12_P R2S_L12           ANY      1 441
+443 AMBXTR   R2S_AMB           ANY      1 442
+499 DUMMY    NO_OPT            ANY      1 443
+#
+# Compute ambiguity-fixed network solution, create final NEQ/SNX/TRO files
+# ------------------------------------------------------------------------
+501 GPSCLUAP R2S_FIN           ANY      1 499
+502 GPSCLU_P R2S_FIN           ANY      1 501
+511 ADDNEQ2  R2S_FIN           ANY      1 502
+512 GPSXTR   R2S_FIN           ANY      1 511
+513 COMPARF  R2S_FIN           ANY      1 511
+514 HELMCHK  R2S_FIN           ANY      1 511
+521 ADDNEQ2  R2S_RED           ANY      1 514
+522 GPSXTR   R2S_RED           ANY      1 521
+599 DUMMY    NO_OPT            ANY      1 512 513 514 522
+#
+# Create summary file and delete files
+# ------------------------------------
+901 R2S_SUM  R2S_GEN           ANY      1 599
+902 R2S_SAV  R2S_GEN           ANY      1 901
+903 OBS_SAV  R2S_GEN           ANY      1 901
+904 R2S_DEL  R2S_GEN           ANY      1 902 903
+991 BPE_CLN  R2S_GEN           ANY      1 904
+#
+# End of BPE
+# ----------
+999 DUMMY    NO_OPT            ANY      1 991
+#
+#
+PID USER         PASSWORD PARAM1   PARAM2   PARAM3   PARAM4   PARAM5   PARAM6   PARAM7   PARAM8   PARAM9
+3** 12********** 8******* 8******* 8******* 8******* 8******* 8******* 8******* 8******* 8******* 8*******
+#
+# Skip session (reprocessing)
+# ---------------------------
+000                       NEXTJOB  999
+#
+# Copy required files
+# -------------------
+011                       NEXTJOB  099      999
+021                       $021
+022                       PARALLEL $021
+#
+# Prepare the orbits
+# ------------------
+# ....
+#
+# Preprocess, convert, and synchronize observation data
+# -----------------------------------------------------
+201                       NEXTJOB  901
+211                       $211
+212                       PARALLEL $211
+221                       $221
+222                       PARALLEL $221
+231                       $231
+232                       PARALLEL $231
+233                       NEXTJOB  901
+#
+# Form baselines and pre-process phase data (incl. residual screening)
+# --------------------------------------------------------------------
+311                       $311
+312                       PARALLEL $311
+313                       NEXTJOB  301      901
+321                       $321     V_C
+322                       PARALLEL $321
+331                       NEXTJOB  301
+#
+# Resolve phase ambiguities
+# -------------------------
+411                       $411
+412                       PARALLEL $411
+421                       $421
+422                       PARALLEL $421
+431                       $431
+432                       PARALLEL $431
+441                       $441
+442                       PARALLEL $441
+#
+# Compute ambiguity-fixed network solution, create final NEQ/SNX/TRO files
+# ------------------------------------------------------------------------
+501                       $501     V_E
+502                       PARALLEL $501
+514                       NEXTJOB  511
+#
+# Create summary file and delete files
+# ------------------------------------
+904                       (10)
+#
+#
+VARIABLE DESCRIPTION                              DEFAULT
+8******* 40************************************** 30****************************
+V_A      A priori information                     APR
+V_B      Orbit/ERP, DCB, CLK information          COD
+V_C      Preliminary (ambiguity-float) results    P1_
+V_E      Final (ambiguity-fixed) results          F1_
+V_F      Size-reduced NEQ information             R1_
+V_RNXDIR Directory with the RINEX files           RINEX
+#V_OBSSEL Station selection file (blank: all)
+V_REFDIR Directory with basic Bernese files       REF52
+V_REFINF Master/reference CRD/VEL filename        IGB08
+V_CRDINF Merged CRD/VEL filename                  EXAMPLE
+V_CRXINF Accepted station inform. inconsistencies
+V_BLQINF BLQ FILE NAME, CMC CORRECTIONS           EXAMPLE
+V_ATLINF ATL FILE NAME, CMC CORRECTIONS           EXAMPLE
+V_SNXINF SINEX header file                        SINEX.RNX2SNX
+V_HOIFIL Ionosphere model for higher order iono   HOI$YSS+0
+##V_RESULT Directory name for the RNX2SNX results   RNX2SNX
+V_SATSYS Select the GNSS (GPS, GPS/GLO)           GPS/GLO
+V_SAMPL  Sampling of the solutions                180
+V_GNSSAR GNSS to be used for ambiguity resolution ALL
+V_BL_AMB Maximum baseline length for MW/L3 AR     6000
+V_BL_QIF Maximum baseline length for QIF AR       2000
+V_BL_L53 Maximum baseline length for L5/L3 AR     200
+V_BL_L12 Maximum baseline length for L1&L2 AR     20
+V_HOURLY Number of hourly sessions proc. together 8
+V_MYATX  ANTEX file for update (name incl. ext)
+V_PCV    Absolute/relative PCV model              I08
+V_SATINF Satellite information file               SATELLIT
+V_PCVINF PCV information file                     PCV
+V_SATCRX Satellite problem file                   SAT_$Y+0
+V_CLU    Maximum number of files per cluster      7
+V_CLUEDT Same as V_CLU but for GPSEDT             5
+V_CLUFIN N: skip A: auto clustering in GPSCLU     A
+V_MINUS  Session range begin (for COMPAR)         -6
+V_PLUS   Session range end                        +0
+V_SKIP   PRC file: indicator to repeat the sess.  R2S$YSS+0.PRC_
+V_SAVOBS Save observation files?                  Y
+V_SAV    Save results?                            Y
+V_DEL    Delete results?                          Y
+#
+# DO NOT USE V_D, V_J, V_M, V_Y VARIABLES!
+# (they are used already by the menu)
+#
