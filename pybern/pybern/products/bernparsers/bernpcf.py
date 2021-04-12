@@ -129,12 +129,36 @@ class PcfFile:
         else:
             raise RuntimeError('[ERROR] Cannot set/update variable!')
 
-    """
+    def collect_variables(self):
+        idx = self.find_variable_header_line() + 2
+        var_dct = {}
+        for line in self.pcf_lines[idx:]:
+            if not line.lstrip().startswith('#'):
+                var_name, var_comment, var_value = [ x.strip() for x in [line[0:8], line[9:40 + 9], line[40 + 9 + 1:]]]
+                if var_name in var_dct:
+                    raise RuntimeError('[ERROR] Variable found more than once in PCF file; variable name: \'{:}\''.format(var_name))
+                var_dct[var_name] = {'description': var_comment, 'value': var_value}
+        return var_dct
+        
     def check_variables_are_unique(self):
-        #TODO
-    """
+        try:
+            self.collect_variables()
+        except:
+            return False
+        return True 
+
+    def assert_variables(self, var_list, var_vals):
+        assert(len(var_list) == len(var_vals))
+        var_dct = self.collect_variables()
+        for name, value in zip(var_list, var_vals):
+            if not name in var_dct:
+                raise RuntimeError('[ERROR] Requested variable {:} which is not in the PCF file'.format(name))
+            assert(value == var_dct[name]['value'])
+        return True
 
     def dump(self, outfile=None):
+        if not self.check_variables_are_unique():
+            raise RuntimeError('[ERROR] Cannot write PCF file! Some variables are not unique')
         if outfile:
             f = open(outfile, 'w')
         else:

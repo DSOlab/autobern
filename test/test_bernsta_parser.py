@@ -17,3 +17,6 @@ if len(sys.argv) != 2:
 stafn = sys.argv[1]
 sta = bsta.BernSta(stafn)
 sta.parse()
+print('Here is the list of stations in the STA file:')
+[ print('\t{:}'.format(sta)) for sta in sta.stations ]
+print('Here is the info on station: WTZR')

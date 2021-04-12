@@ -13,6 +13,7 @@ from dctutils import merge_dicts
 
 FILE_FORMAT = 'HELMR1 .OUT (Bernese v5.2)'
 
+
 ## header must have been parsed already
 def parse_helmr1_out(istream):
     dct = {}
@@ -31,11 +32,11 @@ def parse_helmr1_out(istream):
         )
     while line.lstrip().startswith('FILE '):
         cols = line.split(':')
-        assert(len(cols)>=2)
-        file_nr = int(cols[0].replace('FILE','').strip())
+        assert (len(cols) >= 2)
+        file_nr = int(cols[0].replace('FILE', '').strip())
         file_nm = cols[1].strip()
-        file_ds = ' '.join(cols[2:]) if len(cols)>2 else ''
-        dct['files'][file_nr] = {'filename':file_nm, 'description':file_ds}
+        file_ds = ' '.join(cols[2:]) if len(cols) > 2 else ''
+        dct['files'][file_nr] = {'filename': file_nm, 'description': file_ds}
         line = istream.readline()
     """
     LOCAL GEODETIC DATUM: IGS14
@@ -49,10 +50,10 @@ def parse_helmr1_out(istream):
             '[ERROR] parse_helmr1_out  Invalid BERNESE HELMR1 file; Filed to find \'LOCAL GEODETIC DATUM:\''
         )
     cols = line.split(':')
-    assert(len(cols)==2)
+    assert (len(cols) == 2)
     dct[cols[0].strip().replace(' ', '_').lower()] = cols[1].strip()
     line = istream.readline()
-    assert(line.strip()=='RESIDUALS IN LOCAL SYSTEM (NORTH, EAST, UP)')
+    assert (line.strip() == 'RESIDUALS IN LOCAL SYSTEM (NORTH, EAST, UP)')
     """
      ---------------------------------------------------------------------
      | NUM |      NAME        | FLG |     RESIDUALS IN MILLIMETERS   |   |
@@ -71,40 +72,67 @@ def parse_helmr1_out(istream):
      |     | MAX              |     |       4.69      3.50      6.94 |   |
      ---------------------------------------------------------------------
     """
-    dct['stations']={}
-    while not line.lstrip().startswith('---------------------------------------------------------------------'):
+    dct['stations'] = {}
+    while not line.lstrip().startswith(
+            '---------------------------------------------------------------------'
+    ):
         line = istream.readline()
-    if not line.lstrip().startswith('---------------------------------------------------------------------'):
+    if not line.lstrip().startswith(
+            '---------------------------------------------------------------------'
+    ):
         raise FileFormatError(
             FILE_FORMAT, line,
-            '[ERROR] parse_helmr1_out  Invalid BERNESE HELMR1 file; Expected first \'-------\' line, found {:}'.format(line.strip())
-        )
+            '[ERROR] parse_helmr1_out  Invalid BERNESE HELMR1 file; Expected first \'-------\' line, found {:}'
+            .format(line.strip()))
     line = istream.readline()
-    assert(line.lstrip().startswith('| NUM |      NAME        | FLG |     RESIDUALS IN MILLIMETERS   |   |'))
+    assert (line.lstrip().startswith(
+        '| NUM |      NAME        | FLG |     RESIDUALS IN MILLIMETERS   |   |')
+           )
     line = istream.readline()
-    assert(line.lstrip().startswith('---------------------------------------------------------------------'))
+    assert (line.lstrip().startswith(
+        '---------------------------------------------------------------------')
+           )
     line = istream.readline()
-    assert(len(line.split('|')) >= 6 and line.split('|')[0].strip()=='')
+    assert (len(line.split('|')) >= 6 and line.split('|')[0].strip() == '')
     line = istream.readline()
     while line and len(line) > 69:
-        cols = [c.strip() for c in line[line.find('|')+1:line.rfind('|')].strip().split('|') ]
-        assert(len(cols)==5)
-        h = ['residuals_in_millimeters_north', 'residuals_in_millimeters_east', 'residuals_in_millimeters_up' ]
-        dct['stations'][cols[1]] = dict([('num',int(cols[0])), ('flag', cols[2]), *[(t[0], float(t[1])) for t in zip(h,cols[3].split())], ('mark', cols[4]) ])
+        cols = [
+            c.strip()
+            for c in line[line.find('|') + 1:line.rfind('|')].strip().split('|')
+        ]
+        assert (len(cols) == 5)
+        h = [
+            'residuals_in_millimeters_north', 'residuals_in_millimeters_east',
+            'residuals_in_millimeters_up'
+        ]
+        dct['stations'][cols[1]] = dict([
+            ('num', int(cols[0])), ('flag', cols[2]),
+            *[(t[0], float(t[1])) for t in zip(h, cols[3].split())],
+            ('mark', cols[4])
+        ])
         line = istream.readline()
-        if line.strip().replace(' ','') == '||||||': break
+        if line.strip().replace(' ', '') == '||||||':
+            break
     line = istream.readline()
-    assert(line.lstrip().startswith('---------------------------------------------------------------------'))
+    assert (line.lstrip().startswith(
+        '---------------------------------------------------------------------')
+           )
     for i in range(4):
         line = istream.readline()
-        cols = [c.strip() for c in line[line.find('|')+1:line.rfind('|')].strip().split('|') ]
-        assert(len(cols)==5)
-        title = cols[1].lower().replace(' ','_')
-        keys = [ '_'.join(t) for t in zip('north east up'.split(), [title]*3) ]
-        vals = [ float(col) for col in cols[3].split() ]
-        for t in zip(keys, vals): dct[t[0]] = t[1]
+        cols = [
+            c.strip()
+            for c in line[line.find('|') + 1:line.rfind('|')].strip().split('|')
+        ]
+        assert (len(cols) == 5)
+        title = cols[1].lower().replace(' ', '_')
+        keys = ['_'.join(t) for t in zip('north east up'.split(), [title] * 3)]
+        vals = [float(col) for col in cols[3].split()]
+        for t in zip(keys, vals):
+            dct[t[0]] = t[1]
     line = istream.readline()
-    assert(line.lstrip().startswith('---------------------------------------------------------------------'))
+    assert (line.lstrip().startswith(
+        '---------------------------------------------------------------------')
+           )
     """
      NUMBER OF PARAMETERS  :     3
      NUMBER OF COORDINATES :    15
@@ -117,20 +145,20 @@ def parse_helmr1_out(istream):
             FILE_FORMAT, line,
             '[ERROR] parse_helmr1_out  Invalid BERNESE HELMR1 file; failed to find \'NUMBER OF PARAMETERS\''
         )
-    cols = [ x.strip() for x in line.split(':') ]
-    assert(len(cols)==2)
-    dct[cols[0].replace(' ','_').lower()] = int(cols[1])
+    cols = [x.strip() for x in line.split(':')]
+    assert (len(cols) == 2)
+    dct[cols[0].replace(' ', '_').lower()] = int(cols[1])
     line = istream.readline()
-    assert(line.lstrip().startswith('NUMBER OF COORDINATES'))
-    cols = [ x.strip() for x in line.split(':') ]
-    assert(len(cols)==2)
-    dct[cols[0].replace(' ','_').lower()] = int(cols[1])
+    assert (line.lstrip().startswith('NUMBER OF COORDINATES'))
+    cols = [x.strip() for x in line.split(':')]
+    assert (len(cols) == 2)
+    dct[cols[0].replace(' ', '_').lower()] = int(cols[1])
     line = istream.readline()
-    assert(line.lstrip().startswith('RMS OF TRANSFORMATION'))
-    cols = [ x.strip() for x in line.split(':') ]
-    assert(len(cols)==2)
-    dct[cols[0].replace(' ','_').lower()] = float(cols[1].split()[0])
-    assert(cols[1].split()[1].strip()=='MM')
+    assert (line.lstrip().startswith('RMS OF TRANSFORMATION'))
+    cols = [x.strip() for x in line.split(':')]
+    assert (len(cols) == 2)
+    dct[cols[0].replace(' ', '_').lower()] = float(cols[1].split()[0])
+    assert (cols[1].split()[1].strip() == 'MM')
     """
       BARYCENTER COORDINATES:
 
@@ -148,16 +176,18 @@ def parse_helmr1_out(istream):
         )
     line = istream.readline()
     line = istream.readline()
-    cols = [ x.strip() for x in line.split(':') ]
-    assert(cols[0] == 'LATITUDE')
-    dct['barycenter']['latitude'] = float(cols[1]) + float(cols[2])/60e0 + float(cols[3])/3600e0
+    cols = [y for x in line.split(':') for y in x.split()]
+    assert (cols[0] == 'LATITUDE')
+    dct['barycenter']['latitude'] = float(
+        cols[1]) + float(cols[2]) / 60e0 + float(cols[3]) / 3600e0
     line = istream.readline()
-    cols = [ x.strip() for x in line.split(':') ]
-    assert(cols[0] == 'LONGITUDE')
-    dct['barycenter']['longitude'] = float(cols[1]) + float(cols[2])/60e0 + float(cols[3])/3600e0
+    cols = [y for x in line.split(':') for y in x.split()]
+    assert (cols[0] == 'LONGITUDE')
+    dct['barycenter']['longitude'] = float(
+        cols[1]) + float(cols[2]) / 60e0 + float(cols[3]) / 3600e0
     line = istream.readline()
-    cols = [ x.strip() for x in line.split(':') ]
-    assert(cols[0] == 'HEIGHT' and cols[2]=='KM')
+    cols = [y for x in line.split(':') for y in x.split()]
+    assert (cols[0] == 'HEIGHT' and cols[2] == 'KM')
     dct['barycenter']['height'] = float(cols[1])
     """
      PARAMETERS:
@@ -176,12 +206,17 @@ def parse_helmr1_out(istream):
     line = istream.readline()
     line = istream.readline()
     key = 'parameters'
+    dct[key] = {}
     while line and len(line) > 10:
         cols = line.split(':')
-        header = '_'.join([cols[0].split()])
+        header = '_'.join(cols[0].split())
         value, symbl, stddev, units = cols[1].split()
-        assert(symb=='+-')
-        dct[key][header]={'value': float(value), 'sigma': float(stddev), 'units': units}
+        assert (symbl == '+-')
+        dct[key][header] = {
+            'value': float(value),
+            'sigma': float(stddev),
+            'units': units
+        }
         line = istream.readline()
     """
     NUMBER OF ITERATIONS  :     1
@@ -193,6 +228,7 @@ def parse_helmr1_out(istream):
             FILE_FORMAT, line,
             '[ERROR] parse_helmr1_out  Invalid BERNESE HELMR1 file; failed to find \'NUMBER OF ITERATIONS:\''
         )
-    dct['NUMBER OF ITERATIONS'.lower().replace(' ', '_')] = int(line.split(':')[1].strip())
+    dct['NUMBER OF ITERATIONS'.lower().replace(' ', '_')] = int(
+        line.split(':')[1].strip())
 
     return dct
