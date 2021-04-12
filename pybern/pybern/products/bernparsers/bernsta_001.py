@@ -19,6 +19,17 @@ FILE_FORMAT = '.STA (Bernese v5.2)'
 class Type001Record:
     ''' A class to hold type 001 station information records for a single station.
   '''
+    
+    @staticmethod
+    def dump_header():
+        header_str = """
+TYPE 001: RENAMING OF STATIONS
+------------------------------
+
+STATION NAME          FLG          FROM                   TO         OLD STATION NAME      REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************
+                     """
+        print(header_str)
 
     def __init__(self, line=None, **kwargs):
         ''' First resolve and assign any values from kwargs; then, if line is not 

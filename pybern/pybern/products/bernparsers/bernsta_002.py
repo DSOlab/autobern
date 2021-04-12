@@ -13,6 +13,17 @@ FILE_FORMAT = '.STA (Bernese v5.2)'
 class Type002Record:
     ''' A class to hold type 002 station information records for a single station.
   '''
+    
+    @staticmethod
+    def dump_header():
+        header_str = """
+TYPE 002: STATION INFORMATION
+-----------------------------
+
+STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************
+                     """
+        print(header_str)
 
     def __init__(self, line):
         self.init_from_line(line)
@@ -55,25 +66,16 @@ class Type002Record:
                 FILE_FORMAT, line,
                 '[ERROR] Type002Record::init_from_line Failed to parse station flag'
             )
-        """
-        for cmp in zip(['north', 'east', 'up'],
-                       [self.north, self.east, self.up]):
-            try:
-                cmp[1] = float(cmp[1])
-            except:
-                raise FileFormatError(
-                    FILE_FORMAT, line,
-                    '[ERROR] Type002Record::init_from_line Failed to parse {:}'.
-                    format(cmp[0]))
-        """
+        ## eccentricities to float values
         for k in [self.north, self.east, self.up]:
             try:
-                k = float(k)
+                float(k)
             except:
                 raise FileFormatError(
                     FILE_FORMAT, line,
                     '[ERROR] Type002Record::init_from_line Failed to parse {:}'.
                     format(' '.join([self.north, self.east, self.up])))
+        self.north, self.east, self.up = [ float(x) for x in [self.north, self.east, self.up] ]
         ## resolve the start date (or set to min if empty)
         t_str = line[27:46].strip()
         if len(t_str) == 0:
@@ -110,7 +112,7 @@ class Type002Record:
             t_start = self.start_date.strftime('%Y %m %d %H %M %S')
         if self.stop_date != MAX_STA_DATE:
             t_stop = self.stop_date.strftime('%Y %m %d %H %M %S')
-        return '{:-16s}      {:03d}  {:}  {:} {:-20s}  {:-20s}  {:-6s}  {:-20s}  {:-20s}  {:-6s}  {:8.4f}  {:8.4f}  {:8.4f}  {:22s} {:}'.format(
+        return '{:<16s}      {:03d}  {:}  {:}  {:<20s}  {:<20s}  {:<6s}  {:<20s}  {:<20s}  {:<6s}  {:8.4f}  {:8.4f}  {:8.4f}  {:22s} {:}'.format(
             self.sta_name, self.flag, t_start, t_stop, self.receiver_t,
             self.receiver_sn, self.receiver_nr, self.antenna_t, self.antenna_sn,
             self.antenna_nr, self.north, self.east, self.up, self.description,

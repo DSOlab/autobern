@@ -13,6 +13,17 @@ FILE_FORMAT = '.STA (Bernese v5.2)'
 class Type003Record:
     ''' A class to hold type 003 station information records for a single station.
     '''
+    
+    @staticmethod
+    def dump_header():
+        header_str = """
+TYPE 003: HANDLING OF STATION PROBLEMS
+--------------------------------------
+
+STATION NAME          FLG          FROM                   TO         REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ************************************************************
+                     """
+        print(header_str)
 
     def __init__(self, line):
         self.init_from_line(line)
@@ -71,7 +82,7 @@ class Type003Record:
             t_start = self.start_date.strftime('%Y %m %d %H %M %S')
         if self.stop_date != MAX_STA_DATE:
             t_stop = self.stop_date.strftime('%Y %m %d %H %M %S')
-        return '{:-16s}      {:03d}  {:}  {:} {:-20s}  {:-20s}  {:-s}'.format(
+        return '{:<16s}      {:03d}  {:}  {:} {:<s}'.format(
             self.sta_name, self.flag, t_start, t_stop, self.remark)
 
     def __repr__(self):
