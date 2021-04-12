@@ -13,7 +13,7 @@ FILE_FORMAT = '.STA (Bernese v5.2)'
 class Type002Record:
     ''' A class to hold type 002 station information records for a single station.
   '''
-    
+
     @staticmethod
     def dump_header():
         header_str = """
@@ -75,7 +75,9 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
                     FILE_FORMAT, line,
                     '[ERROR] Type002Record::init_from_line Failed to parse {:}'.
                     format(' '.join([self.north, self.east, self.up])))
-        self.north, self.east, self.up = [ float(x) for x in [self.north, self.east, self.up] ]
+        self.north, self.east, self.up = [
+            float(x) for x in [self.north, self.east, self.up]
+        ]
         ## resolve the start date (or set to min if empty)
         t_str = line[27:46].strip()
         if len(t_str) == 0:

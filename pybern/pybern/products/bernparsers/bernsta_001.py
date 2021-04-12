@@ -19,7 +19,7 @@ FILE_FORMAT = '.STA (Bernese v5.2)'
 class Type001Record:
     ''' A class to hold type 001 station information records for a single station.
   '''
-    
+
     @staticmethod
     def dump_header():
         header_str = """

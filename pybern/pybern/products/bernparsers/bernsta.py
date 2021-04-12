@@ -30,12 +30,15 @@ TECHNIQUE:      GNSS
 '''
 FILE_FORMAT = '.STA (Bernese v5.2)'
 
+
 class BernStaInfo:
 
     @staticmethod
     def get_equality_operator(use_four_char_id):
+
         def compare_four_char_id(left, right):
             return left[0:4] == right[0:4]
+
         if use_four_char_id:
             return compare_four_char_id
         else:
@@ -54,7 +57,10 @@ class BernStaInfo:
         #[ new_stations.append(sta) for sta in self.stations if sta in station_list ]
         ## cause we need to overload the 'in' function, so do it explicitely,
         ## see https://docs.python.org/3.6/reference/expressions.html#membership-test-details
-        [ new_stations.append(sta) for sta in self.stations if any(op(sta, e) for e in station_list)]
+        [
+            new_stations.append(sta) for sta in self.stations if any(
+                op(sta, e) for e in station_list)
+        ]
         for sta in new_stations:
             new_dct[sta] = self.dct[sta]
         new_info = BernStaInfo()
@@ -67,11 +73,14 @@ class BernStaInfo:
             if op(station, key):
                 return self.dct[key]
         return None
-    
+
     @staticmethod
-    def dump_header(outfile=sys.stdout, dt=datetime.datetime.now(), formatv=1.01, technique='GNSS'):
+    def dump_header(outfile=sys.stdout,
+                    dt=datetime.datetime.now(),
+                    formatv=1.01,
+                    technique='GNSS'):
         date_str = dt.strftime('%d-%b-%y %H:%M')
-        header_str="""
+        header_str = """
 STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           {:}
 --------------------------------------------------------------------------------
 
@@ -87,19 +96,23 @@ TECHNIQUE:      {:}
             BernStaInfo.dump_header(outfile)
             Type001Record.dump_header()
             for sta in station_list:
-                [ print(inst, file=outfile) for inst in self.dct[sta]['type001'] ]
+                [print(inst, file=outfile) for inst in self.dct[sta]['type001']]
             Type002Record.dump_header()
             for sta in station_list:
-                [ print(inst, file=outfile) for inst in self.dct[sta]['type002'] ]
+                [print(inst, file=outfile) for inst in self.dct[sta]['type002']]
             Type003Record.dump_header()
             for sta in station_list:
                 if 'type003' in self.dct[sta]:
-                    [ print(inst, file=outfile) for inst in self.dct[sta]['type003'] ]
+                    [
+                        print(inst, file=outfile)
+                        for inst in self.dct[sta]['type003']
+                    ]
+
 
 class BernSta:
 
     def __init__(self, filename):
-            self.filename = filename
+        self.filename = filename
 
     def __parse_block_001(self, stream, bernstainfo):
         ''' Stream should be open and at any line before the line:
