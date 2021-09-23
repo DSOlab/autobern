@@ -1,0 +1,112 @@
+# ==============================================================================
+#
+# Name:       /home/bpe/bern52/BERN52/GPS/EXE/LOADGPS.setvar
+#
+# Created:    Mon Nov  9 15:48:13 2015 by configure.pm
+#
+# Changes:
+#
+# ==============================================================================
+
+# Function to add path to $PATH only once
+# ---------------------------------------
+addtopath () {
+  if [ "`echo $PATH | grep $1`" != "$PATH" ]
+  then
+    export PATH="${PATH}:$1"
+  fi
+}
+
+# Version of Bernese GNSS Software
+# --------------------------------
+export VERSION="52"
+
+# Fortran compiler name
+# ---------------------
+export F_VERS="GNU"
+
+# List of additional compilers
+# ----------------------------
+export F_VERS_LIST=""
+
+# Path to software
+# ----------------
+export C="/home/bpe/bern52/BERN52"
+
+# Path to Bernese data files
+# --------------------------
+export X="${C}/GPS"
+
+# Fortran source of subroutines
+# -----------------------------
+export LG="${C}/LIB/FOR"
+
+# Fortran source of include and modules
+# -------------------------------------
+export I="${C}/INC/FOR"
+
+# Fortran source of programs
+# --------------------------
+export FG="${C}/PGM/FOR"
+
+# Executables of Bernese Fortran programs
+# ---------------------------------------
+export XG="${C}/PGM/EXE_${F_VERS}"
+
+# Executable and source of Bernese menu
+# -------------------------------------
+export XQ="${C}/MENU"
+
+# Scripts for the BPE
+# -------------------
+export BPE="${C}/BPE"
+
+# Host of the BPE server
+# ----------------------
+export BPE_SERVER_HOST="hypatia"
+
+# Path to user environment
+# ------------------------
+export U="${HOME}/GPSUSER52"
+
+# Path to temp. user environment
+# ------------------------------
+export T="${HOME}/GPSTEMP"
+
+# Path to campaign area
+# ---------------------
+export P="${HOME}/data/GPSDATA/CAMPAIGN52"
+
+# Path to datapool area
+# ---------------------
+export D="${HOME}/data/GPSDATA/DATAPOOL"
+
+# Path to savedisk area
+# ---------------------
+export S="${HOME}/data/GPSDATA/SAVEDISK"
+
+# Path to Qt libraries
+# --------------------
+export QTBERN="/usr/lib/x86_64-linux-gnu/qt4"
+
+# Operating system group
+# ----------------------
+export OS="UNIX"
+
+# Operating system name
+# ---------------------
+export OS_NAME="LINUX"
+
+# Number of JPL ephemeris
+# -----------------------
+export JPLEPH="DE405"
+
+# Name of group
+# -------------
+export CGROUP="USERS"
+
+# Add Bernese paths to $PATH
+# --------------------------
+addtopath "$X/EXE"
+addtopath "$XG"
+addtopath "$XQ"
