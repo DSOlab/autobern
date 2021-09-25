@@ -1,13 +1,15 @@
-\documentclass[oneside]{scrbook}
+\documentclass[oneside]{report}
 
 \usepackage[utf8]{inputenc}
 \usepackage{imakeidx}
 \makeindex[columns=3, title=Alphabetical Index]
 \usepackage{hyperref}
+\usepackage[left=2cm,right=2cm]{geometry} % somewhat wider text to allow code
+\usepackage{soul} % allow wrapping of underlined text, via \ul{...}
 
 \title{DSO Routine GNSS Processing}
-\titlehead{Internal Report and Documentation for DSO GNSS Analysis Platform}
-\publishers{Dionysos Satellite Observatory\\National Technical University of Athens}
+%\titlehead{Internal Report and Documentation for DSO GNSS Analysis Platform}
+%\publishers{Dionysos Satellite Observatory\\National Technical University of Athens}
 \author{X. Papanikolaou, D. Anastasiou \thanks{DSO team}}
 \date{\today}
 
@@ -17,12 +19,13 @@
 \maketitle
 \end{titlepage}
 
-\frontmatter
+%\frontmatter
 \tableofcontents
 \listoffigures
 \listoftables
 
 \include{chapters/intro}
+\include{chapters/credentials}
 \include{chapters/pybern}
 \include{chapters/programs}
 

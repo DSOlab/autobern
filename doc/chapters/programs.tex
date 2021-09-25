@@ -3,13 +3,38 @@
 
 In the following we give a brief description of the main programs used to 
 implement the GNSS analysis used in the platform. Note that all of the programs 
-depend on the \ref{ch:pybern} module, hence \underline{make sure that you have 
-the lastest version of pybern installed} (see \ref{sec:pybern-installation}).
+depend on the \nameref{ch:pybern} module, hence \ul{make sure that you have 
+the lastest version of pybern installed} (see \nameref{sec:pybern-installation}).
 
 \section{syncwbern52}
 \label{sec:programs-syncwbern52}
 \verb|syncwbern52| syncronizes (aka mirrors) a local folder, which should normaly 
-be the local \verb|/GEN| folder, to the (remote) AIUB's \verb|/GEN| folder 
+be the local \verb|/GEN|\index{GEN} folder, to the (remote) AIUB's \verb|/GEN| folder 
 located at \url{ftp.aiub.unibe.ch/BSWUSER52/GEN}. This process 
-\underline{excludes all *.EPH files} which are system-dependent, binary file(s).
+\ul{excludes all *.EPH files} which are system-dependent, binary file(s).
 You can see the help message for more information.
+
+\section{get\_vmf1\_grd}
+\label{sec:programs-get-vmf1-grd}
+\verb|get_vmf1_grd| downloads VMF1\index{VMF1} grid files to be used in the GNSS analysis 
+for troposphere estimation/mitigation. Grid files are downloaded from 
+\url{VMF1 grid files from https://vmf.geo.tuwien.ac.at/trop_products/GRID/2.5x2/VMF1}.
+The script allows for downloading both final and forecast grid files, but note that 
+for the latter you will need \nameref{ch:credentials}. You can see the 
+help message for more information.
+
+
+\subsection{Examples}
+\label{ssec:programs-get-vmf1-grd-examples}
+Download final VMF1\index{VMF1} grid files, for the date 01/01/2021, merge them (all four) to 
+a file named VMF\_01012021.GRD and delete the individual hourly files.\\
+\verb|$>get_vmf1_grd.py -y 2021 -d 1 -m VMF_01012021.GRD --del-after-merge|\\
+\\
+
+Download (forecast) VMF1\index{VMF1} grid files for today, merge them (all four) to a file 
+named VMF\_today.GRD and delete the individual hourly files. This will need credentials 
+to access the forecast VMF1 files, see \nameref{ch:credentials}.\\
+\verb|$>date +"%Y-%j" ## get year and doy in Unix-like systems|\\
+\verb|2021-268|\\
+\verb|## call the program with today's date|\\
+\verb|$>get_vmf1_grd.py -y 2021 -d 268 -f -c dso_credentials -m VMF_today.GRD --del-after-merge|\\

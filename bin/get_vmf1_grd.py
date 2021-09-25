@@ -15,6 +15,24 @@ TUW_URL = 'https://vmf.geo.tuwien.ac.at'
 OP_URL_DIR = '/trop_products/GRID/2.5x2/VMF1/VMF1_OP'
 FC_URL_DIR = '/trop_products/GRID/2.5x2/VMF1/VMF1_FC'
 
+def downloading_complete(dct,flag=None):
+    """ Utility function: check if all files in the dictionary have been 
+        successefully downloaded.
+        You can se the flag to:
+        * 'op' to only check for final products (forecast are ignored)
+        * 'fc' to only check for forecast products (final are ignored)
+        * None to either check final or forecast, i.e. a file is considered
+          successefully downloaded in either case
+    """
+    if not flag:
+        all([dct[x]['fc'] or dct[x]['op'] for x in dct])
+    elif flag == 'fc':
+        return all([dct[x]['fc'] for x in dct])
+    elif flag=='op':
+        return all([dct[x]['op'] for x in dct])
+    else:
+        raise RuntimeError('[ERROR] Invalid argument to downloading_complete function!')
+
 def remove_local(dct):
     """ Utility function: remove files specified in the dct, which has the
         form: {...'VMFG_YYYYMMDD.H00':{'op':0/1, 'fc':0/1, 'fn':foo}...}
@@ -112,10 +130,11 @@ parser.add_argument('--hour',
                     action='store',
                     required=False,
                     type=int,
-                    help='The hour of day (integer in range [0-23]). This is for downloading individual hourly files (each file covers a6-hout time span.',
+                    help='The hour of day (integer in range [0-23]). This is for downloading individual hourly files (each file covers an 6-hour time span.',
                     metavar='HOUR',
                     dest='hour',
                     default=None)
+
 ##  download path
 parser.add_argument(
     '-O',
@@ -126,6 +145,7 @@ parser.add_argument(
     metavar='OUTPUT_DIR',
     dest='output_dir',
     default=os.getcwd())
+
 ##  merge individual (hourly) files
 parser.add_argument('-m',
                     '--merge',
@@ -135,6 +155,7 @@ parser.add_argument('-m',
                     metavar='MERGED_FILE',
                     dest='merge_to',
                     default=None)
+
 ## allow forecast products to be used
 parser.add_argument(
     '-f',
@@ -142,11 +163,13 @@ parser.add_argument(
     dest='allow_fc',
     action='store_true',
     help='If needed, allow the downloading of forecast VMF1 grid file(s)')
+
 parser.add_argument(
     '--del-after-merge',
     dest='del_after_merge',
     action='store_true',
     help='Delete individual grid files after a successeful merge (aka only valid if \'--merge [MERGED_FILE]\' is set).')
+
 ##  merge individual (hourly) files
 parser.add_argument('-c',
                     '--config-file',
@@ -156,6 +179,7 @@ parser.add_argument('-c',
                     metavar='CONFIG_FILE',
                     dest='config_file',
                     default=None)
+
 parser.add_argument('-u',
                     '--username',
                     action='store',
@@ -164,6 +188,7 @@ parser.add_argument('-u',
                     metavar='USERNAME',
                     dest='username',
                     default=None)
+
 parser.add_argument('-p',
                     '--password',
                     action='store',
@@ -173,9 +198,17 @@ parser.add_argument('-p',
                     dest='password',
                     default=None)
 
+parser.add_argument('--verbose',
+                    dest='verbose',
+                    action='store_true',
+                    help='Trigger verbose run (prints debug messages).')
+
 if __name__ == '__main__':
 
     args = parser.parse_args()
+    
+    ## verbose print
+    verboseprint = print if args.verbose else lambda *a, **k: None
 
     if args.hour and (args.hour > 23 or args.hour < 0):
         print('[ERROR] Invalid hour given (0<hour<24)', file=sys.stderr)
@@ -191,7 +224,7 @@ if __name__ == '__main__':
     ## Where are we going to store local files?
     save_dir = args.output_dir if args.output_dir is not None else os.getcwd()
     if not os.path.isdir(save_dir):
-        print('[ERROR] Failed to find requested directory \'{:}\''.format(save_dir))
+        print('[ERROR] Failed to find requested directory \'{:}\''.format(save_dir), file=sys.stderr)
         sys.exit(5)
 
     ## Generic format of grid files is: VMFG_YYYYMMDD.H00; make a list with the
@@ -209,7 +242,7 @@ if __name__ == '__main__':
     ## something like {...'VMFG_YYYYMMDD.H00':{'op':0/1, 'fc':0/1, 'fn':foo}...}
     ## where 'op' is the status of the final download (0 if final product could 
     ## not be found/downloaded or 1 if the downloading was sucesseful), 'fc' is
-    ## is the status of the forecasst download (ccordingly to 'op') and 'fn' is
+    ## is the status of the forecast download (accordingly to 'op') and 'fn' is
     ## the local filename of the downloaded file.
     grid_files_dict = {}
     for i in grid_files_remote:
@@ -217,6 +250,7 @@ if __name__ == '__main__':
     
     ## Try downloading first for final products. If we can also try for the 
     ## forecast products, do not exit if download fails.
+    verboseprint('Trying to download final grid files.')
     for fn in grid_files_remote:
         if dt < datetime.datetime.now():
             try:
@@ -224,6 +258,9 @@ if __name__ == '__main__':
               if not status:
                   grid_files_dict[fn]['op'] = 1
                   grid_files_dict[fn]['fn'] = saveas
+                  verboseprint('\tFinal VMF1 grid file {:} downloaded and saved to {:}'.format(fn, saveas))
+              else:
+                  verboseprint('\tFailed downloading final VMF1 grid file {:}'.format(fn))
             except Exception as e:
                 remove_local(grid_files_dict)
                 print('{:}'.format(e), file=sys.stderr)
@@ -233,30 +270,39 @@ if __name__ == '__main__':
     ## If forecast allowed and date is close to the current, try downloading
     ## forecast files. If we fail, exit. Of course we need to have credentials
     ## for that!
-    try:
-        user, passwd = get_credentials_from_args(vars(args))
-    except Exception as e:
-        remove_local(grid_files_dict)
-        print('{:}'.format(e), file=sys.stderr)
-        print('[ERROR] Aborting!', file=sys.stderr)
-        sys.exit(1)
-    for fn in grid_files_remote:
-        if not grid_files_dict[fn]['op'] and (datetime.datetime.now().date() -
-                                              dt.date()).days < 2:
-            try:
-                status, target, saveas = http_retrieve(forecast_dir(dt),
-                                                       fn,
-                                                       save_dir=save_dir,
-                                                       username=user,
-                                                       password=passwd)
-                if not status:
-                    grid_files_dict[fn]['fc'] = 1
-                    grid_files_dict[fn]['fn'] = saveas
-            except Exception as e:
-                remove_local(grid_files_dict)
-                print('{:}'.format(e), file=sys.stderr)
-                print('[ERROR] Aborting!', file=sys.stderr)
-                sys.exit(1)
+    ## We are only trying for forecast if:
+    ## 1. we haven't already downloaded everything,
+    ## 2. forecast files are allowed (via --allow-forecast)
+    ## 3. date requested is less than 2 days from today
+    if not downloading_complete(grid_files_dict, 'op') and args.allow_fc and (datetime.datetime.now().date() - dt.date()).days < 2:
+        verboseprint('Trying to download forecast grid files.')
+        try:
+            user, passwd = get_credentials_from_args(vars(args))
+        except Exception as e:
+            remove_local(grid_files_dict)
+            print('{:}'.format(e), file=sys.stderr)
+            print('[ERROR] Aborting!', file=sys.stderr)
+            sys.exit(1)
+        for fn in grid_files_remote:
+            if not grid_files_dict[fn]['op'] and (datetime.datetime.now().date() -
+                                                dt.date()).days < 2:
+                try:
+                    status, target, saveas = http_retrieve(forecast_dir(dt),
+                                                        fn,
+                                                        save_dir=save_dir,
+                                                        username=user,
+                                                        password=passwd)
+                    if not status:
+                        grid_files_dict[fn]['fc'] = 1
+                        grid_files_dict[fn]['fn'] = saveas
+                        verboseprint('\tForecast VMF1 grid file {:} downloaded and saved to {:}'.format(fn, saveas))
+                    else:
+                        verboseprint('\tFailed downloading forecast VMF1 grid file {:}'.format(fn))
+                except Exception as e:
+                    remove_local(grid_files_dict)
+                    print('{:}'.format(e), file=sys.stderr)
+                    print('[ERROR] Aborting!', file=sys.stderr)
+                    sys.exit(1)
 
     ## Done downloading; if we don't have everything, delete what we downloaded
     ## and exit. Aka, a final check.
