@@ -1,0 +1,15 @@
+\chapter{Programs}
+\label{ch:programs}
+
+In the following we give a brief description of the main programs used to 
+implement the GNSS analysis used in the platform. Note that all of the programs 
+depend on the \ref{ch:pybern} module, hence \underline{make sure that you have 
+the lastest version of pybern installed} (see \ref{sec:pybern-installation}).
+
+\section{syncwbern52}
+\label{sec:programs-syncwbern52}
+\verb|syncwbern52| syncronizes (aka mirrors) a local folder, which should normaly 
+be the local \verb|/GEN| folder, to the (remote) AIUB's \verb|/GEN| folder 
+located at \url{ftp.aiub.unibe.ch/BSWUSER52/GEN}. This process 
+\underline{excludes all *.EPH files} which are system-dependent, binary file(s).
+You can see the help message for more information.

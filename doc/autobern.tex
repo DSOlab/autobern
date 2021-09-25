@@ -1,0 +1,31 @@
+\documentclass[oneside]{scrbook}
+
+\usepackage[utf8]{inputenc}
+\usepackage{imakeidx}
+\makeindex[columns=3, title=Alphabetical Index]
+\usepackage{hyperref}
+
+\title{DSO Routine GNSS Processing}
+\titlehead{Internal Report and Documentation for DSO GNSS Analysis Platform}
+\publishers{Dionysos Satellite Observatory\\National Technical University of Athens}
+\author{X. Papanikolaou, D. Anastasiou \thanks{DSO team}}
+\date{\today}
+
+\begin{document}
+
+\begin{titlepage}
+\maketitle
+\end{titlepage}
+
+\frontmatter
+\tableofcontents
+\listoffigures
+\listoftables
+
+\include{chapters/intro}
+\include{chapters/pybern}
+\include{chapters/programs}
+
+\printindex
+
+\end{document}
