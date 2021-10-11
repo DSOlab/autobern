@@ -2,7 +2,7 @@
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
-import sys
+import sys, os
 import argparse
 import datetime
 from pybern.products.codesp3 import get_sp3, list_products
@@ -21,7 +21,7 @@ class myFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 parser = argparse.ArgumentParser(
     formatter_class=myFormatter,
-    description='Download Orbit INformation (SP3) files estimated at CODE ac',
+    description='Download Orbit Information (SP3) files estimated at CODE ac',
     epilog=('''National Technical University of Athens,
     Dionysos Satellite Observatory\n
     Send bug reports to:
@@ -115,10 +115,10 @@ def validate_interval(pydt, filename, verbose=False):
         if dstart < fstart or dstop > fstop:
             status = 10
         if verbose:
-            print('Validation: File  start epoch: {:} stop epoch {:}'.format(
+            print('\tValidation: File  start epoch: {:} stop epoch {:}'.format(
                 fstart.strftime('%Y-%m-%d %H:%M:%S'),
                 fstop.strftime('%Y-%m-%d %H:%M:%S')))
-            print('Validation: Given start epoch: {:} stop epoch {:}'.format(
+            print('\tValidation: Given start epoch: {:} stop epoch {:}'.format(
                 dstart.strftime('%Y-%m-%d %H:%M:%S'),
                 dstop.strftime('%Y-%m-%d %H:%M:%S')))
         if dct['compressed']:
@@ -142,13 +142,13 @@ if __name__ == '__main__':
 
     ## if we have a year or a doy then both args must be there!
     if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
-        print('[ERROR] Need to specify both Year and DayOfYear')
+        print('[ERROR] Need to specify both Year and DayOfYear', file=sys.stderr)
         sys.exit(1)
     
     ## make a list with all posible product types.
     types = args.types.split(',')
     if args.glonass_only and not all([x == 'final' for x in types]):
-        print('[ERROR] GLONASS-only files only available for final products')
+        print('[ERROR] GLONASS-only files only available for final products', file=sys.stderr)
         sys.exit(10)
 
     ## store user options in a dictionary to pass to the download function.
@@ -178,7 +178,7 @@ if __name__ == '__main__':
             print('Downloaded SP3 Information File: {:} as {:}'.format(
                 remote, local))
             if args.validate_interval:
-                j = validate_interval(pydt, local, args.verbose)
+                j = validate_interval(input_dct['dct'], local, args.verbose)
                 if not j:
                     ## file's time interval ok, exit with OK
                     sys.exit(0)

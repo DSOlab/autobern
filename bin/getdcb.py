@@ -114,7 +114,7 @@ if __name__ == '__main__':
     
     ## if we have a year or a doy then both args must be there!
     if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
-        print('[ERROR] Need to specify both Year and DayOfYear')
+        print('[ERROR] Need to specify both Year and DayOfYear', file=sys.stderr)
         sys.exit(1)
 
     ## store user options in a dictionary to pass to the download function.

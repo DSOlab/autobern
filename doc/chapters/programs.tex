@@ -6,6 +6,22 @@ implement the GNSS analysis used in the platform. Note that all of the programs
 depend on the \nameref{ch:pybern} module, hence \ul{make sure that you have 
 the lastest version of pybern installed} (see \nameref{sec:pybern-installation}).
 
+A complete list of the available programs can be found in the \verb|bin| folder. 
+The following remarks apply fro the programs:
+\begin{itemize}
+    \item all of the programs are standalone
+    \item all of the programs include \href{https://en.wikipedia.org/wiki/Shebang_(Unix)}{shebang}, 
+    hence you should be able to run them directly ommiting the interpreter (aka 
+    \verb|syncwbern52.py| is equivalent to \verb|python syncwbern52.py|)
+    \item all of the programs include a help message, triggered by \verb|-h| or 
+    \verb|--help|
+    \item all of the programs can be run in \emph{verbose} mode, printing debug messages, via 
+    the \verb|--verbose| switch
+    \item for Python programs, no version is enforced, the shebang call the default 
+    interpreter/version. Should you want to run a program with a different version/interpreter 
+    you are free to do so
+\end{itemize}
+
 \section{syncwbern52}
 \label{sec:programs-syncwbern52}
 \verb|syncwbern52| syncronizes (aka mirrors) a local folder, which should normaly 
@@ -27,14 +43,115 @@ help message for more information.
 \subsection{Examples}
 \label{ssec:programs-get-vmf1-grd-examples}
 Download final VMF1\index{VMF1} grid files, for the date 01/01/2021, merge them (all four) to 
-a file named VMF\_01012021.GRD and delete the individual hourly files.\\
+a file named \verb|VMF_01012021.GRD| and delete the individual hourly files.\\
 \verb|$>get_vmf1_grd.py -y 2021 -d 1 -m VMF_01012021.GRD --del-after-merge|\\
 \\
 
 Download (forecast) VMF1\index{VMF1} grid files for today, merge them (all four) to a file 
-named VMF\_today.GRD and delete the individual hourly files. This will need credentials 
-to access the forecast VMF1 files, see \nameref{ch:credentials}.\\
+named \verb|VMF_today.GRD| and delete the individual hourly files. This will need 
+credentials to access the forecast VMF1 files, see \nameref{ch:credentials}.\\
 \verb|$>date +"%Y-%j" ## get year and doy in Unix-like systems|\\
 \verb|2021-268|\\
 \verb|## call the program with today's date|\\
 \verb|$>get_vmf1_grd.py -y 2021 -d 268 -f -c dso_credentials -m VMF_today.GRD --del-after-merge|\\
+
+\section{getdcb}
+\label{sec:programs-getdcb}
+\verb|getdcb| is a program that allows downloading of GPS/GNSS Code Differential 
+Bias (aka DCB\index{DCB}) files from derived from AIUB. These files can contain 
+numerous combinations of biases related to different satellite systems, code observables, 
+day of estimation, etc. An exhustive description is thus not possible. The program 
+can download any of them, given the correct combination of command line parameters 
+by the user.
+
+To check the available DCB files that can be downloaded, you can pass in the \verb|-l| or 
+\verb|--list-products| switch and the program will print out a list of the available 
+DCBs and how to target them (it will download nothing though).
+
+\subsection{Examples}
+\label{ssec:programs-getdcb}
+Let's say we want to download the file \verb|CODE_FULL.DCB|, which contains biases 
+for both GPS and GLONASS between code obervables P1P2, P1C1 and P2C2. The easiest way, 
+is to first list our options:
+\verb|$>getdcb.py -l|\\
+This will print out a list of files and directions; we target the ones of interest, aka:
+\begin{verbatim}
+  _Available files in FTP____________________________________________________
+  [...]
+  CODE_FULL.DCB     Combination of P1P2.DCB, P1C1.DCB (GPS satellites),
+                    P1C1_RINEX.DCB (GLONASS satellites), and P2C2_RINEX.DCB
+  [...]
+  _Arguments for Products____________________________________________________
+  [9] type=current, span=monthly, obs=full    | CODE_FULL.DCB (merged [2], [3], [6] and [7])
+\end{verbatim}
+So, we can now run:\\
+\verb|$>getdcb.py -y 2021 -d 268 --type current --time-span monthly --code-type full|\\
+\\
+
+Let's say we want the combined GPS and GLONASS monthly P1-P2 DCB values for a past 
+date, aka 01/01/2021, that is the first month of 2021. We list again (\verb|$>getdcb.py -l|) 
+and see that we have to run (for the \verb|P1P2yymm_ALL.DCB.Z| file):\\
+\verb|getdcb.py -y 2021 -d 1 --type final --time-span monthly --code-type p1p2all|\\
+
+\emph{Note that in both above examples we could have skipped the} \verb|--time-span monthly| \emph{option, 
+since this is the default (you can see this in the help message). We only add it here for completeness.}
+
+
+\section{geterp}
+\label{sec:programs-geterp}
+\verb|geterp| is a program that allows downloading of Earth Rotation Parameter information 
+files (aka ERP\index{ERP}), published by AIUB. Users can choose between a variety of 
+such files (depending e.g. on the product type --final, rapid, etc-- and the time-span 
+they cover). The program  can download any of them, given the correct combination of 
+command line parameters by the user.
+
+To check the available ERP files that can be downloaded, you can pass in the \verb|-l| or 
+\verb|--list-products| switch and the program will print out a list of the available 
+ERPs and how to target them (it will download nothing though).
+
+\subsection{Examples}
+\label{ssec:programs-geterp}
+Let's say we want to download weekly ERP for a past date, namely 01/01/2021; we 
+can run the command:\\
+\verb|geterp.py -y 2021 -d 1 --time-span weekly -t final|\\
+which will download the file \verb|COD21387.ERP.Z|. If instead we want the respective 
+(final) file but with daily (not weekly) records, we can run:\\
+\verb|geterp.py -y 2021 -d 1 --time-span daily -t final|\\
+which will download the file \verb|COD21385.ERP.Z|.
+\\
+
+If the user want to download a file for a date that is too close to current (which 
+means that probably the final solution is not yet available), then we can choose a 
+number of solution types; the program will try each solution type and if the respective 
+file is available it will be downloaded. E.g.\\
+\verb|geterp.py -y 2021 -d 266 -t final,final-rapid,early-rapid,ultra-rapid,prediction|\\
+which will try (in turn) to download files for \emph{final, final-rapid, early-rapid, ultra-rapid}  
+and finally \emph{prediction} solutions. Obviously, users can target each of these 
+types individualy, using the target solution as option to the \verb|type| switch.
+
+\section{getion}
+\label{sec:programs-getion}
+\verb|getion| is a program that allows downloading of ionospheric information 
+files published by AIUB. Ionospheric information files are published in one of two 
+formats, namely IONEX\index{IONEX} format (normally with extension \verb|INX| or 
+\verb|YYI|, with YY the two-digit year) or an internal Bernese format (aka 
+\verb|ION|\index{ION}). Users can choose the format they prefer via the \verb|--format| 
+switch. A variety of ionospheric products is made available by AIUB, and the ones 
+available for downloading can be listed using the \verb|-l| switch.
+
+\subsection{Examples}
+\label{ssec:programs-getion}
+Let's say we want to download ionospheric information in Bernese format for a past date, 
+namely 01/01/2021; we can run the command:\\
+\verb|getion.py -y 2021 -d 1 --format bernese --type final|\\
+which will download the file \verb|COD21385.ION.Z|.
+\\
+
+If the user want to download a file for a date that is too close to current (which 
+means that probably the final solution is not yet available), then we can choose a 
+number of solution types; the program will try each solution type and if the respective 
+file is available it will be downloaded. E.g.\\
+\verb|getion.py -y 2021 -d 266 -f bernese -t final,rapid,ultra-rapid,prediction|\\
+which will try (in turn) to download files for \emph{final, rapid, ultra-rapid} and 
+finally \emph{prediction} solutions. Obviously, users can target each of these types individualy, 
+using the target solution as option to the \verb|type| switch.

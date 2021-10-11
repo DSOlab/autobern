@@ -119,10 +119,10 @@ def validate_interval(pydt, filename, verbose=False):
         if dstart < fstart or dstop > fstop:
             status = 10
         if verbose:
-            print('Validation: File  start epoch: {:} stop epoch {:}'.format(
+            print('\tValidation: File  start epoch: {:} stop epoch {:}'.format(
                 fstart.strftime('%Y-%m-%d %H:%M:%S'),
                 fstop.strftime('%Y-%m-%d %H:%M:%S')))
-            print('Validation: Given start epoch: {:} stop epoch {:}'.format(
+            print('\tValidation: Given start epoch: {:} stop epoch {:}'.format(
                 dstart.strftime('%Y-%m-%d %H:%M:%S'),
                 dstop.strftime('%Y-%m-%d %H:%M:%S')))
         if dct['compressed']:
@@ -146,13 +146,13 @@ if __name__ == '__main__':
 
     ## if we have a year or a doy then both args must be there!
     if (args.year is not None and args.doy is None) or (args.doy is not None and args.year is None):
-        print('[ERROR] Need to specify both Year and DayOfYear')
+        print('[ERROR] Need to specify both Year and DayOfYear', file=sys.stderr)
         sys.exit(1)
 
     ## get the types array (list)
     types = args.types.split(',')
     if args.span == 'weekly' and (len(types) == 1 and types[0] != 'final'):
-        print('[ERROR] Weekly ERP files only available for final products')
+        print('[ERROR] Weekly ERP files only available for final products', file=sys.stderr)
         sys.exit(10)
 
     ## store user options in a dictionary to pass to the download function.
