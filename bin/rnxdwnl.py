@@ -6,6 +6,33 @@ import argparse
 import os
 import datetime
 import sys
+from pybern.products.fileutils.keyholders import extract_key_values
+from mysql.connector import connect, Error
+
+def return_network_query(network, pdate):
+    return """SELECT station.station_id, 
+        station.mark_name_DSO, 
+        stacode.mark_name_OFF, 
+        stacode.station_name, 
+        ftprnx.dc_name, 
+        ftprnx.protocol, 
+        ftprnx.url_domain, 
+        ftprnx.pth2rnx30s, 
+        ftprnx.pth2rnx01s, 
+        ftprnx.ftp_usname, 
+        ftprnx.ftp_passwd, 
+        network.network_name, 
+        dataperiod.rnx_v 
+        FROM station 
+        JOIN stacode ON station.stacode_id=stacode.stacode_id 
+        JOIN dataperiod ON station.station_id=dataperiod.station_id 
+        JOIN ftprnx ON dataperiod.ftprnx_id=ftprnx.ftprnx_id 
+        JOIN sta2nets ON sta2nets.station_id=station.station_id 
+        JOIN network ON network.network_id=sta2nets.network_id 
+        WHERE network.network_name=\"{:}\" 
+        AND dataperiod.periodstart<\"{:}\" 
+        AND dataperiod.periodstop>\"{:}\";
+    """.format(network, pdate.strftime('%Y-%m-%d'), pdate.strftime('%Y-%m-%d'))
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -47,7 +74,7 @@ parser.add_argument(
     '--outpur-dir',
     action='store',
     required=False,
-    help='The directory where the downloaded files shall be placed. Note that this does not affect the merged file (if \'--merge [MERGED_FILE]\' is used).',
+    help='The directory where the downloaded files shall be placed.',
     metavar='OUTPUT_DIR',
     dest='output_dir',
     default=os.getcwd())
@@ -56,7 +83,7 @@ parser.add_argument('-c',
                     '--credentials-file',
                     action='store',
                     required=False,
-                    help='If you request forecast grid files, you need credentials to access the data; if you provide a CONFIG_FILE here, the program will try to parse lines: \'TUWIEN_VMF1_USER=\"username\" and TUWIEN_VMF1_PASS=\"mypassword\" \' and use the \"username\"  and \"mypassword\" credentials to access the forecast data center',
+                    help='A file containing credentials for connecting to the database; it will need to hold the variables \'GNSS_DB_USER\', \'GNSS_DB_PASS\', and optionaly \'GNSS_DB_HOST\' and \'GNSS_DB_NAME\'',
                     metavar='CREDENTIALS_FILE',
                     dest='credentials_file',
                     default=None)
@@ -65,7 +92,7 @@ parser.add_argument('-u',
                     '--username',
                     action='store',
                     required=False,
-                    help='If you request forecast grid files, you need credentials to access the data; use this username to access the forecast data center. Note: this will overwite any \"username\" value found in the CONFIG_FILE (if you also specify one).',
+                    help='Username used to connect to the database',
                     metavar='USERNAME',
                     dest='username',
                     default=None)
@@ -74,7 +101,7 @@ parser.add_argument('-p',
                     '--password',
                     action='store',
                     required=False,
-                    help='If you request forecast grid files, you need credentials to access the data; use this password to access the forecast data center. Note: this will overwite any \"password\" value found in the CONFIG_FILE (if you also specify one). Note that if you have special characters in the password string (e.g. \"!\") it\'d be better to enclose the password string in singe quotes (e.g. -p \'my!pass\').',
+                    help='Password used to connect to the database',
                     metavar='PASSWORD',
                     dest='password',
                     default=None)
@@ -83,10 +110,44 @@ parser.add_argument('-m',
                     '--my-sql-host',
                     action='store',
                     required=True,
-                    help='If you request forecast grid files, you need credentials to access the data; use this password to access the forecast data center. Note: this will overwite any \"password\" value found in the CONFIG_FILE (if you also specify one). Note that if you have special characters in the password string (e.g. \"!\") it\'d be better to enclose the password string in singe quotes (e.g. -p \'my!pass\').',
+                    help='Host where the database server is located',
                     metavar='MYSQL_HOST',
                     dest='mysql_host',
                     default=None)
+
+parser.add_argument('-n',
+                    '--database-name',
+                    action='store',
+                    required=True,
+                    help='Name of the database',
+                    metavar='DB_NAME',
+                    dest='db_name',
+                    default=None)
+
+parser.add_argument('-s',
+                    '--station-list',
+                    action='store',
+                    required=False,
+                    help='List of stations to query/download; provide as 4-char id',
+                    metavar='STATION_LIST',
+                    dest='station_list',
+                    nargs='+',
+                    default=[])
+
+parser.add_argument('-n',
+                    '--network',
+                    action='store',
+                    required=False,
+                    help='Network to query/download',
+                    metavar='STATION_LIST',
+                    dest='station_list',
+                    nargs='+',
+                    default=[])
+
+parser.add_argument('--skip-download',
+                    dest='skip_download',
+                    action='store_true',
+                    help='Do not download files, only show the query result')
 
 parser.add_argument('--verbose',
                     dest='verbose',
@@ -109,3 +170,30 @@ if __name__ == '__main__':
     if not os.path.isdir(save_dir):
         print('[ERROR] Failed to find requested directory \'{:}\''.format(save_dir), file=sys.stderr)
         sys.exit(5)
+
+
+    ## We now need credentials ... store them all in a credentials_dct dict
+    if args.credentials_file:
+        credentials_dct = extract_key_values(args.credentials_file, GNSS_DB_USER=None, GNSS_DB_PASS=None, GNSS_DB_HOST=None, GNSS_DB_NAME=None)
+    if args.username: credentials_dct['GNSS_DB_USER'] = args.username
+    if args.password: credentials_dct['GNSS_DB_PASS'] = args.password
+    if args.mysql_host: credentials_dct['GNSS_DB_HOST'] = args.mysql_host
+    if args.db_name: credentials_dct['GNSS_DB_NAME'] = args.db_name
+
+    ## Connect to the database
+    try:
+        with connect(
+            host=credentials_dct['GNSS_DB_HOST'],
+            user=credentials_dct['GNSS_DB_USER'],
+            password=credentials_dct['GNSS_DB_PASS'],
+            database=credentials_dct['GNSS_DB_NAME']
+        ) as connection:
+            ## handle network query first ...
+            if args.netowk is not None:
+                with connection.cursor() as cursor:
+                    cursor.execute(return_network_query(args.network, dt))
+                    result = cursor.fetchall()
+                    for row in result: print(row)
+                
+    except Error as e:
+        print(e)
