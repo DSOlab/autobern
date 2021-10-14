@@ -105,11 +105,21 @@ def parse_helmr1_out(istream):
             'residuals_in_millimeters_north', 'residuals_in_millimeters_east',
             'residuals_in_millimeters_up'
         ]
-        dct['stations'][cols[1]] = dict([
-            ('num', int(cols[0])), ('flag', cols[2]),
-            *[(t[0], float(t[1])) for t in zip(h, cols[3].split())],
-            ('mark', cols[4])
-        ])
+        ## following block does not work for Python 2.7 ...
+        #dct['stations'][cols[1]] = dict([
+        #    ('num', int(cols[0])), ('flag', cols[2]),
+        #    *[(t[0], float(t[1])) for t in zip(h, cols[3].split())],
+        #    ('mark', cols[4])
+        #])
+        print(('num', int(cols[0])))
+        print(('flag', cols[2]))
+        print(zip(h, [float(x) for x in cols[3].split()]))
+        print(('mark', cols[4]))
+        dct['stations'][cols[1]] = dict(
+            [('num', int(cols[0])), ('flag', cols[2]),
+            ('mark', cols[4])] +
+            zip(h, [float(x) for x in cols[3].split()])
+        )
         line = istream.readline()
         if line.strip().replace(' ', '') == '||||||':
             break
