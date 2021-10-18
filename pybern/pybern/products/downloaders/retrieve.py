@@ -50,8 +50,11 @@ def ftp_retrieve(url, filename=None, **kwargs):
     if set(['username', 'password']).intersection(set(kwargs)):
         username = kwargs['username'] if 'username' in kwargs else ''
         password = kwargs['password'] if 'password' in kwargs else ''
-        __url = re.sub('^ftp:\/\/', '', filename)
-        url = 'ftp://{:}:{:}@{:}'.format(username, password, __url)
+        if (not username or username == '') and (not password or password == ''):
+            pass
+        else:
+            __url = re.sub('^ftp:\/\/', '', filename)
+            url = 'ftp://{:}:{:}@{:}'.format(username, password, __url)
 
     target = '{:}/{:}'.format(url, filename)
 
@@ -110,6 +113,8 @@ def http_retrieve(url, filename=None, **kwargs):
         use_credentials = True
         username = kwargs['username'] if 'username' in kwargs else ''
         password = kwargs['password'] if 'password' in kwargs else ''
+        if (not username or username == '') and (not password or password == ''):
+            use_credentials = False
 
     target = '{:}/{:}'.format(url, filename)
 

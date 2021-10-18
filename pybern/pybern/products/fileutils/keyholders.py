@@ -45,7 +45,7 @@ def extract_key_values(key_file, **kwargs):
 
     key_file: The input key file filename
     **kwargs: A list of arguments of type: 'var1=devault_value'; the function
-        wiil try to find the value var1 in the they file. If the key is found,
+        will try to find the value var1 in the they file. If the key is found,
         then its value (as recorded in the key file) is returned. If the key is
         not found, its default value (aka the one specified at function input)
         is returned.
@@ -60,4 +60,44 @@ def extract_key_values(key_file, **kwargs):
     return_dict = {}
     for key in kwargs:
         return_dict[key] = keys_dict[key] if key in keys_dict else kwargs[key]
+    return return_dict
+
+def extract_rename_key_values(key_file, renamedct, **kwargs):
+    """
+    Parse a key file (aka a file with lines of type: 'VAR_X = foobar') and
+    extract values of given keys. If a key is not found, then it's value is
+    supposed to be the one passed in. This version will also rename the keys 
+    in the returned dictionary according to the renamedct dictionary.
+
+    Example:
+        key_file = '/foo/bar/keys'
+        renamedct = {'var1': 'VAR1', 'var2': 'foo2'}
+        kwargs = {'var1': None, 'var2': 2, 'var3': 1, 'var4': None}
+        contents of key_file:
+            var1 = some value
+            var2 = 222
+            var3 = 1
+            var5 = foobar
+        Returns the dictionary:
+            {'var4': None, 'VAR1': 'some value', 'foo2': '222', 'var3': '1'}
+
+    key_file: The input key file filename
+    **kwargs: A list of arguments of type: 'var1=devault_value'; the function
+        will try to find the value var1 in the they file. If the key is found,
+        then its value (as recorded in the key file) is returned. If the key is
+        not found, its default value (aka the one specified at function input)
+        is returned.
+    returns: A dictionary holding all keys in kwargs but renamed according to 
+        the renamedct dictionary; the vaues of the keys are the values recorded 
+        in the key file if the corresponding keys exist, else the value 
+        specified at input
+
+    Note that if a key is found in the key file, its value is always returned
+    as a string.
+    """
+    keys_dict = parse_key_file(key_file)
+    return_dict = {}
+    for key in kwargs:
+        new_key = key if key not in renamedct else renamedct[key]
+        return_dict[new_key] = keys_dict[key] if key in keys_dict else kwargs[key]
     return return_dict
