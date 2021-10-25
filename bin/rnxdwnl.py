@@ -68,7 +68,7 @@ station_query=(
 
 def query_dict_to_rinex_list(query_dict, pt):
     if 'rnx_v' not in query_dict:
-        print('WARNING No rinex version specified in query response; don\'t know how to make rinex')
+        print('[WRNNG] No rinex version specified in query response; don\'t know how to make rinex')
         return []
     return make_rinex2_fn(query_dict['mark_name_OFF'], pt) if query_dict['rnx_v'] == 2 else make_rinex3_fn(query_dict['long_name'], pt)
 
@@ -109,11 +109,11 @@ def compare_query_result_dictionaries(dict_list):
         ## check reference dictionary against current iteration ...
         for key in dictA:
             if key not in dictB:
-                print('Key {:} missing from query result line!'.format(key))
+                print('[WRNNG] Key {:} missing from query result line!'.format(key))
                 thispair_missing.append(key)
             else:
                 if dictA[key] != dictB[key]:
-                    verboseprint('WARNING Different values for key {:}; values are: {:} and {:}'.format(key, dictA[key],dictB[key]))
+                    verboseprint('[WRNNG] Different values for key {:}; values are: {:} and {:}'.format(key, dictA[key],dictB[key]))
                     thispair_difs.append(key)
         
         ## check current iteration against referece dictionary ...
@@ -123,12 +123,12 @@ def compare_query_result_dictionaries(dict_list):
             if key not in dict2:
                 if key not in thispair_missing:
                     thispair_missing.append(key)
-                    print('Key {:} missing from query result line!'.format(key))
+                    print('[WRNNG] Key {:} missing from query result line!'.format(key))
             else:
                 if dict1[key] != dict2[key]:
                     if key not in thispair_difs:
                         thispair_difs.append(key)
-                        vserboseprint('WARNING Different values for key {:}; values are: {:} and {:}'.format(key, dict1[key],dict2[key]))
+                        vserboseprint('[WRNNG] Different values for key {:}; values are: {:} and {:}'.format(key, dict1[key],dict2[key]))
 
         ## add this pair's missing/different key/value pairs to the sum
         difs = list(set(difs + thispair_difs))
@@ -140,7 +140,7 @@ def download_station_rinex(query_dict, pt, output_dir=os.getcwd()):
     """ Perform a station query on the database and download a station
         RINEX file corresponding to the query's answer
     """
-    verboseprint("Here is the row dictionary fed to download: {}".format(query_dict))
+    verboseprint("[DEBUG] Here is the row dictionary fed to download: {}".format(query_dict))
 
     ## grab the first row/dictionary and formulate the url
     remote_path = query_dict['pth2rnx30s']
@@ -150,25 +150,25 @@ def download_station_rinex(query_dict, pt, output_dir=os.getcwd()):
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
     possible_rinex = query_dict_to_rinex_list(query_dict, pt)
 
-    print(remote_dir)
-    print(possible_rinex)
     for fn in possible_rinex:
         remote_fn = remote_dir + fn
-        verboseprint("this is remote file we should download: {:}".format(remote_fn))
-        #try:
-        web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'])
-        #except:
-        #    print('Failed retrieving remote file {:}'.format(remote_fn))
+        verboseprint("[DEBUG] This is the remote file we should download: {:}".format(remote_fn))
+        try:
+            status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'])
+            print('Downloaded remote file {:} to {:}'.format(target, saveas))
+            return
+        except:
+            print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
 
 def query_station(cursor, station, pt,  output_dir=os.getcwd()):
     ## execute the query ...
     cursor.execute(station_query, (station, pt, pt))
 
     ## grab all results from cursor and see if we are dealing with an empty set
-    verboseprint('Processing rows for station {:} rowcount={:}'.format(station, cursor.rowcount))
+    verboseprint('[DEBUG] Processing rows for station {:} rowcount={:}'.format(station, cursor.rowcount))
     rows = cursor.fetchall()
     if not rows or rows == {}:
-        verboseprint('WARNING! Empty set returned for station {:} and date {:}.'.format(station, pt.strftime('%Y-%m-%d')))
+        verboseprint('[WRNNG] Empty set returned for station {:} and date {:}.'.format(station, pt.strftime('%Y-%m-%d')))
         return -1
     
     ## compare rows (if multiple); the only acceptable result is that two
@@ -192,10 +192,10 @@ def query_network(cursor, network, pt, output_dir=os.getcwd()):
     cursor.execute(network_query, (network, pt, pt))
 
     ## grab all results from cursor and see if we are dealing with an empty set
-    verboseprint('Processing rows for network {:} rowcount={:}'.format(network, cursor.rowcount))
+    verboseprint('[DEBUG] Processing rows for network {:} rowcount={:}'.format(network, cursor.rowcount))
     rows = cursor.fetchall()
     if not rows or rows == {}:
-        verboseprint('WARNING! Empty set returned for network {:} and date {:}.'.format(network, pt.strftime('%Y-%m-%d')))
+        verboseprint('[WRNNG] Empty set returned for network {:} and date {:}.'.format(network, pt.strftime('%Y-%m-%d')))
         return -1
 
     for row in rows:

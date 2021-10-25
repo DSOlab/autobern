@@ -34,8 +34,10 @@ def ftp_retrieve(url, filename=None, **kwargs):
     fail_error: True/False Throw exception if download fails. By default
                the function will throw if the download fails
   """
+    # print('>> called ftp_retrieve with args: url={:}, filename={:}, kwargs={:}'.format(url, filename, kwargs))
     if filename is None:
         url, filename = url_split(url)
+    # print('>> split url and filename to {:} and {:}'.format(url, filename))
     saveas = kwargs['save_as'] if 'save_as' in kwargs else filename
     if 'save_dir' in kwargs:
         if not os.path.isdir(kwargs['save_dir']):
@@ -53,10 +55,14 @@ def ftp_retrieve(url, filename=None, **kwargs):
         if (not username or username == '') and (not password or password == ''):
             pass
         else:
-            __url = re.sub('^ftp:\/\/', '', filename)
-            url = 'ftp://{:}:{:}@{:}'.format(username, password, __url)
+            ## need to construct a string of type:
+            ## 'ftp://username:password@server/path/to/file' from (url=)
+            ## 'server/path/to/file'
+            # print('>> using credentials .... ')
+            url = re.sub(r'^ftp://', 'ftp://{:}:{:}@'.format(username, password), url)
 
     target = '{:}/{:}'.format(url, filename)
+    #print('>> target is {:}'.format(target))
 
     status = 0
     try:
@@ -153,6 +159,7 @@ def http_retrieve(url, filename=None, **kwargs):
 
 
 def web_retrieve(url, **kwargs):
+    # print('>> called web_retrieve with args: url={:}, kwargs={:}'.format(url, kwargs))
     filename = None if 'filename' not in kwargs else kwargs['filename']
     if url.startswith('http'):
         return http_retrieve(url, filename, **kwargs)
