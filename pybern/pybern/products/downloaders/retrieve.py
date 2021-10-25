@@ -45,6 +45,7 @@ def ftp_retrieve(url, filename=None, **kwargs):
                 kwargs['save_dir'])
             raise RuntimeError(msg)
         saveas = os.path.join(kwargs['save_dir'], saveas)
+        # print('>> saveas is now {:}'.format(saveas))
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
 

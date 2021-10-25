@@ -79,7 +79,7 @@ def make_rinex3_fn(slong_name, pt):
     possible_rinex_fn = []
     for data_source in ['R', 'S']:
         for content_type in ['MO', 'GO']:
-            possible_rinex_fn.append('{:}_{:}_{:}_01D_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type))
+            possible_rinex_fn.append('{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type))
     return possible_rinex_fn
 
 def make_rinex2_fn(station_id, pt):
@@ -359,9 +359,9 @@ if __name__ == '__main__':
         cursor = cnx.cursor(dictionary=True)
         ## ask the database for stations first
         for station in args.station_list:
-            query_station(cursor, station, dt)
+            query_station(cursor, station, dt, save_dir)
         ## query the database for networks
-        query_network(cursor, args.network, dt)
+        query_network(cursor, args.network, dt, save_dir)
         ## close the cursor
         cursor.close()
     except mysql.connector.Error as err:
