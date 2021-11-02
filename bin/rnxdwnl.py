@@ -14,7 +14,6 @@ from mysql.connector import errorcode
 
 ## verbose print
 g_verbose = False
-verboseprint = print if g_verbose else lambda *a, **k: None
 
 network_query=(
     """SELECT station.station_id, 
@@ -67,13 +66,22 @@ station_query=(
         AND dataperiod.periodstop>=%s""")
 
 def query_dict_to_rinex_list(query_dict, pt):
+    """ Given a query response row as dictionary (quer_dict), as answer from 
+        a station_query query, formulate a list of candidate RINEX files to
+        be downloaded (for the station described in the row). The function 
+        will take into account if the station (for the given date) has RINEX
+        v2 or v3 data holdings.
+    """
     if 'rnx_v' not in query_dict:
         print('[WRNNG] No rinex version specified in query response; don\'t know how to make rinex')
         return []
     return make_rinex2_fn(query_dict['mark_name_OFF'], pt) if query_dict['rnx_v'] == 2 else make_rinex3_fn(query_dict['long_name'], pt)
 
 def make_rinex3_fn(slong_name, pt):
-    """ see http://acc.igs.org/misc/rinex304.pdf, 
+    """ Given a station long-name (e.g. DYNG00GRC) and a python datetime 
+        instance (pt), make a list of possible RINEX v3.x files that can hold
+        data for the station/date.
+        see http://acc.igs.org/misc/rinex304.pdf, 
         ch. 4 The Exchange of RINEX files
     """
     possible_rinex_fn = []
@@ -97,6 +105,8 @@ def compare_query_result_dictionaries(dict_list):
         The second list, contains any key that is present in one or more of the 
         dictionaries, and missing from one or more of the rest.
     """
+    verboseprint = print if g_verbose else lambda *a, **k: None
+    
     sz = len(dict_list)
     if sz == 1: return [], []
 
@@ -136,31 +146,62 @@ def compare_query_result_dictionaries(dict_list):
                     
     return difs, missing
 
-def download_station_rinex(query_dict, pt, output_dir=os.getcwd()):
-    """ Perform a station query on the database and download a station
-        RINEX file corresponding to the query's answer
+def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
+    """ given a station query result as dictionary (query_dict), parse and
+        formulate the correct fields to enable RINEX download. The function
+        will formulate:
+        1. the remote url (path)
+        2. a list of candidate RINEX (2 or 3) files
+        Then it will iteratively try to download the remote RINEX files, trying
+        all RINEX files in the possible_rinex list
+        If a RINEX file is successefully downloaded, the holdings dictionary 
+        will be update with an entry of type:
+        holdings = { ...., mark_name_DSO: {'local': saved_RINEX_filename, 
+                                           'remote': remote_RINEX_downloaded}
+                                       ...}
     """
+    verboseprint = print if g_verbose else lambda *a, **k: None
     verboseprint("[DEBUG] Here is the row dictionary fed to download: {}".format(query_dict))
 
     ## grab the first row/dictionary and formulate the url
     remote_path = query_dict['pth2rnx30s']
     for tf in zip(['%Y', '%j', '%m', '%d'],['_YYYY_', '_DDD_', '_MM_', '_DD_']):
         remote_path = remote_path.replace(tf[1], pt.strftime(tf[0]))
-    
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
+
+    ## make a list of candidate RINEX filenames to (try to) download
     possible_rinex = query_dict_to_rinex_list(query_dict, pt)
 
+    ## iteratively try downloading RINEX files from possible_rinex; stop when
+    ## we succed
     for fn in possible_rinex:
         remote_fn = remote_dir + fn
         verboseprint("[DEBUG] This is the remote file we should download: {:}".format(remote_fn))
         try:
             status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'])
             print('Downloaded remote file {:} to {:}'.format(target, saveas))
+            holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
             return
         except:
             print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
 
-def query_station(cursor, station, pt,  output_dir=os.getcwd()):
+def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
+    """ Given a cursor to the GNSS database, perform a station query as
+        defined in station_query, for a given station 4-char id (station) and
+        a python datetime instance (pt).
+        If we get several lines back from the database (for the query), check
+        the lines to see if and where they differ; the only acceptable 
+        difference should be in the 'network_name' column, aka a station can
+        belong to several networks. If that condition is not met trigger an 
+        error.
+        In case the above check is ok, proceed to download the corresponding 
+        RINEX file for the station/date.
+        Holdings is a dictionary that holds station RINEX download results. It
+        will be passed to download_station_rinex and if we succed in RINEX
+        download a new entry will be apended for the given station.
+    """
+    verboseprint = print if g_verbose else lambda *a, **k: None
+    
     ## execute the query ...
     cursor.execute(station_query, (station, pt, pt))
 
@@ -181,11 +222,24 @@ def query_station(cursor, station, pt,  output_dir=os.getcwd()):
         print('[ERROR] Query results are different between queries! Can\'t handle that! (maybe an erronuous data enrty?)', file=sys.stderr)
         return 3
 
-    return download_station_rinex(rows[0], pt, output_dir)
+    ## procced to station RINEX download ...
+    return download_station_rinex(rows[0], pt, holdings, output_dir)
 
 
-def query_network(cursor, network, pt, output_dir=os.getcwd()):
-    ##
+def query_network(cursor, network, pt, holdings, output_dir=os.getcwd()):
+    """ Given a cursor to the GNSS database, perform a network query as
+        defined in network_query, for a given network name (network) and a
+        a python datetime instance (pt).
+        In case the query returns results, proceed to download the corresponding 
+        RINEX files for all stations in the network (each line we get back from
+        the query, is a record for a unique station belonging to the network)
+        Holdings is a dictionary that holds station RINEX download results. It
+        will be passed to download_station_rinex and if we succed in RINEX
+        download a new entry will be apended for the given station.
+    """
+    verboseprint = print if g_verbose else lambda *a, **k: None
+
+    ## handle case where network is None
     if not network: return 0
 
     ## execute the query ...
@@ -198,8 +252,9 @@ def query_network(cursor, network, pt, output_dir=os.getcwd()):
         verboseprint('[WRNNG] Empty set returned for network {:} and date {:}.'.format(network, pt.strftime('%Y-%m-%d')))
         return -1
 
+    ## every row in the response string, is a station row; handle the station
     for row in rows:
-        download_station_rinex(row, pt, output_dir)
+        download_station_rinex(row, pt, holdings, output_dir)
 
 
 ##  If only the formatter_class could be:
@@ -338,7 +393,6 @@ if __name__ == '__main__':
         print('[ERROR] Failed to find requested directory \'{:}\''.format(save_dir), file=sys.stderr)
         sys.exit(5)
 
-
     ## We now need credentials ... store them all in a credentials_dct dict
     credentials_dct = {'GNSS_DB_USER':None, 'GNSS_DB_PASS':None, 'GNSS_DB_HOST':None, 'GNSS_DB_NAME':None}
     if args.credentials_file:
@@ -347,6 +401,9 @@ if __name__ == '__main__':
     if args.password: credentials_dct['GNSS_DB_PASS'] = args.password
     if args.mysql_host: credentials_dct['GNSS_DB_HOST'] = args.mysql_host
     if args.db_name: credentials_dct['GNSS_DB_NAME'] = args.db_name
+
+    ## create a dictionary to hold RINEX download results
+    holdings = {}
 
     ## Connect to the database
     try:
@@ -359,15 +416,15 @@ if __name__ == '__main__':
         cursor = cnx.cursor(dictionary=True)
         ## ask the database for stations first
         for station in args.station_list:
-            query_station(cursor, station, dt, save_dir)
+            query_station(cursor, station, dt, holdings, save_dir)
         ## query the database for networks
-        query_network(cursor, args.network, dt, save_dir)
+        query_network(cursor, args.network, dt, holdings, save_dir)
         ## close the cursor
         cursor.close()
     except mysql.connector.Error as err:
         print('[ERROR] Failed to connect to database!', file=sys.stderr)
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("[ERROR ] Something is wrong with your user name or password", file=sys.stderr)
+            print("[ERROR] Something is wrong with your user name or password", file=sys.stderr)
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
             print("[ERROR] Database does not exist", file=sys.stderr)
         else:
