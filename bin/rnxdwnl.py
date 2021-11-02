@@ -38,8 +38,8 @@ network_query=(
         JOIN sta2nets ON sta2nets.station_id=station.station_id 
         JOIN network ON network.network_id=sta2nets.network_id 
         WHERE network.network_name=%s
-        AND dataperiod.periodstart<%s
-        AND dataperiod.periodstop>%s""")
+        AND dataperiod.periodstart<=%s
+        AND dataperiod.periodstop>=%s""")
 
 station_query=(
     """SELECT station.station_id,
@@ -63,8 +63,8 @@ station_query=(
         JOIN  sta2nets ON sta2nets.station_id=station.station_id
         JOIN network ON network.network_id=sta2nets.network_id
         WHERE station.mark_name_DSO=%s
-        AND dataperiod.periodstart<%s
-        AND dataperiod.periodstop>%s""")
+        AND dataperiod.periodstart<=%s
+        AND dataperiod.periodstop>=%s""")
 
 def query_dict_to_rinex_list(query_dict, pt):
     if 'rnx_v' not in query_dict:
