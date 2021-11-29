@@ -4,6 +4,7 @@
 from __future__ import print_function
 import re
 import sys
+import os
 
 ##
 ##  KeyFiles are normal ascii files holding variable name and value pairs, e.g.
@@ -14,15 +15,23 @@ import sys
 ##  VAR_VALUE can include pretty much any character.
 ##
 
+def expand_env_vars(line):
+    for s in re.finditer(r'\$\{[a-zA-Z0-9_]+\}', line):
+        evar = re.match('^\$\{([a-zA-Z0-9_]+)\}', s.group()).group(1)
+        line = line.replace(s.group(), os.getenv(evar, evar))
+    return line
 
-def parse_key_file(fn, parse_error_is_fatal=False):
+def parse_key_file(fn, parse_error_is_fatal=False, expand_envvars=True):
     result = {}
     lnrgx = re.compile(
-        '^\s*(?P<var_name>\w+)\s*=\s*"?(?P<var_value>[ a-zA-Z0-9!@#\$%\^\&*\)\(+=._-]+)"?\s*$'
+        '^\s*(?P<var_name>\w+)\s*=\s*"?(?P<var_value>[ a-zA-Z0-9!@#;\$%\^\&\.\/*\)\(+=._-]+)"?\s*$'
     )
     with open(fn, 'r') as f:
         for line in f.readlines():
             if not line.startswith('#'):
+                if expand_envvars:
+                    ## find any substring of type ${VAR} and expand it
+                    line = expand_env_vars(line)
                 m = re.match(lnrgx, line.strip())
                 if not m and len(line.strip()) > 0:
                     print(

@@ -259,6 +259,7 @@ def main(**kwargs):
     """
 
     ## args = parser.parse_args()
+    for k in kwargs: print('rnx: {:} -> {:}'.format(k, kwargs[k]))
 
     ## verbose global verbosity level
     g_verbose_rnxdwnl = kwargs['verbose']
