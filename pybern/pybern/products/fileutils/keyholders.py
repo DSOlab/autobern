@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -45,6 +45,39 @@ def parse_key_file(fn, parse_error_is_fatal=False, expand_envvars=True):
                 if m is not None:
                     result[m.group('var_name')] = m.group('var_value')
     return result
+
+#def parse_exports_file(fn, parse_error_is_fatal=False, expand_envvars=True):
+#    result = {}
+#    lnrgx = re.compile(
+#        '^\s*export\*s(?P<var_name>\w+)="?(?P<var_value>[ a-zA-Z0-9!@#;\$%\^\&\.\/*\)\(+=._-]+)"?\s*$'
+#    )
+#    with open(fn, 'r') as f:
+#        for line in f.readlines():
+#            if not line.startswith('#') and len(line.strip()):
+#                if expand_envvars:
+#                    ## find any substring of type ${VAR} and expand it
+#                    line = expand_env_vars(line)
+#                m = re.match(lnrgx, line.strip())
+#                if not m and len(line.strip()) > 0:
+#                    print(
+#                        '[WRNNG] Line is not a comment but could not be resolved: \'{:}\''
+#                        .format(line.strip()),
+#                        file=sys.stderr)
+#                    if parse_error_is_fatal:
+#                        msg = '[ERROR] keyholders::parse_key_file unable to parse line: \'{:}\''.format(
+#                            line.strip())
+#                        raise RuntimeError(msg)
+#                if m is not None:
+#                    result[m.group('var_name')] = m.group('var_value')
+#    return result
+#
+#def shell_source(source_script):
+#    if not os.path.isfile(source_script):
+#        print('[ERROR] Failed to locate file {:}'.format(source_script))
+#        raise RuntimeError
+#
+#    evars = parse_exports_file(source_script, False, True)
+#    for k,v in evars.items(): os.environ[k] = v
 
 def extract_key_values(key_file, **kwargs):
     """

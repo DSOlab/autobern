@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -258,6 +258,9 @@ def main(**kwargs):
         rnxdwnl script in the bin/ folder
     """
 
+    ## if no station_list provided, make an empty one
+    if 'station_list' not in kwargs: kwargs['station_list'] = []
+
     ## args = parser.parse_args()
     for k in kwargs: print('rnx: {:} -> {:}'.format(k, kwargs[k]))
 
@@ -278,10 +281,8 @@ def main(**kwargs):
     credentials_dct = {'GNSS_DB_USER':None, 'GNSS_DB_PASS':None, 'GNSS_DB_HOST':None, 'GNSS_DB_NAME':None}
     if kwargs['credentials_file']:
         credentials_dct = extract_key_values(kwargs['credentials_file'], **credentials_dct)
-    if kwargs['username']: credentials_dct['GNSS_DB_USER'] = kwargs['username']
-    if kwargs['password']: credentials_dct['GNSS_DB_PASS'] = kwargs['password']
-    if kwargs['mysql_host']: credentials_dct['GNSS_DB_HOST'] = kwargs['mysql_host']
-    if kwargs['db_name']: credentials_dct['GNSS_DB_NAME'] = kwargs['db_name']
+    for k,v in zip(['username', 'password', 'mysql_host', 'db_name'], ['GNSS_DB_USER', 'GNSS_DB_PASS', 'GNSS_DB_HOST', 'GNSS_DB_NAME']):
+        if k in kwargs and kwargs[k] is not None: credentials_dct[v] = kwargs[k]
 
     ## create a dictionary to hold RINEX download results
     holdings = {}

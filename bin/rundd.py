@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -6,8 +6,7 @@ import sys
 import os
 import argparse
 import subprocess
-import pprint
-import shlex
+import atexit
 import pybern.products.rnxdwnl_impl as rnxd
 from pybern.products.fileutils.keyholders import parse_key_file
 
@@ -18,19 +17,6 @@ temp_files = []
 def bpe_exit(error):
     for fn in temp_files: os.remove(fn)
     sys.exit(error)
-
-def shell_source(sfile):
-    """ Emulate bash 'source' with the target file sfile. Note that 'source'
-        is not a program (but a script) hence it cannot be called via a 
-        subprocess
-    """
-    command = shlex.split("bash -c 'source {:} && env'".format(sfile))
-    proc = subprocess.Popen(command, stdout = subprocess.PIPE)
-    for line in proc.stdout:
-        (key, _, value) = line.strip().partition("=")
-        os.environ[key] = value
-    proc.communicate()
-    #pprint.pprint(dict(os.environ))
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -135,11 +121,11 @@ if __name__ == '__main__':
     ## master values (in case same keys are recorded in both dictionaries) are
     ## considered to be in args
     options = {}
-    #for k,v in config_file_dict.items(): py:3
-    for k,v in config_file_dict.iteritems():
+    for k,v in config_file_dict.items():
+    #for k,v in config_file_dict.iteritems():
         options[k.lower()] = v
-    #for k,v in args.items(): py:3
-    for k,v in vars(args).iteritems():
+    for k,v in vars(args).items():
+    #for k,v in vars(args).iteritems():
         if v is not None:
             options[k.lower()] = v
 
@@ -155,7 +141,8 @@ if __name__ == '__main__':
     if not os.path.isfile(options['b_loadgps']):
         print('[ERROR] Failed to located LOADGPS file {:}'.format(options['b_loadgps']), file=sys.stderr)
         bpe_exit(1)
-    shell_source(options['b_loadgps'])
+    #exec(open(options['b_loadgps']).read())
+    subprocess.call("{}".format(options['b_loadgps']), shell=True)
     
     ## check that the campaign directory exists
 

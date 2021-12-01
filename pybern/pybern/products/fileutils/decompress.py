@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -9,10 +9,10 @@ import subprocess
 import gzip, tarfile, zipfile
 import tempfile
 from sys import version_info as version_info
-if version_info.major == 2:
-    from cmpvar import find_os_compression_type, name_of_decompressed
-else:
-    from .cmpvar import find_os_compression_type, name_of_decompressed
+#if version_info.major == 2:
+#    from cmpvar import find_os_compression_type, name_of_decompressed
+#else:
+from .cmpvar import find_os_compression_type, name_of_decompressed
 
 
 def os_decompress(filename, remove_original=False):

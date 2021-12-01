@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -9,10 +9,10 @@ class PybernError(Exception):
 
     def __init__(self, message):
         # Call the base class constructor with the parameters it needs
-        if version_info.major == 2:
-            super(PyBernError, self).__init__(message)
-        else:
-            super().__init__(message)
+        #if version_info.major == 2:
+        #    super(PyBernError, self).__init__(message)
+        #else:
+        super().__init__(message)
 
 
 class ArgumentError(PybernError):
@@ -29,10 +29,10 @@ class ArgumentError(PybernError):
                 details += '...missing...)'
         # Call the base class constructor with the parameters it needs
         message += details
-        if version_info.major == 2:
-            super(ArgumentError, self).__init__(message)
-        else:
-            super().__init__(message)
+        #if version_info.major == 2:
+        #    super(ArgumentError, self).__init__(message)
+        #else:
+        super().__init__(message)
 
 
 class FileFormatError(PybernError):
@@ -41,7 +41,7 @@ class FileFormatError(PybernError):
         message = errmsg
         message += '\n\tFile Format: {:}'.format(fileformat)
         message += '\n\tError line :\'{:}\''.format(line.strip())
-        if version_info.major == 2:
-            super(ArgumentError, self).__init__(message)
-        else:
-            super().__init__(message)
+        #if version_info.major == 2:
+        #    super(ArgumentError, self).__init__(message)
+        #else:
+        super().__init__(message)

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -17,10 +17,11 @@ def merge_dicts(dicta, dictb):
     #    if sys.version_info[1] >= 9:
     #        return dicta | dictb
     #    elif sys.version_info[1] >= 5:
-    #        return {**dicta, **dictb}
+    return {**dicta, **dictb}
     #    else:
     #        return merge_dicts_impl(dicta, dictb)
     #else:
     #    return merge_dicts_impl(dicta, dictb)
+    
     ## Just make it work for Python 2.7 !!
-    return merge_dicts_impl(dicta, dictb)
+    #return merge_dicts_impl(dicta, dictb)
