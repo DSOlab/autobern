@@ -3,16 +3,55 @@
 
 from __future__ import print_function
 import os
+import sys
 import re
 import shutil
 import subprocess
 import gzip, tarfile, zipfile
 import tempfile
-from sys import version_info as version_info
+#from sys import version_info as version_info
 #if version_info.major == 2:
 #    from cmpvar import find_os_compression_type, name_of_decompressed
 #else:
 from .cmpvar import find_os_compression_type, name_of_decompressed
+
+def crx2rnx(filename, remove_compressed=True, path2crx2rnx=None):
+    """ Decompress a Hatanaka-compressed RINEX file, to an obs file. This
+        function will try to use the program CRX2RNX to perform the
+        decompression.
+        If CRX2RNX is not in the PATH (env. variable), you will need to provide
+        it's path via the path2crx2rnx variable.
+        Will throw if the operation fails!
+    """
+    if not os.path.isfile(filename):
+        ermsg = '[ERROR] decompress::crx2rnx file {:} does not exist'.format(filename)
+        raise RuntimeError(ermsg)
+
+    ## what should the result, decompressed RINEX file be?
+    if not filename.endswith('d') and not filename.endswith('crx'):
+        ermsg = '[ERROR] RINEX {:} does not follow the Hatanaka naming convention!'.fromat(filename)
+        raise RuntimeError(ermsg)
+    urnx = re.sub(r'd$', 'o', filename) if filename.endswith('d') else re.sub(r'.crx', '.rnx', filename)
+    
+    if path2crx2rnx is not None:
+        if not os.path.isdir(path2crx2rnx):
+            ermsg = '[ERROR] decompress::crx2rnx directory {:} does not exist'.format(path2crx2rnx)
+            raise RuntimeError(ermsg)
+        if not os.path.isfile(os.path.join(path2crx2rnx, 'CRX2RNX')):
+            ermsg = '[ERROR] decompress::crx2rnx file {:} does not exist'.format(os.path.join(path2crx2rnx, 'CRX2RNX'))
+            raise RuntimeError(ermsg)
+
+    prog = 'CRX2RNX' if path2crx2rnx == None else os.path.join(path2crx2rnx, 'CRX2RNX')
+
+    print('>> Calling shell with {:} {:}, expecting result {:}'.format(prog, filename, urnx))
+    subprocess.check_call(['{:}'.format(prog), '-f', '{:}'.format(filename)], stderr=sys.stderr)
+    if not os.path.isfile(urnx):
+        ermsg = '[ERROR] Failed decompressing Hatanaka RINEX file {:}'.format(filename)
+        raise RuntimeError(ermsg)
+
+    if remove_compressed: os.remove(filename)
+    
+    return filename, urnx
 
 
 def os_decompress(filename, remove_original=False):
@@ -37,13 +76,13 @@ def os_decompress(filename, remove_original=False):
     ## use 7-zip on windows and uncompress on Linux
     if ctype == '.Z':
         if os.name == 'nt':  ## windows
-            subprocess.call([
+            subprocess.check_call([
                 "7z", "e", "-y", "-bso0", "{:}".format(filename),
                 "-o{:}".format(os.path.dirname(noncmp_filename))
             ])
         else:
             try:
-                subprocess.call(["uncompress", "-f", "{:}".format(filename)])
+                subprocess.check_call(["uncompress", "-f", "{:}".format(filename)], stderr=sys.stderr)
             except:
                 status = 1
     elif ctype == '.gz':

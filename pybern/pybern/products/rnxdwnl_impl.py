@@ -5,6 +5,7 @@ from __future__ import print_function
 import os
 import datetime
 import sys
+import re
 from pybern.products.fileutils.keyholders import extract_key_values
 from pybern.products.downloaders.retrieve import web_retrieve
 import mysql.connector
@@ -61,6 +62,37 @@ station_query=(
         WHERE station.mark_name_DSO=%s
         AND dataperiod.periodstart<=%s
         AND dataperiod.periodstop>=%s""")
+
+def rinex_exists_as(possible_rinex, output_dir=os.getcwd()):
+    """ Given a list of (possible rinex) files, this function will search for
+        a matching file, where matching is one of the following:
+        * same as input,
+        * decompressed (.Z, .gz)
+        * Hatanaka-decompressed (d, .crx)
+    """
+    for prnx in possible_rinex:
+        ## check for the fully compressed file
+        fn = os.path.join(output_dir, prnx)
+        if os.path.isfile(fn):
+            return fn
+        ## check for the decompressed Hatanaka version, aka no .Z or .gz
+        for ext in ['.Z', '.gz']:
+            if prnx.endswith(ext):
+                rnx = re.sub(r'{:}$'.format(ext), '', prnx)
+                fn = os.path.join(output_dir, rnx)
+                if os.path.isfile(fn): return fn
+        ## check for the fully-decompressed RINEX
+        for ext in ['.Z', '.gz']:
+            if prnx.endswith(ext):
+                hrnx = re.sub(r'{:}$'.format(ext), '', prnx)
+                if hrnx.endswith('d'):
+                    fn = os.path.join(output_dir, hrnx[-1]+'o')
+                    if os.path.isfile(fn): return fn
+                elif hrnx.endswith('crx'):
+                    fn = os.path.join(output_dir, hrnx[-3]+'rnx')
+                    if os.path.isfile(fn): return fn
+    return None
+
 
 def query_dict_to_rinex_list(query_dict, pt):
     """ Given a query response row as dictionary (quer_dict), as answer from 
@@ -162,12 +194,30 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
 
     ## grab the first row/dictionary and formulate the url
     remote_path = query_dict['pth2rnx30s']
-    for tf in zip(['%Y', '%j', '%m', '%d'],['_YYYY_', '_DDD_', '_MM_', '_DD_']):
+    for tf in zip(['%Y', '%j', '%m', '%d', '%y'],['_YYYY_', '_DDD_', '_MM_', '_DD_', '_YY_']):
         remote_path = remote_path.replace(tf[1], pt.strftime(tf[0]))
+    ## some urls may contain the 'official' station name, as _OFF_STA_NAME_
+    remote_path = remote_path.replace('_OFF_STA_NAME_', query_dict['mark_name_OFF'])
+    ## here is the final URL
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
 
     ## make a list of candidate RINEX filenames to (try to) download
     possible_rinex = query_dict_to_rinex_list(query_dict, pt)
+
+    ## check if any of the possible RINEX files already exist in the specified
+    ## location (compressed or not).
+    old_rnx = rinex_exists_as(possible_rinex, output_dir)
+    if old_rnx is not None:
+        ## well ok, but let's check the file size first before skipping download
+        fsz = os.path.getsize(old_rnx) // 1024 ##Kb
+        if fsz < 10:
+            print('[DEBUG] A version of RINEX ({:}) already exists localy but is too small ({:}Kb)'.format(old_rnx, fsz))
+            os.remove(old_rnx)
+        else:
+            verboseprint('[DEBUG] Skipping download for {:}; RINEX already exists as {:}'.format(query_dict['mark_name_DSO'], old_rnx))
+            # print('[DEBUG] Skipping download for {:}; RINEX already exists as {:}'.format(query_dict['mark_name_DSO'], old_rnx))
+            holdings[query_dict['mark_name_DSO']]={'local': old_rnx, 'remote': None}
+            return
 
     ## iteratively try downloading RINEX files from possible_rinex; stop when
     ## we succed

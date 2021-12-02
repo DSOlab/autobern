@@ -8,11 +8,57 @@ import argparse
 import subprocess
 import atexit
 import pybern.products.rnxdwnl_impl as rnxd
+import pybern.products.fileutils.decompress as dcomp
 from pybern.products.fileutils.keyholders import parse_key_file
+from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
+from pybern.products.codesp3 import get_sp3
+
+##
+crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
 
 ## list of temporary files created during program run that beed to be deleted 
 ## before exit
 temp_files = []
+
+def decompress_rinex(rinex_holdings):
+    """ rinex_holdings = {'pdel': {
+        'local': '/home/bpe/applications/autobern/bin/pdel0250.16d.Z', 
+        'remote': 'https://cddis.nasa.gov/archive/gnss/data/daily/2016/025/16d/pdel0250.16d.Z'}, 
+        'hofn': {...}}
+        The retuned dictionat is a copy of the input one, but the names of the
+        'local' rinex have been changed to the uncompressed filenames
+    """
+    new_holdings = {}
+    for station, dct in rinex_holdings.items():
+        if dct['local'] is not None:
+            crnx = dct['local']
+            if not os.path.isfile(crnx):
+                print('[ERROR] Failed to find downloaded RINEX file {:}'.format(crnx), file=sys.stderr)
+                raise RuntimeError
+
+            ## decompress to ascii (hatanaka compressed)
+            if crnx.endswith('.Z') or crnx.endswith('.gz'):
+                cr = None
+                try:
+                    cr, drnx = dcomp.os_decompress(crnx, True)
+                except:
+                    print('[WRNNG] Failed to decompress RINEX file {:}'.format(crnx), file=sys.stderr)
+                    print('[WRNNG] Note that the RINEX file {:} will be deleted from rinex_holdings and removed'.format(crnx), file=sys.stderr)
+                    os.remove(crnx)
+                if cr is not None:
+                    assert(os.path.isfile(drnx))
+                    ## decompress from Hatanaka
+                    drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
+                    new_holdings[station] = {'local': rnx, 'remote': dct['remote']}
+            
+            elif crnx.endswith('d') or crnx.endswith('crx'):
+                ## else if hatanaka compressed
+                drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
+                new_holdings[station] = {'local': rnx, 'remote': dct['remote']}
+            
+            else:
+                new_holdings[station] = dct
+    return new_holdings
 
 def bpe_exit(error):
     for fn in temp_files: os.remove(fn)
@@ -122,10 +168,8 @@ if __name__ == '__main__':
     ## considered to be in args
     options = {}
     for k,v in config_file_dict.items():
-    #for k,v in config_file_dict.iteritems():
         options[k.lower()] = v
     for k,v in vars(args).items():
-    #for k,v in vars(args).iteritems():
         if v is not None:
             options[k.lower()] = v
 
@@ -157,3 +201,15 @@ if __name__ == '__main__':
         'verbose': options['verbose']
     }
     rinex_holdings = rnxd.main(**rnxdwnl_options)
+    # print(rinex_holdings)
+
+    ## get info on the stations that belong to the network, aka
+    ## [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
+    db_credentials_dct = parse_db_credentials_file(options['config_file'])
+    netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
+
+    ## uncompress (to obs) all RINEX files of the network/date
+    rinex_holdings = decompress_rinex(rinex_holdings)
+
+    ## download sp3
+    status, remote, local = get_sp3(**input_dct)
