@@ -66,19 +66,22 @@ def ftp_retrieve(url, filename=None, **kwargs):
     #print('>> target is {:}'.format(target))
 
     status = 0
+    #try:
+    #    if sys.version_info.major == 2:
+    #        with closing(urllib2.urlopen(target)) as r:
+    #            with open(saveas, 'wb') as f:
+    #                shutil.copyfileobj(r, f)
+    #    else:
+    print(">> Note that target={:}".format(target))
     try:
-        if sys.version_info.major == 2:
-            with closing(urllib2.urlopen(target)) as r:
-                with open(saveas, 'wb') as f:
-                    shutil.copyfileobj(r, f)
-        else:
-            with closing(urllib.request.urlopen(target)) as r:
-                with open(saveas, 'wb') as f:
-                    shutil.copyfileobj(r, f)
-        if not os.path.isfile(saveas):
-            status += 1
+        with closing(urllib.request.urlopen(target)) as r:
+            with open(saveas, 'wb') as f:
+                shutil.copyfileobj(r, f)
     except:
         status = 1
+    
+    if not os.path.isfile(saveas):
+        status += 1
 
     if status > 0 and kwargs['fail_error'] == True:
         msg = '[ERROR] retrieve::ftp_retrieve Failed to download file {:}'.format(

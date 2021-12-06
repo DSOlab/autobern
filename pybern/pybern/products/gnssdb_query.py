@@ -34,13 +34,15 @@ def parse_db_credentials_file(credentials_file):
 def execute_query(credentials_dct, query_str, *args):
     """ 
     """
+    connection_error = 0 
     ## Connect to the database
     try:
         cnx = mysql.connector.connect(
             host=credentials_dct['GNSS_DB_HOST'], 
             database=credentials_dct['GNSS_DB_NAME'], 
             user=credentials_dct['GNSS_DB_USER'], 
-            password=credentials_dct['GNSS_DB_PASS'])
+            password=credentials_dct['GNSS_DB_PASS'],
+            connect_timeout=10)
         ## get a cursor to perform queries ...
         cursor = cnx.cursor(dictionary=True)
         ## execute query ...
@@ -53,10 +55,17 @@ def execute_query(credentials_dct, query_str, *args):
         print('[ERROR] Failed to connect to database!', file=sys.stderr)
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("[ERROR] Something is wrong with your user name or password", file=sys.stderr)
+            connection_error = 10
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
             print("[ERROR] Database does not exist", file=sys.stderr)
+            connection_error = 11
         else:
             print('[ERROR] ' + str(err), file=sys.stderr)
+            connection_error = 12
+    
+    if connection_error > 0:
+        msg = '[ERROR] Failed to connect to to database at {:}@{:}; fatal!'.format(credentials_dct['GNSS_DB_NAME'], credentials_dct['GNSS_DB_HOST'])
+        raise RuntimeError(msg)
 
     return rows
 

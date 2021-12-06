@@ -6,6 +6,7 @@ import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
 from pybern.products.errors.errors import ArgumentError
+
 from sys import version_info as version_info
 if version_info.major == 2:
     from produtils import utils_whatever2pydt as _date
@@ -67,7 +68,7 @@ def get_sp3_final_target(**kwargs):
     url_dir = '{:}'.format(pydt.strftime('%Y'))
 
     eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
-    target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, ion)
+    target = '{:}/CODE/{:}/{:}'.format(CODE_URL, url_dir, eph)
     return target
 
 

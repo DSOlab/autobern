@@ -6,12 +6,16 @@ import sys
 import os
 import argparse
 import subprocess
+import datetime
 import atexit
 import pybern.products.rnxdwnl_impl as rnxd
 import pybern.products.fileutils.decompress as dcomp
 from pybern.products.fileutils.keyholders import parse_key_file
 from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
 from pybern.products.codesp3 import get_sp3
+from pybern.products.codeerp import get_erp
+from pybern.products.codeion import get_ion
+from pybern.products.codedcb import get_dcb
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -150,6 +154,11 @@ parser.add_argument(
                     metavar='TABLES_DIR',
                     dest='tables_dir',
                     default=None)
+parser.add_argument(
+                    '--skip-rinex-download',
+                    action='store_true',
+                    help='Skip download of RINEX files; only consider RINEX files already available for network/date',
+                    dest='skip_rinex_download')
 
 
 if __name__ == '__main__':
@@ -190,6 +199,9 @@ if __name__ == '__main__':
     
     ## check that the campaign directory exists
 
+    ## date we are solving for as datetime instance
+    dt = datetime.datetime.strptime('{:}-{:03d}'.format(options['year'], int(options['doy'])), '%Y-%j')
+
     ## download the RINEX files for the given network. Hold results int the
     ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
     rnxdwnl_options = {
@@ -200,16 +212,59 @@ if __name__ == '__main__':
         'network': options['network'],
         'verbose': options['verbose']
     }
-    rinex_holdings = rnxd.main(**rnxdwnl_options)
-    # print(rinex_holdings)
+    #if args.skip_rinex_download:
+    #    rinex_holdings = {}
+    #else:
+    #    rinex_holdings = rnxd.main(**rnxdwnl_options)
+    ## print(rinex_holdings)
 
     ## get info on the stations that belong to the network, aka
     ## [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
-    db_credentials_dct = parse_db_credentials_file(options['config_file'])
-    netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
+    #db_credentials_dct = parse_db_credentials_file(options['config_file'])
+    #netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
 
     ## uncompress (to obs) all RINEX files of the network/date
-    rinex_holdings = decompress_rinex(rinex_holdings)
+    #rinex_holdings = decompress_rinex(rinex_holdings)
+
+    ## write product information to a dictionary
+    product_dict = {}
 
     ## download sp3
-    status, remote, local = get_sp3(**input_dct)
+    for count,orbtype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
+        try:
+            status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=os.getenv('D'))
+            verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
+            product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
+            break
+        except:
+            verboseprint('[DEBUG] Failed downloading sp3 file of type {:}'.format(orbtype))
+    ## download erp
+    for count,erptype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
+        try:
+            status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=os.getenv('D'))
+            verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
+            product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
+            break
+        except:
+            verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
+    ## download ion
+    for count,iontype in enumerate(['final', 'rapid', 'current']):
+        try:
+            status, remote, local = get_ion(type=erptype, pydt=dt, save_dir=os.getenv('D'))
+            verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
+            product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
+            break
+        except:
+            verboseprint('[DEBUG] Failed downloading ion file of type {:}'.format(iontype))
+    ## download dcb
+    days_dif = (datetime.datetime.now() - dt).days
+    if days_dif > 0 and days_dif < 30:
+            status, remote, local = get_dcb(type='current', obs='full', save_dir=os.getenv('D'))
+            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+    elif days_dif >= 30:
+            status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=os.getenv('D'))
+            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
+    else:
+        print('[ERROR] Don\'t know what DCB product to download!')
+        sys.exit(1)
+
