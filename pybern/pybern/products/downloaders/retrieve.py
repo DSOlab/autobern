@@ -66,13 +66,7 @@ def ftp_retrieve(url, filename=None, **kwargs):
     #print('>> target is {:}'.format(target))
 
     status = 0
-    #try:
-    #    if sys.version_info.major == 2:
-    #        with closing(urllib2.urlopen(target)) as r:
-    #            with open(saveas, 'wb') as f:
-    #                shutil.copyfileobj(r, f)
-    #    else:
-    print(">> Note that target={:}".format(target))
+    # print(">> Note that target={:}".format(target))
     try:
         with closing(urllib.request.urlopen(target)) as r:
             with open(saveas, 'wb') as f:

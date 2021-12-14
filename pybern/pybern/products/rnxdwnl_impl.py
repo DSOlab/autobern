@@ -215,7 +215,7 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
             os.remove(old_rnx)
         else:
             verboseprint('[DEBUG] Skipping download for {:}; RINEX already exists as {:}'.format(query_dict['mark_name_DSO'], old_rnx))
-            # print('[DEBUG] Skipping download for {:}; RINEX already exists as {:}'.format(query_dict['mark_name_DSO'], old_rnx))
+            print('[DEBUG] Skipping download for {:}; RINEX already exists as {:}'.format(query_dict['mark_name_DSO'], old_rnx))
             holdings[query_dict['mark_name_DSO']]={'local': old_rnx, 'remote': None}
             return
 
@@ -312,7 +312,7 @@ def main(**kwargs):
     if 'station_list' not in kwargs: kwargs['station_list'] = []
 
     ## args = parser.parse_args()
-    for k in kwargs: print('rnx: {:} -> {:}'.format(k, kwargs[k]))
+    # for k in kwargs: print('rnx: {:} -> {:}'.format(k, kwargs[k]))
 
     ## verbose global verbosity level
     g_verbose_rnxdwnl = kwargs['verbose']

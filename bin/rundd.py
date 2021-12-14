@@ -16,6 +16,9 @@ from pybern.products.codesp3 import get_sp3
 from pybern.products.codeerp import get_erp
 from pybern.products.codeion import get_ion
 from pybern.products.codedcb import get_dcb
+from pybern.products.euref.utils import get_euref_exclusion_list
+from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
+import pybern.products.vmf1 as vmf1
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -24,17 +27,104 @@ crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
 ## before exit
 temp_files = []
 
+def mark_exclude_stations(station_list, rinex_holdings):
+   for station in rinex_holdings:
+       if station in station_list:
+           rinex_holdings[station]['exclude'] = True
+           print('[DEBUG] Marking station {:} as excluded! will not be processed.'.format(station))
+
+def prepare_products(dt, credentials_file, product_dir=None, verbose=False):
+    ## write product information to a dictionary
+    product_dict = {}
+
+    if product_dir is None: product_dir = os.getcwd()
+
+    ## download sp3
+    for count,orbtype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
+        try:
+            status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=product_dir)
+            verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
+            product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
+            break
+        except:
+            verboseprint('[DEBUG] Failed downloading sp3 file of type {:}'.format(orbtype))
+
+    ## download erp
+    for count,erptype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
+        try:
+            status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=product_dir)
+            verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
+            product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
+            break
+        except:
+            verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
+    
+    ## download ion
+    for count,iontype in enumerate(['final', 'rapid', 'current']):
+        try:
+            status, remote, local = get_ion(type=erptype, pydt=dt, save_dir=product_dir)
+            verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
+            product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
+            break
+        except:
+            verboseprint('[DEBUG] Failed downloading ion file of type {:}'.format(iontype))
+    
+    ## download dcb
+    days_dif = (datetime.datetime.now() - dt).days
+    if days_dif > 0 and days_dif < 30:
+            status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
+            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+    elif days_dif >= 30:
+            status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=product_dir)
+            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
+    else:
+        print('[ERROR] Don\'t know what DCB product to download!')
+        raise RuntimeError
+    
+    ## if we failed throw, else decompress
+    for product in ['sp3', 'erp', 'ion', 'dcb']:
+        if product not in product_dict:
+            print('[ERROR] Failed to download (any) {:} file! Giving up ...'.format(product), file=sys.stderr)
+            raise RuntimeError
+        else:
+            lfile = product_dict[product]['local']
+            if lfile.endswith('.Z') or lfile.endswith('.gz'):
+                c, d = dcomp.os_decompress(lfile, True)
+                product_dict[product]['local'] = d
+    
+    ## download vmf1 grid
+    idoy = int(dt.strftime('%j').lstrip('0'))
+    iyear = int(dt.strftime('%Y'))
+    merge_to = os.path.join(product_dir, 'VMFG_{:}.GRD'.format(dt.strftime('%Y%m%d')))
+    vmf1_dict = vmf1.main(**{
+        'year': iyear,
+        'doy': idoy,
+        'output_dir': product_dir,
+        'credentials_file': credentials_file,
+        'verbose': verbose,
+        'merge_to': merge_to,
+        'allow_fc': True,
+        'del_after_merge': True
+        })
+    has_forecast = False
+    for fn in vmf1_dict:
+        if vmf1_dict[fn]['fc'] != 0:
+            has_forecast = True
+    product_dict['vmf1'] = {'local': merge_to, 'remote': None, 'type': 'forecast' if has_forecast else 'final' }
+
+    return product_dict
+
 def decompress_rinex(rinex_holdings):
     """ rinex_holdings = {'pdel': {
         'local': '/home/bpe/applications/autobern/bin/pdel0250.16d.Z', 
         'remote': 'https://cddis.nasa.gov/archive/gnss/data/daily/2016/025/16d/pdel0250.16d.Z'}, 
         'hofn': {...}}
-        The retuned dictionat is a copy of the input one, but the names of the
+        The retuned dictionary is a copy of the input one, but the names of the
         'local' rinex have been changed to the uncompressed filenames
     """
     new_holdings = {}
     for station, dct in rinex_holdings.items():
-        if dct['local'] is not None:
+        if dct['local'] is not None and not dct['exclude']:
             crnx = dct['local']
             if not os.path.isfile(crnx):
                 print('[ERROR] Failed to find downloaded RINEX file {:}'.format(crnx), file=sys.stderr)
@@ -53,12 +143,12 @@ def decompress_rinex(rinex_holdings):
                     assert(os.path.isfile(drnx))
                     ## decompress from Hatanaka
                     drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
-                    new_holdings[station] = {'local': rnx, 'remote': dct['remote']}
+                    new_holdings[station] = {'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
                 drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
-                new_holdings[station] = {'local': rnx, 'remote': dct['remote']}
+                new_holdings[station] = {'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
             
             else:
                 new_holdings[station] = dct
@@ -159,6 +249,26 @@ parser.add_argument(
                     action='store_true',
                     help='Skip download of RINEX files; only consider RINEX files already available for network/date',
                     dest='skip_rinex_download')
+parser.add_argument(
+                    '--use-euref-exclusion-list',
+                    action='store_true',
+                    help='Use EUREF\'s exclusion list, ftp://epncb.oma.be/pub/station/general/excluded/exclude.WWWW',
+                    dest='use_epn_exclude_list')
+parser.add_argument(
+                    '--exclusion-list',
+                    required=False,
+                    help='',
+                    metavar='EXCLUSION_LIST',
+                    dest='exclusion_list',
+                    default=None)
+parser.add_argument(
+                    '--min-reference-stations',
+                    required=False,
+                    help='',
+                    metavar='MIN_REFERENCE_SITES',
+                    dest='min_reference_sites',
+                    type=int,
+                    default=4)
 
 
 if __name__ == '__main__':
@@ -178,25 +288,22 @@ if __name__ == '__main__':
     options = {}
     for k,v in config_file_dict.items():
         options[k.lower()] = v
+    ## translate YES/NO to True/False
+    for k,v in config_file_dict.items():
+        if v.upper() == "YES": options[k] = True
+        elif v.upper() == "NO": options[k] = False
     for k,v in vars(args).items():
         if v is not None:
             options[k.lower()] = v
 
     ##
-    #print('------------------------------------------------------------------')
-    #for k in options: print('{:.20s} -> {:.20s}'.format(k, options[k]))
-    #print('------------------------------------------------------------------')
+    print('------------------------------------------------------------------')
+    for k in options: print('{:.20s} -> {:}'.format(k, options[k]))
+    print('------------------------------------------------------------------')
 
     ## verbose print
     verboseprint = print if options['verbose'] else lambda *a, **k: None
 
-   ## source the LOADGPS files (enviromental variables)
-    if not os.path.isfile(options['b_loadgps']):
-        print('[ERROR] Failed to located LOADGPS file {:}'.format(options['b_loadgps']), file=sys.stderr)
-        bpe_exit(1)
-    #exec(open(options['b_loadgps']).read())
-    subprocess.call("{}".format(options['b_loadgps']), shell=True)
-    
     ## check that the campaign directory exists
 
     ## date we are solving for as datetime instance
@@ -212,59 +319,48 @@ if __name__ == '__main__':
         'network': options['network'],
         'verbose': options['verbose']
     }
-    #if args.skip_rinex_download:
-    #    rinex_holdings = {}
-    #else:
-    #    rinex_holdings = rnxd.main(**rnxdwnl_options)
-    ## print(rinex_holdings)
+    if args.skip_rinex_download:
+        rinex_holdings = {}
+    else:
+        rinex_holdings = rnxd.main(**rnxdwnl_options)
+
+
+    ## for every station add a field in its dictionary ('exclude') denoting if 
+    ## the station needs to be excluded from the processing
+    for station in rinex_holdings: rinex_holdings[station]['exclude'] = False
+
+    ## check if we need to exclude station from EUREF's list
+    if options['use_epn_exclude_list']:
+        mark_exclude_stations(get_euref_exclusion_list(dt), rinex_holdings)
+
+    ## check if we have a file with stations to exclude
+    if options['exclusion_list'] is not None:
+        staexcl = []
+        with open(options['exclusion_list'], 'r') as fin:
+            staexcl = [x.split()[0].lower() for x in fin.readlines()]
+        mark_exclude_stations(staexcl, rinex_holdings)
 
     ## get info on the stations that belong to the network, aka
     ## [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
-    #db_credentials_dct = parse_db_credentials_file(options['config_file'])
-    #netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
+    db_credentials_dct = parse_db_credentials_file(options['config_file'])
+    netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
 
     ## uncompress (to obs) all RINEX files of the network/date
-    #rinex_holdings = decompress_rinex(rinex_holdings)
+    rinex_holdings = decompress_rinex(rinex_holdings)
 
-    ## write product information to a dictionary
-    product_dict = {}
+    ## download and prepare products
+    products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'])
 
-    ## download sp3
-    for count,orbtype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
-        try:
-            status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=os.getenv('D'))
-            verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
-            product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
-            break
-        except:
-            verboseprint('[DEBUG] Failed downloading sp3 file of type {:}'.format(orbtype))
-    ## download erp
-    for count,erptype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
-        try:
-            status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=os.getenv('D'))
-            verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
-            product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
-            break
-        except:
-            verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
-    ## download ion
-    for count,iontype in enumerate(['final', 'rapid', 'current']):
-        try:
-            status, remote, local = get_ion(type=erptype, pydt=dt, save_dir=os.getenv('D'))
-            verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
-            product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
-            break
-        except:
-            verboseprint('[DEBUG] Failed downloading ion file of type {:}'.format(iontype))
-    ## download dcb
-    days_dif = (datetime.datetime.now() - dt).days
-    if days_dif > 0 and days_dif < 30:
-            status, remote, local = get_dcb(type='current', obs='full', save_dir=os.getenv('D'))
-            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
-    elif days_dif >= 30:
-            status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=os.getenv('D'))
-            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
-    else:
-        print('[ERROR] Don\'t know what DCB product to download!')
-        sys.exit(1)
+    ## check that we have at least min_reference_sites reference sites included
+    ## in the processing
+    if options['min_reference_sites'] > 0:
+        refcrd_fn = options['refinf'] + '_R.CRD'
+        if os.path.isfile(os.path.join(options['tables_dir'], 'crd', refcrd_fn)):
+            refcrd_fn = os.path.join(options['tables_dir'], 'crd', refcrd_fn)
+        elif os.path.isfile(os.path.join(os.getenv('P'), options['campaign'], 'STA', refcrd_fn)):
+            refcrd_fn = os.path.join(os.getenv('P'), options['campaign'], 'STA', refcrd_fn)
+        else:
+            print('[ERROR] Failed to find reference coordinate file {:} in {:} and {:}'.format(refcrd_fn, os.path.join(os.getenv('P'), options['campaign'], 'STA'), os.path.join(options['tables_dir'], 'crd')), file=sys.stderr)
+            sys.exit(1)
 
+        crddct = parse_bern52_crd(refcrd_fn)
