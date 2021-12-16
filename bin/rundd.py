@@ -19,6 +19,7 @@ from pybern.products.codedcb import get_dcb
 from pybern.products.euref.utils import get_euref_exclusion_list
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
 import pybern.products.vmf1 as vmf1
+import pybern.products.bernparsers.bernsta as bsta
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -27,6 +28,61 @@ crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
 ## before exit
 temp_files = []
 
+def cleanup(tmp_file_list, verbosity=False):
+    ## verbose print
+    verboseprint = print if int(verbosity) else lambda *a, **k: None
+    
+    for f in tmp_file_list:
+        try:
+            verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
+            os.remove(f)
+            verboseprint(' done')
+        except:
+            verboseprint(' failed')
+            #pass
+    return
+
+## callback function to be called at exit
+atexit.register(cleanup, temp_files, True)
+
+def stainf2fn(stainf, tables_dir, campaign):
+    """ Form and return a valid (aka existing) .STA file based on input 
+        parameters
+        stainf: Filename of the .STA file, excluding the '.STA' extension
+        tables_dir: tables/ directory; the function expects that the .STA file
+                should be located at tables/sta/ directory
+        campaifn: Name of campaign; if the .STA file is not found in the 
+                tables_dir/sta/ folder, hen the function will search for the
+                file in $P/$campaign/STA
+    """
+    stainf_fn = os.path.join(tables_dir, 'sta', stainf+'.STA')
+    if os.path.isfile(stainf_fn): return stainf_fn
+
+    stainf_fn = os.path.join(os.getenv('P'), campaign, 'STA', stainf+'.STA')
+    if os.path.isfile(stainf_fn): return stainf_fn
+    
+    raise RuntimeError('ERROR Failed to locate .STA file')
+
+def match_rnx_vs_sta(rinex_holdings, stafn, dt):
+    sta = bsta.BernSta(stafn)
+    binfo = sta.parse().filter([s[0:4].upper() for s in rinex_holdings ], True)
+
+    for station in rinex_holdings:
+        stainf = binfo.station_info(station.upper(), True)
+        matched = False
+        for t2entry in stainf['type002']:
+            domes = t2entry.sta_name[4:] if len(t2entry.sta_name)>4 else ''
+            if t2entry.start_date <= dt and t2entry.stop_date >= dt:
+                matched = True
+                break
+        if not matched:
+            print('[ERROR] No valid entry found in STA file {:} for station {:} and date {:}'.format(stafn, station, dt.strftime('%Y%m%d %H:%M:%S'), file=sys.stderr))
+            return 1
+
+        rinex_holdings[station]['domes'] = domes
+
+    return 0;
+    
 def mark_exclude_stations(station_list, rinex_holdings):
    for station in rinex_holdings:
        if station in station_list:
@@ -257,16 +313,24 @@ parser.add_argument(
 parser.add_argument(
                     '--exclusion-list',
                     required=False,
-                    help='',
+                    help='Optionally us a file where the first column is the name of the station to be excluded from the processing; all other columns are ignored. The file can have many rows.',
                     metavar='EXCLUSION_LIST',
                     dest='exclusion_list',
                     default=None)
 parser.add_argument(
                     '--min-reference-stations',
                     required=False,
-                    help='',
+                    help='If a value larger than 0 is provided, then the program will check if the number of reference sites to be used (according to the downloaded RINEX list) is larger than this value; if not it will stop. The reference station list is read from a file using the \'REFINF\' variable and inspecting one of the files: \'$tables_dir/crd/$REFINF_R.CRD\' or \'$P/$campaign/$REFINF_R.CRD\'',
                     metavar='MIN_REFERENCE_SITES',
                     dest='min_reference_sites',
+                    type=int,
+                    default=4)
+parser.add_argument(
+                    '--stations-per-cluster',
+                    required=False,
+                    help='Stations per cluster',
+                    metavar='STATIONS_PER_CLUSTER',
+                    dest='files_per_cluster',
                     type=int,
                     default=4)
 
@@ -327,7 +391,9 @@ if __name__ == '__main__':
 
     ## for every station add a field in its dictionary ('exclude') denoting if 
     ## the station needs to be excluded from the processing
-    for station in rinex_holdings: rinex_holdings[station]['exclude'] = False
+    for station in rinex_holdings:
+        rinex_holdings[station]['exclude'] = False
+        rinex_holdings[station]['domes'] = None
 
     ## check if we need to exclude station from EUREF's list
     if options['use_epn_exclude_list']:
@@ -348,6 +414,12 @@ if __name__ == '__main__':
     ## uncompress (to obs) all RINEX files of the network/date
     rinex_holdings = decompress_rinex(rinex_holdings)
 
+    ## validate stations using the STA file and get domes
+    stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
+    if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
+        print('[ERROR] Aborting processing!', file=sys.stderr)
+        sys.exit(1)
+
     ## download and prepare products
     products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'])
 
@@ -355,12 +427,42 @@ if __name__ == '__main__':
     ## in the processing
     if options['min_reference_sites'] > 0:
         refcrd_fn = options['refinf'] + '_R.CRD'
-        if os.path.isfile(os.path.join(options['tables_dir'], 'crd', refcrd_fn)):
-            refcrd_fn = os.path.join(options['tables_dir'], 'crd', refcrd_fn)
-        elif os.path.isfile(os.path.join(os.getenv('P'), options['campaign'], 'STA', refcrd_fn)):
-            refcrd_fn = os.path.join(os.getenv('P'), options['campaign'], 'STA', refcrd_fn)
-        else:
-            print('[ERROR] Failed to find reference coordinate file {:} in {:} and {:}'.format(refcrd_fn, os.path.join(os.getenv('P'), options['campaign'], 'STA'), os.path.join(options['tables_dir'], 'crd')), file=sys.stderr)
+        refcrd_fn_list = [ os.path.join(x, refcrd_fn) for x in [os.path.join(options['tables_dir'], 'crd'), os.path.join(os.getenv('P'), options['campaign'], 'STA')]]
+        refcrd = None
+        
+        for rfn in refcrd_fn_list:
+            if os.path.isfile(rfn):
+                refcrd = rfn
+                break;
+        if refcrd is None:
+            print('[ERROR] Failed to find reference coordinate file {:} or {:}'.format(refcrd_fn_list[0], refcrd_fn_list[1]), file=sys.stderr)
             sys.exit(1)
 
-        crddct = parse_bern52_crd(refcrd_fn)
+        crddct = parse_bern52_crd(refcrd)
+        ref_sta = [ s for s in rinex_holdings if s in crddct ]
+        if len(ref_sta) < options['min_reference_sites']:
+            print('[ERROR] Too few reference sites available for processing! Stoping the analysis now!', file=sys.stderr)
+            sys.exit(1)
+
+    ## transfer (uncompressed) rinex files to the campsign's RAW directory
+    for sta in rinex_holdings:
+        if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
+            ddir, fn = os.path.split(rinex_holdings[sta]['local'])
+            target = os.path.join(os.getenv('P'), options['campaign'], 'RAW', fn)
+            os.rename(rinex_holdings[sta]['local'], target)
+            temp_files.append(target)
+
+    ## make cluster file
+    with open(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), 'w') as fout:
+        print("""Cluster file automaticaly created by rundd on {:}
+--------------------------------------------------------------------------------
+
+STATION NAME      CLU
+****************  ***
+        """.format(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')), file=fout)
+        sta_counter = 0
+        for sta in rinex_holdings:
+            if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
+                print('{:16s}  {:3d}'.format(sta.upper()+' '+rinex_holdings[sta]['domes'], sta_counter//options['files_per_cluster']+1), file=fout)
+                sta_counter += 1
+    print('[DEBUG] Created cluster file {:} with total number of stations {:}'.format(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), sta_counter))

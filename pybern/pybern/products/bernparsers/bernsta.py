@@ -273,14 +273,15 @@ class BernSta:
         ## coding errors.
         with open(self.filename, 'r', errors="replace") as f:
             line = f.readline()
-            if not line.startswith(
-                    'STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2'):
-                raise FileFormatError(
-                    FILE_FORMAT, line,
-                    '[ERROR] BernSta::parse expected first line to be {:}'.
-                    format(
-                        'STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2'
-                    ))
+            self.title = line.strip()
+            #if not line.startswith(
+            #        'STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2'):
+            #    raise FileFormatError(
+            #        FILE_FORMAT, line,
+            #        '[ERROR] BernSta::parse expected first line to be {:}'.
+            #        format(
+            #            'STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2'
+            #        ))
             self.date = datetime.datetime.strptime(' '.join(
                 line.split()[-2:]), '%d-%b-%y %H:%M')  ## e.g. 01-JAN-21 07:31
             line = f.readline()

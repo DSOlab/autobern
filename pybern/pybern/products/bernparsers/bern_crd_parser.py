@@ -31,7 +31,7 @@ def parse_bern52_crd(fn):
         ref_frame = line.split()[3]
         stadct['ref_frame'] = ref_frame
         assert(line.split()[4] == 'EPOCH:')
-        date = datetime.datetime.strptime(' '.join(line.split()[5:]), '%Y%m%d %H:%M:%S')
+        date = datetime.datetime.strptime(' '.join(line.split()[5:]), '%Y-%m-%d %H:%M:%S')
         stadct['date'] = date
 
         line = fin.readline()
@@ -52,7 +52,7 @@ def parse_bern52_crd(fn):
             name = line[5:10].strip()
             domes = line[10:20].strip()
             x, y, z = [ float(i) for i in line[20:66].split() ]
-            flag = line[66:].strip() if len(line>66) else ''
+            flag = line[66:].strip() if len(line)>66 else ''
             stadct[name] = {'domes': domes, 'x': x, 'y': y, 'z': z, 'flag': flag}
 
     return stadct
