@@ -20,6 +20,7 @@ from pybern.products.euref.utils import get_euref_exclusion_list
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
 import pybern.products.vmf1 as vmf1
 import pybern.products.bernparsers.bernsta as bsta
+import pybern.products.bernparsers.bernpcf as bpcf
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -210,10 +211,6 @@ def decompress_rinex(rinex_holdings):
                 new_holdings[station] = dct
     return new_holdings
 
-def bpe_exit(error):
-    for fn in temp_files: os.remove(fn)
-    sys.exit(error)
-
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
 ##  Seems to work with multiple inheritance!
@@ -333,6 +330,45 @@ parser.add_argument(
                     dest='files_per_cluster',
                     type=int,
                     default=4)
+parser.add_argument(
+                    '--solution-id',
+                    required=False,
+                    help='Final solution identifier; preliminary, reduced and free-network solution will be named accordingly.',
+                    metavar='FINAL_SOLUTION_ID',
+                    dest='solution_id',
+                    default=None)
+parser.add_argument(
+                    '--pcf-file',
+                    required=False,
+                    help='PCF file to use for Bernese; this file should exist in $U/PCF/ folder',
+                    metavar='PCF_FILE',
+                    dest='pcf_file',
+                    default=None)
+parser.add_argument(
+                    '--atlinf',
+                    required=False,
+                    help="""The filename of the atl (i.e atmospheric tidal loading) corrections file.
+If the values is left blank, then no atl file is going to be used
+If you do specify a file, do **not** use an extension; also the file
+should be placed either in the ${TABLES_DIR}/atl directory or in the 
+campaign's /STA directory.""",
+                    metavar='ATLINF',
+                    dest='atlinf',
+                    default=None)
+parser.add_argument(
+                    '--pcv-ext',
+                    required=False,
+                    help="""Extension of the PCV input file, e.g. \'I14\'""",
+                    metavar='PCV_EXT',
+                    dest='pcvext',
+                    default=None)
+parser.add_argument(
+                    '--refpsd',
+                    required=False,
+                    help="""PSD Information file""",
+                    metavar='REFPSD',
+                    dest='refpsd',
+                    default=None)
 
 
 if __name__ == '__main__':
@@ -358,6 +394,8 @@ if __name__ == '__main__':
         elif v.upper() == "NO": options[k] = False
     for k,v in vars(args).items():
         if v is not None:
+            options[k.lower()] = v
+        elif v is None and k not in options:
             options[k.lower()] = v
 
     ##
@@ -421,7 +459,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     ## download and prepare products
-    products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'])
+    try:
+        products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'])
+    except Exception as e:
+        print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
+        sys.exit(1)
 
     ## check that we have at least min_reference_sites reference sites included
     ## in the processing
@@ -466,3 +508,23 @@ STATION NAME      CLU
                 print('{:16s}  {:3d}'.format(sta.upper()+' '+rinex_holdings[sta]['domes'], sta_counter//options['files_per_cluster']+1), file=fout)
                 sta_counter += 1
     print('[DEBUG] Created cluster file {:} with total number of stations {:}'.format(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), sta_counter))
+
+    ## Set solution identifiers
+    solution_id = {'final': options['solution_id'] }
+    for descr, sid in zip(['prelim', 'reduced', 'free_net'], [ 'P', 'R', 'N']):
+        if options['solution_id'][-1] == sid:
+            print('[ERROR] Final solution identifier cannot end in {:}; reserved for {:} solution'.format(sid, descr), file=sys.stderr)
+            sys.exit(1)
+        solution_id[descr] = options['solution_id'][0:-1] + sid
+    for descr, sid in solution_id.items():
+        print('[DEBUG] {:} solution identifier set to {:}'.format(descr, sid))
+
+    ## Set variables in PCF file
+    pcf_file = os.path.join(os.getenv('U'), 'PCF', options['pcf_file'])
+    if not os.path.isfile(pcf_file):
+        print('[ERROR] Failed to find PCF file {:}'.format(pcf_file), file=sys.stderr)
+        sys.exit(1)
+    pcf = bpcf.PcfFile(pcf_file)
+    for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'], options['pcvext'], options['pcvinf'], options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster']]):
+        pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
+    pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))

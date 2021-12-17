@@ -47,7 +47,7 @@ class PcfFile:
         idx = self.find_variable_header_line() + 2
         for pcf_line in self.pcf_lines[idx:]:
             if not pcf_line[0].lstrip() == '#':
-                if pcf_line.strip()[0:8] == var_name:
+                if pcf_line[0:8].strip() == var_name:
                     return idx, var_name, pcf_line[9:40 + 9].strip(
                     ), pcf_line[40 + 9 + 1:40 + 9 + 30].strip(), False
             else:
@@ -117,14 +117,22 @@ class PcfFile:
                the correct value
             3. The variable exists but has a different value; in this case just
                change the value
+            Note that if 'var_value' is None, then it will be translated to an
+            empty string.
         """
+        if var_value is None: var_value = ''
+        ## handle non-string values
+        var_value = '{:}'.format(var_value)
         line_idx, name, cmnt, val, is_commented = self.find_variable(var_name)
+        ## print('>> Searching for varible {:} returned index {:}'.format(var_name, line_idx))
         if line_idx == -1:  ## variable does not exist
             self.add_variable_line(var_name, var_value, var_comment)
         elif line_idx > -1 and is_commented:  ## variable exists but is commented out
             self.uncomment_variable_line(var_name, var_value, line_idx)
         elif line_idx > -1 and not is_commented:  ## variable exists; check and alter value
+            # print('>> Variable {:} has same value as requested!'.format(var_name))
             if val != var_value:
+                # print('>> Changing variable {:} from {:} to {:}'.format(var_name, val, var_value))
                 self.change_variable_line(var_name, var_value, line_idx)
         else:
             raise RuntimeError('[ERROR] Cannot set/update variable!')

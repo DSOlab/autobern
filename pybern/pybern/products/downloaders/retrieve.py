@@ -125,20 +125,29 @@ def http_retrieve(url, filename=None, **kwargs):
     status = 0
     if not use_credentials:  ## download with no credentials
         try:
-            if sys.version_info.major == 2:
-                response = urllib2.urlopen(target)
-                data = response.read()
-                with open(saveas, 'wb') as f:
-                    f.write(data)
-            else:
-                urllib.request.urlretrieve(target, saveas)
+            #if sys.version_info.major == 2:
+            #    response = urllib2.urlopen(target)
+            #    data = response.read()
+            #    with open(saveas, 'wb') as f:
+            #        f.write(data)
+            #else:
+
+            ## this does not allow a timeout
+            ## urllib.request.urlretrieve(target, saveas)
+
+            ## allow timeout with requests
+            request = requests.get(target, timeout=20, stream=True)
+            with open(saveas, 'wb') as fh:
+                for chunk in request.iter_content(1024 * 1024):
+                    fh.write(chunk)
+
             if not os.path.isfile(saveas):
                 status += 1
         except:
             status = 1
     else:  ## download with credentials (not sure if this works for python 2)
         try:
-            with requests.get(target, auth=(username, password)) as r:
+            with requests.get(target, auth=(username, password), timeout=20) as r:
                 r.raise_for_status()
                 with open(saveas, 'wb') as f:
                     #shutil.copyfileobj(r.raw, f)
