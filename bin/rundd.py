@@ -24,6 +24,14 @@ import pybern.products.bernparsers.bernpcf as bpcf
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
+if not os.path.isdir(crx2rnx_dir):
+    print('[ERROR] Invalid crx2rnx bin dir {:}'.format(crx2rnx_dir), file=sys.stderr)
+    sys.exit(1)
+##
+log_dir='/home/bpe/data/proclog'
+if not os.path.isdir(log_dir):
+    print('[ERROR] Invalid temp/proc dir {:}'.format(log_dir), file=sys.stderr)
+    sys.exit(1)
 
 ## list of temporary files created during program run that beed to be deleted 
 ## before exit
@@ -70,6 +78,9 @@ def match_rnx_vs_sta(rinex_holdings, stafn, dt):
 
     for station in rinex_holdings:
         stainf = binfo.station_info(station.upper(), True)
+        if stainf is None:
+            print('[ERROR] Failed to find Type 002 entry for station {:} (file: {:})'.format(station.upper(), stafn))
+            return 1
         matched = False
         for t2entry in stainf['type002']:
             domes = t2entry.sta_name[4:] if len(t2entry.sta_name)>4 else ''
@@ -200,12 +211,14 @@ def decompress_rinex(rinex_holdings):
                     assert(os.path.isfile(drnx))
                     ## decompress from Hatanaka
                     drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
-                    new_holdings[station] = {'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
+                    new_holdings[station] = rinex_holdings[station] ##{'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
+                    new_holdings[station]['local'] = rnx
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
                 drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
-                new_holdings[station] = {'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
+                new_holdings[station] = rinex_holdings[station] ##{'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
+                new_holdings[station]['local'] = rnx
             
             else:
                 new_holdings[station] = dct
@@ -528,3 +541,12 @@ STATION NAME      CLU
     for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'], options['pcvext'], options['pcvinf'], options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster']]):
         pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
+    pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')
+
+    ## ready to call the perl script for processing ...
+    bpe_start_at = datetime.datetime.now()
+    bern_task_id = options['campaign'].upper()[0] + 'DD'
+    bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
+    print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
+    with open(bern_log_fn, 'w') as logf:
+        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], stdout=logf, stderr=logf)
