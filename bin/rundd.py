@@ -4,6 +4,7 @@
 from __future__ import print_function
 import sys
 import os
+import re
 import argparse
 import subprocess
 import datetime
@@ -32,6 +33,38 @@ log_dir='/home/bpe/data/proclog'
 if not os.path.isdir(log_dir):
     print('[ERROR] Invalid temp/proc dir {:}'.format(log_dir), file=sys.stderr)
     sys.exit(1)
+
+##
+def path2dirs(pth):
+    dirs = []
+    it = 0
+    g = re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
+    while g:
+        dirs.append(g.group(1))
+        pth = pth.replace(g.group(0), '')
+        g=re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
+        it += 1
+        if it > 100:
+            print('[ERROR] Failed to resolve path to dirs! path is \'{:}\''.format(pth))
+            return []
+    return dirs
+
+def addtopath_load(bfn):
+    if not os.path.isfile(bfn):
+        print('[ERROR] Invalid LOADGPS.setvar file {:}'.format(bfn), file=sys.stderr)
+        sys.exit(1)
+    with open(bfn, 'r') as fin:
+        for line in fin.readlines():
+            if line.startswith('addtopath'):
+                dirs = path2dirs(line.split[1].strip().strip('"'))
+                if dirs == []:
+                    raise RuntimeError('Failed to resolve path!')
+                for i in range(len(dirs)):
+                    if dirs[i].startswith('$'):
+                        dirs[i] = os.getenv(dirs[i][1:])
+                # pth2add = os.path.join(dirs)
+                os.environ["PATH"] += os.pathsep + os.pathsep.join(dirs)
+    return
 
 ## list of temporary files created during program run that beed to be deleted 
 ## before exit
@@ -549,4 +582,7 @@ STATION NAME      CLU
     bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
-        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], stdout=logf, stderr=logf)
+        #env = { **os.environ }
+        #subprocess.call(['echo', '$PATH'])
+        addtopath_load(options['b_loadgps'])
+        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], env=env, stdout=logf, stderr=logf)
