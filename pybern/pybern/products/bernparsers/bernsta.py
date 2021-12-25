@@ -8,19 +8,17 @@ import operator
 from pybern.products.errors.errors import FileFormatError
 utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
              '/utils/')
+formats_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
+             '/formats/')
 sys.path.append(utils_dir)
+sys.path.append(formats_dir)
 from smart_open import smart_open
-from sys import version_info as version_info
-if version_info.major == 2:
-    from bernsta_001 import Type001Record
-    from bernsta_002 import Type002Record
-    from bernsta_003 import Type003Record
-    from bernsta_station import StationRecord
-else:
-    from .bernsta_001 import Type001Record
-    from .bernsta_002 import Type002Record
-    from .bernsta_003 import Type003Record
-    from .bernsta_station import StationRecord
+import igs_log_file as slog
+from bernsta_001 import Type001Record
+from bernsta_002 import Type002Record
+from bernsta_003 import Type003Record
+# from .bernsta_station import StationRecord
+
 '''
 STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           16-JAN-21 13:11
 --------------------------------------------------------------------------------
@@ -73,6 +71,17 @@ class BernStaInfo:
             if op(station, key):
                 return self.dct[key]
         return None
+    
+    def update_from_log(self, igs_log_file):
+        ## create the log file instance
+        log = slog.IgsLogFile(igs_log_file)
+        ## parse the first block to get name/domes
+        bd = log.parse_block(1)
+        sta_name = bd['Four Character ID']
+        sta_domes = bd['IERS DOMES Number']
+        ## check if the site is included in this instance
+        binfo = self.station_info(sta_name, True)
+        return binfo
 
     @staticmethod
     def dump_header(outfile=sys.stdout,

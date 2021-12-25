@@ -249,7 +249,7 @@ def decompress_rinex(rinex_holdings):
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
-                drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
+                drnx, rnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
                 new_holdings[station] = rinex_holdings[station] ##{'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
                 new_holdings[station]['local'] = rnx
             

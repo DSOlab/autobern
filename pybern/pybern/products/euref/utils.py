@@ -27,3 +27,16 @@ def get_euref_exclusion_list(dt):
 
     return exclusion_list
 
+def get_m3g_log(station, filename=None, out_dir=None):
+    """ Download m3g log file for  given station. Note that 'station'
+        must be the (upper case) 9-char station id
+    """
+    target = 'https://gnss-metadata.eu/sitelog/exportlog?station=' + station
+    
+    if filename is None:
+        filename = station.lower() + '.log'
+
+    if out_dir is None:
+        out_dir = os.getcwd()
+
+    return web_retrieve(target, save_as=filename, save_dir=out_dir)

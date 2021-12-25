@@ -6,14 +6,9 @@ import datetime
 import sys, os.path
 from pybern.products.errors.errors import FileFormatError, ArgumentError, PybernError
 from sys import version_info as version_info
-if version_info.major == 2:
-    from bernsta_001 import Type001Record as Type001Record
-    from bernsta_002 import Type002Record as Type002Record
-    from bernsta_003 import Type003Record as Type003Record
-else:
-    from .bernsta_001 import Type001Record as Type001Record
-    from .bernsta_002 import Type002Record as Type002Record
-    from .bernsta_003 import Type003Record as Type003Record
+from bernsta_001 import Type001Record as Type001Record
+from bernsta_002 import Type002Record as Type002Record
+from bernsta_003 import Type003Record as Type003Record
 
 utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
              '/utils/')
