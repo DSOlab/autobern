@@ -5,7 +5,6 @@ from __future__ import print_function
 import datetime
 import os, sys
 from pybern.products.errors.errors import FileFormatError, ArgumentError
-
 utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
              '/utils/')
 sys.path.append(utils_dir)
@@ -21,7 +20,7 @@ class Type001Record:
   '''
 
     @staticmethod
-    def dump_header():
+    def dump_header(ofile=sys.stdout):
         header_str = """
 TYPE 001: RENAMING OF STATIONS
 ------------------------------
@@ -29,7 +28,7 @@ TYPE 001: RENAMING OF STATIONS
 STATION NAME          FLG          FROM                   TO         OLD STATION NAME      REMARK
 ****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************
                      """
-        print(header_str)
+        print(header_str, file=ofile)
 
     def __init__(self, line=None, **kwargs):
         ''' First resolve and assign any values from kwargs; then, if line is not 

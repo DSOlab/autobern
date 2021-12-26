@@ -85,22 +85,27 @@ class BernStaInfo:
             self.stations += [name]
             self.dct[name] = {'type001': [
                 log.to_001type()], 'type002': log.to_002type()}
+            return 0
         else:
             if len(binfo['type001']) > 1:
                 print('[ERROR] Too many Type 001 records for station {:} in STA file {:}'.format(name, stafn), file=sys.stderr)
+                return 1
             
             t1 = log.to_001type()
             if not binfo['type001'][0].equal_except_remark(t1):
                 print('[WRNNG] Failed to join Type 001 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+                return 2
             
             t2 = log.to_002type()
             if len(t2) != len(binfo['type002']):
                 print('[WRNNG] Failed to join Type 002 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+                return 2
             else:
                 for idx, rec in enumerate(binfo['type002']):
                     if not rec.equal_except(t2[idx], 'description', 'remark'):
                         print('[WRNNG] Failed to join Type 002 records for station {:} and index: {:}; .STA={:}, log={:}'.format(
                             name, idx, stafn, igs_log_file), file=sys.stderr)
+                        return 2
             
 
     @staticmethod
@@ -123,13 +128,13 @@ TECHNIQUE:      {:}
         station_list = self.stations if station_list is None else station_list
         with smart_open(outfile) as outfile:
             BernStaInfo.dump_header(outfile)
-            Type001Record.dump_header()
+            Type001Record.dump_header(outfile)
             for sta in station_list:
                 [print(inst, file=outfile) for inst in self.dct[sta]['type001']]
-            Type002Record.dump_header()
+            Type002Record.dump_header(outfile)
             for sta in station_list:
                 [print(inst, file=outfile) for inst in self.dct[sta]['type002']]
-            Type003Record.dump_header()
+            Type003Record.dump_header(outfile)
             for sta in station_list:
                 if 'type003' in self.dct[sta]:
                     [

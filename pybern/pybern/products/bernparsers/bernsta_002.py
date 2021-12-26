@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import datetime
+import sys
 from pybern.products.errors.errors import FileFormatError, ArgumentError
 
 MIN_STA_DATE = datetime.datetime.min
@@ -15,7 +16,7 @@ class Type002Record:
   '''
 
     @staticmethod
-    def dump_header():
+    def dump_header(ofile=sys.stdout):
         header_str = """
 TYPE 002: STATION INFORMATION
 -----------------------------
@@ -23,7 +24,7 @@ TYPE 002: STATION INFORMATION
 STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK
 ****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************
                      """
-        print(header_str)
+        print(header_str, file=ofile)
 
     def __init__(self, line=None, **kwargs):
         ''' First resolve and assign any values from kwargs; then, if line is not 

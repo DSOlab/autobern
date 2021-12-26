@@ -33,3 +33,5 @@ print(d)
 logfn = "none.log"
 d = binfo.update_from_log(logfn)
 print(d)
+
+binfo.dump_as_sta('foo.sta')
