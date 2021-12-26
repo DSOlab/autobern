@@ -29,4 +29,3 @@ binfo = sta.parse()
 ## let's use a log file to update/insert a station
 logfn = sys.argv[2]
 d = binfo.update_from_log(logfn)
-print(d)

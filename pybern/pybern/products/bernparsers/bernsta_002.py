@@ -25,8 +25,31 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
                      """
         print(header_str)
 
-    def __init__(self, line):
-        self.init_from_line(line)
+    def __init__(self, line=None, **kwargs):
+        ''' First resolve and assign any values from kwargs; then, if line is not 
+      None, resolve line
+    '''
+        if kwargs:
+            self.init_from_args(**kwargs)
+        if line is not None:
+            self.init_from_line(line)
+    
+    def init_from_args(self, **kwargs):
+        self.sta_name = kwargs['station'] if 'station' in kwargs else (' ' * 4)
+        self.flag = kwargs['flag'] if 'flag' in kwargs else 1
+        self.start_date = kwargs['start'] if 'start' in kwargs else MIN_STA_DATE
+        self.stop_date = kwargs['end'] if 'end' in kwargs else MAX_STA_DATE
+        self.receiver_t = kwargs['receiver_type'] if 'receiver_type' in kwargs else ''
+        self.receiver_sn = kwargs['receiver_serial'] if 'receiver_serial' in kwargs else ''
+        self.receiver_nr = kwargs['receiver_number'] if 'receiver_number' in kwargs else '999999'
+        self.antenna_t = kwargs['antenna_type'] if 'antenna_type' in kwargs else ''
+        self.antenna_sn = kwargs['antenna_serial'] if 'antenna_serial' in kwargs else ''
+        self.antenna_nr = kwargs['antenna_number'] if 'antenna_number' in kwargs else '999999'
+        self.north = kwargs['delta_north'] if 'delta_north' in kwargs else 0e0
+        self.east = kwargs['delta_east'] if 'delta_east' in kwargs else 0e0
+        self.up = kwargs['delta_up'] if 'delta_up' in kwargs else 0e0
+        self.remark = kwargs['remark'] if 'remark' in kwargs else ''
+        self.description = kwargs['description'] if 'description' in kwargs else ''
 
     def init_from_line(self, line):
         ''' Initialize a Type002Record  instance using a type 002 information line. 
@@ -104,6 +127,14 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
                     FILE_FORMAT, line,
                     '[ERROR] Type002Record::init_from_line Failed to parse stop date'
                 )
+    
+    def equal_except_dates(self, type002_instance):
+        d1 = vars(self)
+        d2 = vars(type002_instance)
+        for key in d1:
+            if key is not 'start_date' and key is not 'stop_date':
+                if d1[key] != d2[key]: return False
+        return True
 
     def __str_format__(self):
         ''' Format the instance as a valid Type 002 record
@@ -125,3 +156,33 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
 
     def __str__(self):
         return self.__str_format__()
+
+def merge_t2_intervals(t2_list):
+    """ Merge a list of Type002 instances.
+        This function is mainly used in the following case: suppose we have a
+        list of Type002 records, e.g. as extracted from a log file. It might 
+        be the case that two consecutive records have all elements equal (e.g. 
+        the may only differ in the cut-off angle which is not recorded in the 
+        Type002 records but is recorded in the log files) but are marked as 
+        speperate intervals in the log file and in the input list.
+        This function will join two such intervals if they are consecutive and
+        the end/start datetime of the two intervals are less than 12 hours
+        aprart.
+    """
+
+    def merget2(t2_list):
+        for idx, val in enumerate(t2_list[0:-1]):
+            t20 = val
+            t21 = t2_list[idx+1]
+            if t20.equal_except_dates(t21):
+                if t20.stop_date - t21.start_date < datetime.timedelta(hours=12):
+                    return idx
+        return None
+    
+    idx = merget2(t2_list)
+    while idx is not None:
+        t2_list[idx+1].start_date = t2_list[idx].start_date
+        t2_list = t2_list[0:idx] + t2_list[idx+1:]
+        idx = merget2(t2_list)
+    
+    return t2_list

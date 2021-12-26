@@ -17,7 +17,6 @@ import igs_log_file as slog
 from bernsta_001 import Type001Record
 from bernsta_002 import Type002Record
 from bernsta_003 import Type003Record
-# from .bernsta_station import StationRecord
 
 '''
 STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           16-JAN-21 13:11
