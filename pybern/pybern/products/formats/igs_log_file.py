@@ -340,6 +340,12 @@ class IgsLogFile:
       bls = self.parse_block2line_list(block_nr)
       return parse_lines2dict(bls, self.blocks)
 
+    def site_name(self):
+      bd = self.parse_block(1)
+      name = bd['Four Character ID']
+      domes = bd['IERS DOMES Number']
+      return name, domes
+
     def to_001type(self):
       bd = self.parse_block(1)
       name = bd['Four Character ID']
@@ -380,10 +386,4 @@ class IgsLogFile:
               antenna_serial=antinfo['Serial Number'], delta_north=float(antinfo['Marker->ARP North Ecc(m)']), delta_east=float(antinfo['Marker->ARP East Ecc(m)']), delta_up=float(antinfo['Marker->ARP Up Ecc. (m)']))
           t2records.append(t2)
       
-      t2records = merge_t2_intervals(t2records)
-        
-      for rec in t2records: print('{:}'.format(rec))
-      #print("Accumulated intervals")
-      #for i in intervals:
-      #  print("\t b : {:} to {:}".format(i[0].strftime(
-      #      "%Y-%m-%d %H:%M:%S"), i[1].strftime("%Y-%m-%d %H:%M:%S")))
+      return merge_t2_intervals(t2records)

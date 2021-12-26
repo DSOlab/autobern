@@ -132,7 +132,15 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
         d1 = vars(self)
         d2 = vars(type002_instance)
         for key in d1:
-            if key is not 'start_date' and key is not 'stop_date':
+            if key != 'start_date' and key != 'stop_date':
+                if d1[key] != d2[key]: return False
+        return True
+    
+    def equal_except(self, type002_instance, except_list):
+        d1 = vars(self)
+        d2 = vars(type002_instance)
+        for key in d1:
+            if key not in except_list:
                 if d1[key] != d2[key]: return False
         return True
 

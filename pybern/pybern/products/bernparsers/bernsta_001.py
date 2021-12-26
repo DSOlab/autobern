@@ -148,6 +148,15 @@ STATION NAME          FLG          FROM                   TO         OLD STATION
                     '[ERROR] Type001Record::init_from_line Failed to parse stop date'
                 )
 
+    def equal_except_remark(self, t001_instance):
+        t10 = vars(self)
+        t11 = vars(t001_instance)
+        for key in t10:
+            if key != 'remark':
+                if t10[key] != t11[key]:
+                    return False
+        return True
+
     def __str_format__(self):
         ''' Format the instance as a valid Type 001 record
     '''

@@ -13,7 +13,7 @@ formats_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
 sys.path.append(utils_dir)
 sys.path.append(formats_dir)
 from smart_open import smart_open
-import igs_log_file as slog
+from igs_log_file import IgsLogFile
 from bernsta_001 import Type001Record
 from bernsta_002 import Type002Record
 from bernsta_003 import Type003Record
@@ -73,14 +73,35 @@ class BernStaInfo:
     
     def update_from_log(self, igs_log_file):
         ## create the log file instance
-        log = slog.IgsLogFile(igs_log_file)
+        log = IgsLogFile(igs_log_file)
         ## parse the first block to get name/domes
-        bd = log.parse_block(1)
-        sta_name = bd['Four Character ID']
-        sta_domes = bd['IERS DOMES Number']
+        name, domes = log.site_name()
         ## check if the site is included in this instance
-        binfo = self.station_info(sta_name, True)
-        return binfo
+        binfo = self.station_info(name, True)
+        ## we will need to report later, so hold the STA(s) filename(s) in a var
+        stafn=','.join([x.filename for x in self.source_list])
+        ## if binfo is None, site is not included in STA ....
+        if binfo is None:
+            self.stations += [name]
+            self.dct[name] = {'type001': [
+                log.to_001type()], 'type002': log.to_002type()}
+        else:
+            if len(binfo['type001']) > 1:
+                print('[ERROR] Too many Type 001 records for station {:} in STA file {:}'.format(name, stafn), file=sys.stderr)
+            
+            t1 = log.to_001type()
+            if not binfo['type001'][0].equal_except_remark(t1):
+                print('[WRNNG] Failed to join Type 001 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+            
+            t2 = log.to_002type()
+            if len(t2) != len(binfo['type002']):
+                print('[WRNNG] Failed to join Type 002 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+            else:
+                for idx, rec in enumerate(binfo['type002']):
+                    if not rec.equal_except(t2[idx], 'description', 'remark'):
+                        print('[WRNNG] Failed to join Type 002 records for station {:} and index: {:}; .STA={:}, log={:}'.format(
+                            name, idx, stafn, igs_log_file), file=sys.stderr)
+            
 
     @staticmethod
     def dump_header(outfile=sys.stdout,
