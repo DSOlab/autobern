@@ -14,6 +14,15 @@ from bernsta_003 import Type003Record
 from bernsta_002 import Type002Record, merge_t2_intervals
 from bernsta_001 import Type001Record
 
+def parse_log_date(dstr):
+    if re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}Z\s*$", dstr):
+        return datetime.datetime.strptime(dstr, "%Y-%m-%dT%H:%MZ")
+    elif re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\s*$", dstr):
+        return datetime.datetime.strptime(dstr, "%Y-%m-%d")
+    elif re.match(r"^\s*\(?CCYY-MM-DDThh:mmZ\)?\s*$", dstr):
+        return datetime.datetime.max
+    errmsg = '[ERROR] Invalid log datetime string: {:}'.format(dstr)
+    raise RuntimeError(errmsg)
 
 def filter_template_block_lines(line_list):
   """ Given a list of lines parsed from a single block of an igs log file, e.g
@@ -166,15 +175,8 @@ def block2intervals(block):
   """
   intervals = []
   for interval in block:
-    start = block[interval]['Date Installed']
-    stop = block[interval]['Date Removed']
-    start = datetime.datetime.strptime(start, "%Y-%m-%dT%H:%MZ")
-
-    if stop == 'CCYY-MM-DDThh:mmZ' or stop == '':
-      stop = datetime.datetime.max
-    else:
-      stop = datetime.datetime.strptime(stop, "%Y-%m-%dT%H:%MZ")
-    
+    start = install_date(block[interval])
+    stop = remove_date(block[interval])
     intervals.append((start, stop))
   return intervals
 
@@ -185,15 +187,7 @@ def make_intervals(b3, b4):
       concatenate the intervals based on changes either on the 3 or 4 block.
   """
   b3_intervals = sorted(block2intervals(b3), key=lambda t: t[0])
-  #print("Block3 Intervals:")
-  #for i in b3_intervals:
-  #    print("\t b3: {:} to {:}".format(i[0].strftime(
-  #        "%Y-%m-%d %H:%M:%S"), i[1].strftime("%Y-%m-%d %H:%M:%S")))
   b4_intervals = sorted(block2intervals(b4), key=lambda t: t[0])
-  #print("Block4 Intervals:")
-  #for i in b4_intervals:
-  #    print("\t b4: {:} to {:}".format(i[0].strftime(
-  #        "%Y-%m-%d %H:%M:%S"), i[1].strftime("%Y-%m-%d %H:%M:%S")))
   min3 = b3_intervals[0][0]
   min4 = b4_intervals[0][0]
   bfirst = b3_intervals
@@ -241,16 +235,11 @@ def make_intervals(b3, b4):
   return intervals
 
 def install_date(sub_dict):
-  return datetime.datetime.strptime(sub_dict['Date Installed'], "%Y-%m-%dT%H:%MZ")
+  return parse_log_date(sub_dict['Date Installed'])
 
 
 def remove_date(sub_dict):
-  stop = sub_dict['Date Removed']
-  if stop == 'CCYY-MM-DDThh:mmZ' or stop == '':
-    stop = datetime.datetime.max
-  else:
-    stop = datetime.datetime.strptime(stop, "%Y-%m-%dT%H:%MZ")
-  return stop
+  return parse_log_date(sub_dict['Date Removed'])
 
 def block_info_at(t, b):
   """ If b is an IgsLogFile-parsed, block 3 or 4 dictionary (aka a result of
@@ -286,11 +275,6 @@ class IgsLogFile:
         if not os.path.isfile(filename):
           ermsg = '[ERROR] Failed to find log file {:}!'.format(filename)
           raise RuntimeError(ermsg)
-        #if not self.check_format():
-        #    msg = '[ERROR] Failed to find/validate IONEX file: {:}'.format(
-        #        self.filename)
-        #    raise RuntimeError(msg)
-        #self.read_header()
 
     def parse_block2line_list(self, block_nr):
       """ Parse the file; return all lines of the relevant block as a list
@@ -344,17 +328,19 @@ class IgsLogFile:
       bd = self.parse_block(1)
       name = bd['Four Character ID']
       domes = bd['IERS DOMES Number']
-      return name, domes
+      if re.match(r"^\(A4\)$", name.strip()) or name.strip() == '':
+          errmsg = '[ERROR] No valid station name (Four Character ID) field found in log file {:}'.format(self.filename)
+          # print(errmsg, file=sys.stderr)
+          raise RuntimeError(errmsg)
+      if re.match(r"^\s*\(A9\)\S$", domes): domes = ''
+      installed_at = install_date(bd).date()
+      if installed_at == datetime.datetime.max: installed_at = datetime.datetime.min
+      return name, domes, installed_at
 
     def to_001type(self):
-      bd = self.parse_block(1)
-      name = bd['Four Character ID']
+      name, domes, installed_at = self.site_name()
       old_name = name + '*'
-      domes = bd['IERS DOMES Number']
-      installed = bd['Date Installed']
-      ## keep only date of 'installed'
-      dinstalled = datetime.datetime.strptime(re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", installed).group(0), "%Y-%m-%d")
-      return Type001Record(station=name+' '+domes, old_name=old_name, start=dinstalled, remark=self.filename)
+      return Type001Record(station=(name+' '+domes).strip(), old_name=old_name, start=installed_at, remark=os.path.basename(self.filename))
     
     def to_002type(self):
       bd3 = self.parse_block(3)
@@ -362,8 +348,8 @@ class IgsLogFile:
       last_start = datetime.datetime.min
       last_stop = datetime.datetime.min
       
-      bd1 = self.parse_block(1)
-      name = bd1['Four Character ID'] + ' ' + bd1['IERS DOMES Number']
+      name, domes, installed_at = self.site_name()
+      name = (name + ' ' + domes).strip()
 
       intervals = make_intervals(bd3, bd4)
       t2records = []

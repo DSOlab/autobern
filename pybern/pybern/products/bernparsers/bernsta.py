@@ -75,8 +75,9 @@ class BernStaInfo:
         ## create the log file instance
         log = IgsLogFile(igs_log_file)
         ## parse the first block to get name/domes
-        name, domes = log.site_name()
+        name, domes, _ = log.site_name()
         ## check if the site is included in this instance
+        print('>> checking sta file for station {:}'.format(name))
         binfo = self.station_info(name, True)
         ## we will need to report later, so hold the STA(s) filename(s) in a var
         stafn=','.join([x.filename for x in self.source_list])
@@ -271,11 +272,11 @@ class BernSta:
             )
         line = stream.readline()
         if not line.startswith(
-                '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ***********************************************************'
+                '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  *******'
         ):
             raise FileFormatError(
                 FILE_FORMAT, line,
-                '[ERROR] BernSta::__parse_block_002 failed to find header block for Type 003 (#2)'
+                '[ERROR] BernSta::__parse_block_003 failed to find header block for Type 003 (#2)'
             )
         line = stream.readline()
         while line and len(line) > 20:
