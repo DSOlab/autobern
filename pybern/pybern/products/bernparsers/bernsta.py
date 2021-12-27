@@ -77,7 +77,6 @@ class BernStaInfo:
         ## parse the first block to get name/domes
         name, domes, _ = log.site_name()
         ## check if the site is included in this instance
-        print('>> checking sta file for station {:}'.format(name))
         binfo = self.station_info(name, True)
         ## we will need to report later, so hold the STA(s) filename(s) in a var
         stafn=','.join([x.filename for x in self.source_list])
@@ -115,13 +114,11 @@ class BernStaInfo:
                     formatv=1.01,
                     technique='GNSS'):
         date_str = dt.strftime('%d-%b-%y %H:%M')
-        header_str = """
-STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           {:}
+        header_str = """STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           {:}
 --------------------------------------------------------------------------------
 
 FORMAT VERSION: {:4.2f}
-TECHNIQUE:      {:}
-                   """.format(date_str, formatv, technique)
+TECHNIQUE:      {:}""".format(date_str, formatv, technique)
         print(header_str, file=outfile)
 
     def dump_as_sta(self, outfile=None, station_list=None):
@@ -129,12 +126,15 @@ TECHNIQUE:      {:}
         station_list = self.stations if station_list is None else station_list
         with smart_open(outfile) as outfile:
             BernStaInfo.dump_header(outfile)
+            print("", file=outfile)
             Type001Record.dump_header(outfile)
             for sta in station_list:
                 [print(inst, file=outfile) for inst in self.dct[sta]['type001']]
+            print("", file=outfile)
             Type002Record.dump_header(outfile)
             for sta in station_list:
                 [print(inst, file=outfile) for inst in self.dct[sta]['type002']]
+            print("", file=outfile)
             Type003Record.dump_header(outfile)
             for sta in station_list:
                 if 'type003' in self.dct[sta]:

@@ -21,13 +21,11 @@ class Type001Record:
 
     @staticmethod
     def dump_header(ofile=sys.stdout):
-        header_str = """
-TYPE 001: RENAMING OF STATIONS
+        header_str = """TYPE 001: RENAMING OF STATIONS
 ------------------------------
 
 STATION NAME          FLG          FROM                   TO         OLD STATION NAME      REMARK
-****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************
-                     """
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************"""
         print(header_str, file=ofile)
 
     def __init__(self, line=None, **kwargs):

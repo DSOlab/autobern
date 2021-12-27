@@ -332,7 +332,7 @@ class IgsLogFile:
           errmsg = '[ERROR] No valid station name (Four Character ID) field found in log file {:}'.format(self.filename)
           # print(errmsg, file=sys.stderr)
           raise RuntimeError(errmsg)
-      if re.match(r"^\s*\(A9\)\S$", domes): domes = ''
+      if re.match(r"^\(A9\)$", domes.strip()): domes = ''
       installed_at = install_date(bd).date()
       if installed_at == datetime.datetime.max: installed_at = datetime.datetime.min
       return name, domes, installed_at
@@ -367,8 +367,8 @@ class IgsLogFile:
           print('[WRNNG] Ommiting time interval {:} to {:} cause of incomplete/missing log information'.format(t[0], t[1]), file=sys.stderr)
           ## raise RuntimeError(errmsg)
         else:
-          t2 = Type002Record(station=name, start=t[0], end=t[1], remark='exported from {:}'.format(
-              self.filename), receiver_type=recinfo['Receiver Type'], receiver_serial=recinfo['Serial Number'], antenna_type=antinfo['Antenna Type'],
+          t2 = Type002Record(station=name, start=t[0], end=t[1], remark='{:}'.format(
+              os.path.basename(self.filename)), receiver_type=recinfo['Receiver Type'], receiver_serial=recinfo['Serial Number'], antenna_type=antinfo['Antenna Type'],
               antenna_serial=antinfo['Serial Number'], delta_north=float(antinfo['Marker->ARP North Ecc(m)']), delta_east=float(antinfo['Marker->ARP East Ecc(m)']), delta_up=float(antinfo['Marker->ARP Up Ecc. (m)']))
           t2records.append(t2)
       
