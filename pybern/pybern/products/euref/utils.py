@@ -39,4 +39,22 @@ def get_m3g_log(station, filename=None, out_dir=None):
     if out_dir is None:
         out_dir = os.getcwd()
 
-    return web_retrieve(target, save_as=filename, save_dir=out_dir)
+    status, target, saveas = web_retrieve(target, save_as=filename, save_dir=out_dir)
+
+    ## if the log is not found, the request will download a file but has htlm
+    ## shit. Check that what we doenloaded is indeed a lo gile
+    if status == 0:
+        with open(saveas, 'r') as fin:
+            line = fin.readline()
+            if not line.lstrip().startswith(station[0:4]):
+                status = 1
+
+    if status != 0:
+        try:
+            os.remove(saveas)
+        except:
+            pass
+        errmsg = '[ERROR] Failed to download remote log: {:}'.format(target)
+        raise RuntimeError(errmsg)
+
+    return status, target, saveas
