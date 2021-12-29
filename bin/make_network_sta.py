@@ -152,10 +152,11 @@ if __name__ == '__main__':
       logfn, _ = get_latest_log(site, args.log_dir)
       print('[DEBUG] Parsing log file {:} ...'.format(logfn))
       try:
-        stainfo.update_from_log(os.path.join(args.log_dir, logfn))
+        error = stainfo.update_from_log(os.path.join(args.log_dir, logfn))
       except:
         error = 1
-        print('[WRNNG] Failed to parse log file {:}; cannot extract info to STA format'.format(os.path.join(args.log_dir, logfn)), file=sys.stderr)
+      if error:
+        print('[WRNNG] Failed to parse log file {:}; cannot extract info to STA format for the given log-file'.format(os.path.join(args.log_dir, logfn)), file=sys.stderr)
       if error and not args.skip_log_error:
         sys.exit(1)
 

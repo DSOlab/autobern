@@ -582,7 +582,5 @@ STATION NAME      CLU
     bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
-        #env = { **os.environ }
-        #subprocess.call(['echo', '$PATH'])
         addtopath_load(options['b_loadgps'])
         subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], env=env, stdout=logf, stderr=logf)

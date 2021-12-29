@@ -279,7 +279,7 @@ class BernSta:
                 '[ERROR] BernSta::__parse_block_003 failed to find header block for Type 003 (#2)'
             )
         line = stream.readline()
-        while line and len(line) > 20:
+        while line and len(line.strip()) > 20:
             new_rec = Type003Record(line)
             if new_rec.sta_name not in bernstainfo.stations:
                 if missing_is_error:

@@ -137,9 +137,10 @@ def http_retrieve(url, filename=None, **kwargs):
 
             ## allow timeout with requests
             request = requests.get(target, timeout=20, stream=True)
-            with open(saveas, 'wb') as fh:
-                for chunk in request.iter_content(1024 * 1024):
-                    fh.write(chunk)
+            if request.status_code == 200:
+              with open(saveas, 'wb') as fh:
+                  for chunk in request.iter_content(1024 * 1024):
+                      fh.write(chunk)
 
             if not os.path.isfile(saveas):
                 status += 1
@@ -149,9 +150,10 @@ def http_retrieve(url, filename=None, **kwargs):
         try:
             with requests.get(target, auth=(username, password), timeout=20) as r:
                 r.raise_for_status()
-                with open(saveas, 'wb') as f:
-                    #shutil.copyfileobj(r.raw, f)
-                    f.write(r.content)
+                if request.status_code == 200:
+                  with open(saveas, 'wb') as f:
+                      #shutil.copyfileobj(r.raw, f)
+                      f.write(r.content)
                 if not os.path.isfile(saveas):
                     status += 1
         except:

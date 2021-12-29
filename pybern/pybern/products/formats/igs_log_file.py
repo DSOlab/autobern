@@ -21,6 +21,8 @@ def parse_log_date(dstr):
         return datetime.datetime.strptime(dstr, "%Y-%m-%d")
     elif re.match(r"^\s*\(?CCYY-MM-DDThh:mmZ\)?\s*$", dstr):
         return datetime.datetime.max
+    elif re.match(r"^\s*$", dstr):
+        return datetime.datetime.max
     errmsg = '[ERROR] Invalid log datetime string: {:}'.format(dstr)
     raise RuntimeError(errmsg)
 
