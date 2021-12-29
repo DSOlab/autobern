@@ -5,6 +5,7 @@ from __future__ import print_function
 import os, sys
 import datetime
 import re
+import requests
 from pybern.products.downloaders.retrieve import web_retrieve
 from pybern.products.gnssdates.gnssdates import pydt2gps
 
@@ -27,19 +28,23 @@ def get_euref_exclusion_list(dt):
 
     return exclusion_list
 
+
+
 def get_m3g_log(station, filename=None, out_dir=None):
     """ Download m3g log file for  given station. Note that 'station'
         must be the (upper case) 9-char station id
     """
-    target = 'https://gnss-metadata.eu/sitelog/exportlog?station=' + station
+    usta = station.upper()
+    target = 'https://gnss-metadata.eu/sitelog/exportlog?station=' + usta
     
     if filename is None:
         filename = station.lower() + '.log'
+    filename_scr = filename + '.scr'
 
     if out_dir is None:
         out_dir = os.getcwd()
 
-    status, target, saveas = web_retrieve(target, save_as=filename, save_dir=out_dir)
+    status, target, saveas = web_retrieve(target, save_as=filename_scr, save_dir=out_dir)
 
     ## if the log is not found, the request will download a file but has htlm
     ## shit. Check that what we doenloaded is indeed a lo gile
@@ -57,4 +62,5 @@ def get_m3g_log(station, filename=None, out_dir=None):
         errmsg = '[ERROR] Failed to download remote log: {:}'.format(target)
         raise RuntimeError(errmsg)
 
-    return status, target, saveas
+    os.rename(saveas, filename)
+    return status, target, filename

@@ -81,6 +81,31 @@ parser.add_argument('--skip-log-error',
     help='If not set, then the program will stop in case a log file cannot be parsed; if set, erronuous log files will be  skipped',
     dest='skip_log_error')
 
+def get_latest_log(site, dir):
+    site = site.lower()
+    if len(site) > 4: site = site[0:4]
+
+    pattern = site + r"[0-9]{2}[a-z]{3}_[0-9]{4}[0-9]{2}[0-9]{2}\.log"
+    log = None
+    t = datetime.datetime.min
+    
+    for f in os.listdir(dir):
+      if re.match(pattern, f):
+        g = re.match(site + r"[0-9]{2}[a-z]{3}_([0-9]{4}[0-9]{2}[0-9]{2})\.log", f)
+        if t < datetime.datetime.strptime(str(g.group(1)), "%Y%m%d"):
+          log = f
+          t = datetime.datetime.strptime(str(g.group(1)), "%Y%m%d")
+
+    return log, t
+
+def logdir2sites(dir):
+  sites = []
+  pattern = r"[a-zA-Z0-9]{4}[0-9]{2}[a-z]{3}_[0-9]{4}[0-9]{2}[0-9]{2}\.log"
+  for f in os.listdir(dir):
+    if re.match(pattern, f):
+      if f[0:4] not in sites: sites.append(f[0:4])
+  return sites
+
 if __name__ == '__main__':
 
     ## parse command line arguments
@@ -120,18 +145,19 @@ if __name__ == '__main__':
     sta = bsta.BernSta(reference_sta)
     stainfo = sta.parse().filter([s.upper() for s in netsta_list], True)
 
-    ## loop through the log files dir
-    for log in os.listdir(args.log_dir):
-        error = 0
-        if log[0:4].lower() in netsta_list:
-            print('[DEBUG] Parsing log file {:} ...'.format(log))
-            try:
-                stainfo.update_from_log(os.path.join(args.log_dir, log))
-            except:
-                error = 1
-                print('[WRNNG] Failed to parse log file {:}; cannot extract info to STA format'.format(os.path.join(args.log_dir, log)), file=sys.stderr)
-            if error and not args.skip_log_error:
-                sys.exit(1)
+    ## loop through the log files dir and get a list of site names
+    sites = logdir2sites(args.log_dir)
+    for site in sites:
+      error = 0
+      logfn, _ = get_latest_log(site, args.log_dir)
+      print('[DEBUG] Parsing log file {:} ...'.format(logfn))
+      try:
+        stainfo.update_from_log(os.path.join(args.log_dir, logfn))
+      except:
+        error = 1
+        print('[WRNNG] Failed to parse log file {:}; cannot extract info to STA format'.format(os.path.join(args.log_dir, logfn)), file=sys.stderr)
+      if error and not args.skip_log_error:
+        sys.exit(1)
 
     ## dump the new infomation to a sta file
     stainfo.dump_as_sta(args.out_sta)
