@@ -55,7 +55,9 @@ def addtopath_load(bfn):
         sys.exit(1)
     with open(bfn, 'r') as fin:
         for line in fin.readlines():
-            if line.startswith('addtopath'):
+            ## skip the addtopath function decleration (if any)
+            if line.startswith('addtopath') and not re.match(r"addtopath()", line.strip()):
+                #print('>>{:}'.format(line))
                 dirs = path2dirs(line.split[1].strip().strip('"'))
                 if dirs == []:
                     raise RuntimeError('Failed to resolve path!')
@@ -583,4 +585,5 @@ STATION NAME      CLU
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
         addtopath_load(options['b_loadgps'])
-        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], env=env, stdout=logf, stderr=logf)
+        print('{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id)))
+        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], stdout=logf, stderr=logf)
