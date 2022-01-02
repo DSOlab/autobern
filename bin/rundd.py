@@ -22,6 +22,7 @@ from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
 import pybern.products.vmf1 as vmf1
 import pybern.products.bernparsers.bernsta as bsta
 import pybern.products.bernparsers.bernpcf as bpcf
+import pybern.products.bernbpe as bpe
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -136,7 +137,34 @@ def mark_exclude_stations(station_list, rinex_holdings):
            rinex_holdings[station]['exclude'] = True
            print('[DEBUG] Marking station {:} as excluded! will not be processed.'.format(station))
 
-def prepare_products(dt, credentials_file, product_dir=None, verbose=False):
+def products2dirs(product_dict, campaign_dir, temp_files=None):
+    sp3 = product_dict['sp3']['local']
+    _, sp3 = dcomp.os_decompress(sp3, True)
+    target = os.path.join(campaign_dir, 'ORB', os.path.basename(sp3))
+    target = re.sub(r"\.[A-Za-z0-9]{3}$", ".PRE", target)
+    os.rename(sp3, target)
+    if temp_files is not None: temp_files.append(target)
+
+    erp = product_dict['erp']['local']
+    _, erp = dcomp.os_decompress(erp, True)
+    os.rename(erp, os.path.join(campaign_dir, 'ORB', os.path.basename(erp)))
+    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', os.path.basename(erp)))
+
+    ion = product_dict['ion']['local']
+    _, ion = dcomp.os_decompress(ion, True)
+    os.rename(ion, os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
+    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
+    
+    dcb = product_dict['dcb']['local']
+    _, dcb = dcomp.os_decompress(dcb, True)
+    os.rename(dcb, os.path.join(campaign_dir, 'ORB', os.path.basename(dcb)))
+    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', os.path.basename(dcb)))
+    
+    vmf = product_dict['vmf1']['local']
+    os.rename(vmf, os.path.join(campaign_dir, 'ATM', os.path.basename(vmf)))
+    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ATM', os.path.basename(vmf)))
+
+def prepare_products(dt, credentials_file, product_dir=None, verbose=False, temp_files=None):
     ## write product information to a dictionary
     product_dict = {}
 
@@ -258,6 +286,46 @@ def decompress_rinex(rinex_holdings):
             else:
                 new_holdings[station] = dct
     return new_holdings
+
+def link2campaign(options, dt, tmp_file_list=None):
+    PDIR = os.path.abspath(os.path.join(os.getenv('P'), options['campaign'].upper()))
+    TDIR = os.path.abspath(options['tables_dir'])
+    link_dict = []
+    ## reference crd/vel/psd files
+    src = os.path.join(TDIR, 'crd', options['refinf'].upper()+'_R.CRD')
+    dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+    link_dict.append({'src': src, 'dest': dest})
+    
+    src = os.path.join(TDIR, 'crd', options['refinf'].upper()+'_R.VEL')
+    dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+    link_dict.append({'src': src, 'dest': dest})
+
+    if options['refpsd'] is not None and options['refpsd'].strip() != '':
+        src = os.path.join(TDIR, 'crd', options['refpsd'].upper()+'.PSD')
+        dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+        link_dict.append({'src': src, 'dest': dest})
+    
+    ## regional crd file (linked to REG$YSS+0)
+    src = os.path.join(TDIR, 'crd', options['aprinf'].upper()+'.CRD')
+    dest = os.path.join(PDIR, 'STA', 'REG{:}0.CRD'.format(dt.strftime("%y%j")))
+    link_dict.append({'src': src, 'dest': dest})
+
+    ## sta file
+    src = os.path.join(TDIR, 'sta', options['stainf'].upper()+'.STA')
+    dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+    link_dict.append({'src': src, 'dest': dest})
+
+    ## blq file (if any)
+    if options['blqinf'] is not None and options['blqinf'].strip() != '':
+        src = os.path.join(TDIR, 'blq', options['blqinf'].upper()+'.BLQ')
+        dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+        link_dict.append({'src': src, 'dest': dest})
+
+    for pair in link_dict:
+        print('[DEBUG] Linking source {:} to {:}'.format(pair['src'], pair['dest']))
+        os.symlink(pair['src'], pair['dest'])
+        if tmp_file_list is not None:
+            tmp_file_list.append(pair['dest'])
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -512,6 +580,7 @@ if __name__ == '__main__':
     except Exception as e:
         print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
         sys.exit(1)
+    products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), temp_files)
 
     ## check that we have at least min_reference_sites reference sites included
     ## in the processing
@@ -578,6 +647,9 @@ STATION NAME      CLU
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
     pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')
 
+    ## link needed files from tables_dir to campaign-specifi directories
+    link2campaign(options, dt, temp_files)
+
     ## ready to call the perl script for processing ...
     bpe_start_at = datetime.datetime.now()
     bern_task_id = options['campaign'].upper()[0] + 'DD'
@@ -585,5 +657,13 @@ STATION NAME      CLU
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
         addtopath_load(options['b_loadgps'])
-        print('{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id)))
+        #print('{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id)))
         subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], stdout=logf, stderr=logf)
+
+    ## check if we have an error; if we do, make a report
+    bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', options['campaign'].upper()[0:3] + '_.RUN')
+    if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
+        errlog = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'bpe_error_{}.log'.format(os.getpid()))
+        print('[ERROR] BPE failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
+        # print('[ERROR] Compiling error report to {:}'.format(err_report), file=sys.stderr)
+        bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), errlog)
