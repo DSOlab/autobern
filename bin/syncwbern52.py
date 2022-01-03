@@ -76,6 +76,7 @@ if __name__ == '__main__':
             sys.exit(1)
         target_path = blvar.parse_loadvar(args.bern_loadvar)['X']
         target_dir = os.path.join(target_path, 'GEN')
+        verboseprint('[DEBUG] Synchronizing local directory {:}'.format(target_dir))
     else:
         target_dir = args.target
     if not os.path.isdir(target_dir):
@@ -84,13 +85,14 @@ if __name__ == '__main__':
 
     ## mirror one-liner that uses lftp
     lcmd = "mirror --only-newer --parallel=3 --verbose --exclude-glob *.EPH {remote_dir} {local_dir}; bye".format(remote_dir='BSWUSER52/GEN', local_dir=target_dir)
-    #result = subprocess.run(
-    #    ['lftp', '-u', '{:},{:}'.format('anonymous', 'ntua@ntua.gr'), '-e', '{:}'.format(lcmd), '{:}'.format('ftp.aiub.unibe.ch')], shell=False, check=True)
+    verboseprint('[DEBUG] Running command \"{:}\"'.format(' '.join(['lftp', '-u', '{:},{:}'.format('anonymous', 'ntua@ntua.gr'), '-e', '{:}'.format(lcmd), '{:}'.format('ftp.aiub.unibe.ch')])))
+    
     result = subprocess.run(
         ['lftp', '-u', '{:},{:}'.format('anonymous', 'ntua@ntua.gr'), '-e', '{:}'.format(lcmd), '{:}'.format('ftp.aiub.unibe.ch')], shell=False, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
     if result.returncode:
         print('[ERROR] Mirroring failed with errorcode: {:}'.format(result.returncode), file=sys.stderr)
-        print('[ERROR] lftp/shell return lines: {:}'.format(result.stderr))
+        print('[ERROR] lftp/shell return lines: {:}'.format(result.stderr), file=sys.stderr)
     else:
         if args.log_file:
             with open(args.log_file, 'w') as log:
@@ -98,4 +100,3 @@ if __name__ == '__main__':
 
 
     sys.exit(0)
-

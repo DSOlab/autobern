@@ -106,7 +106,24 @@ class BernStaInfo:
                         print('[WRNNG] Failed to join Type 002 records for station {:} and index: {:}; .STA={:}, log={:}'.format(
                             name, idx, stafn, igs_log_file), file=sys.stderr)
                         return 2
-            
+    @staticmethod
+    def dump_tail(outfile=sys.stdout):
+        tail = """TYPE 004: STATION COORDINATES AND VELOCITIES (ADDNEQ)
+-----------------------------------------------------
+                                            RELATIVE CONSTR. POSITION     RELATIVE CONSTR. VELOCITY
+STATION NAME 1        STATION NAME 2        NORTH     EAST      UP        NORTH     EAST      UP
+****************      ****************      **.*****  **.*****  **.*****  **.*****  **.*****  **.*****
+
+
+TYPE 005: HANDLING STATION TYPES
+--------------------------------
+
+STATION NAME          FLG  FROM                 TO                   MARKER TYPE           REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************
+
+"""
+        print("", file=outfile)
+        print(tail, file=outfile)
 
     @staticmethod
     def dump_header(outfile=sys.stdout,
@@ -142,6 +159,7 @@ TECHNIQUE:      {:}""".format(date_str, formatv, technique)
                         print(inst, file=outfile)
                         for inst in self.dct[sta]['type003']
                     ]
+            BernStaInfo.dump_tail(outfile)
 
 
 class BernSta:

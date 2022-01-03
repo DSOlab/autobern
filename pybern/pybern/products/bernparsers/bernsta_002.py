@@ -152,7 +152,7 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
             t_start = self.start_date.strftime('%Y %m %d %H %M %S')
         if self.stop_date != MAX_STA_DATE:
             t_stop = self.stop_date.strftime('%Y %m %d %H %M %S')
-        return '{:<16s}      {:03d}  {:}  {:}  {:>20s}  {:>20s}  {:>6s}  {:>20s}  {:>20s}  {:>6s}  {:8.4f}  {:8.4f}  {:8.4f}  {:22s} {:}'.format(
+        return '{:<16s}      {:03d}  {:}  {:}  {:<20s}  {:>20s}  {:>6s}  {:<20s}  {:>20s}  {:>6s}  {:8.4f}  {:8.4f}  {:8.4f}  {:22s} {:}'.format(
             self.sta_name, self.flag, t_start, t_stop, self.receiver_t,
             self.receiver_sn, self.receiver_nr, self.antenna_t, self.antenna_sn,
             self.antenna_nr, self.north, self.east, self.up, self.description,

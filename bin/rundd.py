@@ -9,6 +9,7 @@ import argparse
 import subprocess
 import datetime
 import atexit
+from shutil import copyfile
 import pybern.products.rnxdwnl_impl as rnxd
 import pybern.products.fileutils.decompress as dcomp
 from pybern.products.fileutils.keyholders import parse_key_file
@@ -36,38 +37,38 @@ if not os.path.isdir(log_dir):
     sys.exit(1)
 
 ##
-def path2dirs(pth):
-    dirs = []
-    it = 0
-    g = re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
-    while g:
-        dirs.append(g.group(1))
-        pth = pth.replace(g.group(0), '')
-        g=re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
-        it += 1
-        if it > 100:
-            print('[ERROR] Failed to resolve path to dirs! path is \'{:}\''.format(pth))
-            return []
-    return dirs
-
-def addtopath_load(bfn):
-    if not os.path.isfile(bfn):
-        print('[ERROR] Invalid LOADGPS.setvar file {:}'.format(bfn), file=sys.stderr)
-        sys.exit(1)
-    with open(bfn, 'r') as fin:
-        for line in fin.readlines():
-            ## skip the addtopath function decleration (if any)
-            if line.startswith('addtopath') and not re.match(r"addtopath()", line.strip()):
-                #print('>>{:}'.format(line))
-                dirs = path2dirs(line.split[1].strip().strip('"'))
-                if dirs == []:
-                    raise RuntimeError('Failed to resolve path!')
-                for i in range(len(dirs)):
-                    if dirs[i].startswith('$'):
-                        dirs[i] = os.getenv(dirs[i][1:])
-                # pth2add = os.path.join(dirs)
-                os.environ["PATH"] += os.pathsep + os.pathsep.join(dirs)
-    return
+#def path2dirs(pth):
+#    dirs = []
+#    it = 0
+#    g = re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
+#    while g:
+#        dirs.append(g.group(1))
+#        pth = pth.replace(g.group(0), '')
+#        g=re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
+#        it += 1
+#        if it > 100:
+#            print('[ERROR] Failed to resolve path to dirs! path is \'{:}\''.format(pth))
+#            return []
+#    return dirs
+#
+#def addtopath_load(bfn):
+#    if not os.path.isfile(bfn):
+#        print('[ERROR] Invalid LOADGPS.setvar file {:}'.format(bfn), file=sys.stderr)
+#        sys.exit(1)
+#    with open(bfn, 'r') as fin:
+#        for line in fin.readlines():
+#            ## skip the addtopath function decleration (if any)
+#            if line.startswith('addtopath') and not re.match(r"addtopath()", line.strip()):
+#                #print('>>{:}'.format(line))
+#                dirs = path2dirs(line.split[1].strip().strip('"'))
+#                if dirs == []:
+#                    raise RuntimeError('Failed to resolve path!')
+#                for i in range(len(dirs)):
+#                    if dirs[i].startswith('$'):
+#                        dirs[i] = os.getenv(dirs[i][1:])
+#                # pth2add = os.path.join(dirs)
+#                os.environ["PATH"] += os.pathsep + os.pathsep.join(dirs)
+#    return
 
 ## list of temporary files created during program run that beed to be deleted 
 ## before exit
@@ -244,6 +245,53 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, temp
     product_dict['vmf1'] = {'local': merge_to, 'remote': None, 'type': 'forecast' if has_forecast else 'final' }
 
     return product_dict
+    
+def rinex2raw(rinex_holdings, campaign_name, cp_not_mv=False, temp_files=None):
+    raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
+    new_holdings = {}
+    
+    for station, dct in rinex_holdings.items():
+        if dct['local'] is not None and not dct['exclude']:
+            fn = os.path.basename(dct['local'])
+            pth = os.path.dirname(dct['local'])
+            if cp_not_mv:
+                copyfile(dct['local'], os.path.join(raw, fn))
+            else:
+                os.rename(dct['local'], os.path.join(raw, fn))
+            new_holdings[station] = rinex_holdings[station]
+            new_holdings[station]['local'] = os.path.join(raw, fn)
+
+            if temp_files is not None:
+                try:
+                    index = temp_files.index(dct['local'])
+                    temp_files[index] = new_holdings[station]['local']
+                except ValueError as e:
+                    temp_files.append(new_holdings[station]['local'])
+
+        else:
+            new_holdings[station] = rinex_holdings[station]
+    return new_holdings
+
+def rinex2uppercase(rinex_holdings, temp_files=None):
+    new_holdings = {}
+    for station, dct in rinex_holdings.items():
+        if dct['local'] is not None and not dct['exclude']:
+            fn = os.path.basename(dct['local'])
+            pth = os.path.dirname(dct['local'])
+            fnu = fn.upper()
+            os.rename(dct['local'], os.path.join(pth, fnu))
+            new_holdings[station] = rinex_holdings[station]
+            new_holdings[station]['local'] = os.path.join(pth, fnu)
+            
+            if temp_files is not None:
+                try:
+                    index = temp_files.index(dct['local'])
+                    temp_files[index] = new_holdings[station]['local']
+                except ValueError as e:
+                    temp_files.append(new_holdings[station]['local'])
+        else:
+            new_holdings[station] = rinex_holdings[station]
+    return new_holdings
 
 def decompress_rinex(rinex_holdings):
     """ rinex_holdings = {'pdel': {
@@ -287,6 +335,40 @@ def decompress_rinex(rinex_holdings):
                 new_holdings[station] = dct
     return new_holdings
 
+def atx2pcv(options, dt, tmp_file_list=None):
+    atxinf = options['atxinf'].upper()
+    if atxinf[-4:] != '.ATX': atxinf += '.ATX'
+    stainf = options['stainf'].upper()
+    if stainf[-4:] != '.STA': stainf = stainf[0:-4]
+    phginf = atxinf[0:-4]
+    
+    ## Set variables in PCF file
+    pcf_file = os.path.join(os.getenv('U'), 'PCF', 'ATX2PCV.PCF')
+    if not os.path.isfile(pcf_file):
+        print('[ERROR] Failed to find PCF file {:}'.format(pcf_file), file=sys.stderr)
+        sys.exit(1)
+
+    pcf = bpcf.PcfFile(pcf_file)
+    for var, value in zip(['ATXINF', 'PCVINF', 'STAINF', 'PHGINF', 'PCV'],[atxinf, '', stainf, phginf, options['pcvext'].upper()]):
+        pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
+    pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'A2P_DD.PCF'))
+    pcf_file = os.path.join(os.getenv('U'), 'PCF', 'A2P_DD.PCF')
+    
+    bern_task_id = options['campaign'].upper()[0] + 'A2P'
+    bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
+    print('[DEBUG] Started ATX2PCV conversion (log: {:})'.format(bern_log_fn))
+    with open(bern_log_fn, 'w') as logf:
+        addtopath_load(options['b_loadgps'])
+        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_a2p.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(options['campaign'].upper())], stdout=logf, stderr=logf)
+    
+    bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'ATX2PCV.RUN')
+    if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
+        errlog = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'bpe_a2p_error_{}.log'.format(os.getpid()))
+        print('[ERROR] ATX2PCV failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
+        # print('[ERROR] Compiling error report to {:}'.format(err_report), file=sys.stderr)
+        bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), errlog)
+    sys.exit(9)
+
 def link2campaign(options, dt, tmp_file_list=None):
     PDIR = os.path.abspath(os.path.join(os.getenv('P'), options['campaign'].upper()))
     TDIR = os.path.abspath(options['tables_dir'])
@@ -320,6 +402,15 @@ def link2campaign(options, dt, tmp_file_list=None):
         src = os.path.join(TDIR, 'blq', options['blqinf'].upper()+'.BLQ')
         dest = os.path.join(PDIR, 'STA', os.path.basename(src))
         link_dict.append({'src': src, 'dest': dest})
+
+    ## pcv file if at tables/pcv and not in GEN
+    pcv_file = options['pcvinf'].upper() + '.' + options['pcvext'].upper()
+    if not os.path.isfile(os.path.join(os.getenv('X'), 'GEN', pcv_file)):
+        pcv_path = os.path.join(TDIR, 'pcv')
+        if not os.path.isfile(os.path.join(TDIR, pcv_path, pcv_file)):
+            errmsg = '[ERROR] Failed to find PCV file {:} in neither tables dir or GEN!'.format(pcv_file)
+            raise RuntimeError(errmsg)
+        link_dict.append({'src': os.path.join(TDIR, pcv_path, pcv_file), 'dest': os.path.join(os.getenv('X'), 'GEN', pcv_file)})
 
     for pair in link_dict:
         print('[DEBUG] Linking source {:} to {:}'.format(pair['src'], pair['dest']))
@@ -397,8 +488,8 @@ parser.add_argument(
                     help='',
                     metavar='SATELLITE_SYSTEM',
                     dest='sat_sys',
-                    choices=['gps', 'mixed'],
-                    default='mixed')
+                    choices=["GPS", "GLONASS", "GALILEO", "GPS/GAL", "GPS/GLO", "GAL/GLO"],
+                    default='GPS/GLO')
 parser.add_argument(
                     '--loadgps-file',
                     required=False,
@@ -527,6 +618,10 @@ if __name__ == '__main__':
     ## date we are solving for as datetime instance
     dt = datetime.datetime.strptime('{:}-{:03d}'.format(options['year'], int(options['doy'])), '%Y-%j')
 
+    ## if the user specified an ATX file, run the ATX2PCV script
+    if options['atxinf'] != None and options['atxinf'].strip() != '':
+        atx2pcv(options, dt, temp_files)
+
     ## download the RINEX files for the given network. Hold results int the
     ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
     rnxdwnl_options = {
@@ -604,12 +699,10 @@ if __name__ == '__main__':
             sys.exit(1)
 
     ## transfer (uncompressed) rinex files to the campsign's RAW directory
-    for sta in rinex_holdings:
-        if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
-            ddir, fn = os.path.split(rinex_holdings[sta]['local'])
-            target = os.path.join(os.getenv('P'), options['campaign'], 'RAW', fn)
-            os.rename(rinex_holdings[sta]['local'], target)
-            temp_files.append(target)
+    ## TODO at production, change cp_not_mv parameter
+    rinex_holdings = rinex2raw(rinex_holdings, options['campaign'], True, temp_files)
+    ## rinex 2 uppercase
+    rinex_holdings = rinex2uppercase(rinex_holdings, temp_files)
 
     ## make cluster file
     with open(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), 'w') as fout:
@@ -642,7 +735,7 @@ STATION NAME      CLU
         print('[ERROR] Failed to find PCF file {:}'.format(pcf_file), file=sys.stderr)
         sys.exit(1)
     pcf = bpcf.PcfFile(pcf_file)
-    for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'], options['pcvext'], options['pcvinf'], options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster']]):
+    for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster']]):
         pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
     pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')
