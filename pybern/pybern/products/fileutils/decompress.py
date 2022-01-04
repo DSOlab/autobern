@@ -43,7 +43,7 @@ def crx2rnx(filename, remove_compressed=True, path2crx2rnx=None):
 
     prog = 'CRX2RNX' if path2crx2rnx == None else os.path.join(path2crx2rnx, 'CRX2RNX')
 
-    print('>> Calling shell with {:} {:}, expecting result {:}'.format(prog, filename, urnx))
+    # print('>> Calling shell with {:} {:}, expecting result {:}'.format(prog, filename, urnx))
     subprocess.check_call(['{:}'.format(prog), '-f', '{:}'.format(filename)], stderr=sys.stderr)
     if not os.path.isfile(urnx):
         ermsg = '[ERROR] Failed decompressing Hatanaka RINEX file {:}'.format(filename)

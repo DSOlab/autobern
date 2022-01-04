@@ -24,6 +24,7 @@ import pybern.products.vmf1 as vmf1
 import pybern.products.bernparsers.bernsta as bsta
 import pybern.products.bernparsers.bernpcf as bpcf
 import pybern.products.bernbpe as bpe
+import pybern.products.atx2pcv as a2p
 
 ##
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -35,40 +36,6 @@ log_dir='/home/bpe/data/proclog'
 if not os.path.isdir(log_dir):
     print('[ERROR] Invalid temp/proc dir {:}'.format(log_dir), file=sys.stderr)
     sys.exit(1)
-
-##
-#def path2dirs(pth):
-#    dirs = []
-#    it = 0
-#    g = re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
-#    while g:
-#        dirs.append(g.group(1))
-#        pth = pth.replace(g.group(0), '')
-#        g=re.match(r"\/?([\$a-zA-Z0-9]+)\/?", pth)
-#        it += 1
-#        if it > 100:
-#            print('[ERROR] Failed to resolve path to dirs! path is \'{:}\''.format(pth))
-#            return []
-#    return dirs
-#
-#def addtopath_load(bfn):
-#    if not os.path.isfile(bfn):
-#        print('[ERROR] Invalid LOADGPS.setvar file {:}'.format(bfn), file=sys.stderr)
-#        sys.exit(1)
-#    with open(bfn, 'r') as fin:
-#        for line in fin.readlines():
-#            ## skip the addtopath function decleration (if any)
-#            if line.startswith('addtopath') and not re.match(r"addtopath()", line.strip()):
-#                #print('>>{:}'.format(line))
-#                dirs = path2dirs(line.split[1].strip().strip('"'))
-#                if dirs == []:
-#                    raise RuntimeError('Failed to resolve path!')
-#                for i in range(len(dirs)):
-#                    if dirs[i].startswith('$'):
-#                        dirs[i] = os.getenv(dirs[i][1:])
-#                # pth2add = os.path.join(dirs)
-#                os.environ["PATH"] += os.pathsep + os.pathsep.join(dirs)
-#    return
 
 ## list of temporary files created during program run that beed to be deleted 
 ## before exit
@@ -87,6 +54,31 @@ def cleanup(tmp_file_list, verbosity=False):
             verboseprint(' failed')
             #pass
     return
+
+def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
+    doy_str = dt.strftime('%j')
+    raw_dir = os.path.join(campaign_dir, 'RAW')
+    
+    for fn in os.listdir(raw_dir):
+        if re.match(r"[A-Z0-9]{4}"+doy_str+r"0\.SMT", fn):
+            os.remove(os.path.join(raw_dir, fn))
+
+    ## remove all files in the campaign that have been created between the 
+    ## start/stop of bpe
+    # define epoch time
+    t0 = datetime.datetime.utcfromtimestamp(0)
+
+    # define time ranges
+    d1 = (bpe_start  - t0).total_seconds()
+    d2 = (bpe_stop - t0).total_seconds()
+
+    for (dirpath, dirnames, filenames) in os.walk(campaign_dir):
+        for filename in filenames:
+            # f = '/'.join([dirpath,filename])
+            f = os.path.join(dirpath, filename)
+            ctime = os.stat(f)[-1]
+            if ctime>=d1 and ctime <=d2:
+                print('>> removing file {:}'.format(f))
 
 ## callback function to be called at exit
 atexit.register(cleanup, temp_files, True)
@@ -138,7 +130,8 @@ def mark_exclude_stations(station_list, rinex_holdings):
            rinex_holdings[station]['exclude'] = True
            print('[DEBUG] Marking station {:} as excluded! will not be processed.'.format(station))
 
-def products2dirs(product_dict, campaign_dir, temp_files=None):
+def products2dirs(product_dict, campaign_dir, dt, temp_files=None):
+    ## also changes sp3 extension to 'PRE'
     sp3 = product_dict['sp3']['local']
     _, sp3 = dcomp.os_decompress(sp3, True)
     target = os.path.join(campaign_dir, 'ORB', os.path.basename(sp3))
@@ -156,10 +149,12 @@ def products2dirs(product_dict, campaign_dir, temp_files=None):
     os.rename(ion, os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
     if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
     
+    ## change dcb name to P1C1YYMM.DCB
     dcb = product_dict['dcb']['local']
     _, dcb = dcomp.os_decompress(dcb, True)
-    os.rename(dcb, os.path.join(campaign_dir, 'ORB', os.path.basename(dcb)))
-    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', os.path.basename(dcb)))
+    new_basename = 'P1C1{:}.DCB'.format(dt.strftime('%y%m')) 
+    os.rename(dcb, os.path.join(campaign_dir, 'ORB', new_basename))
+    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', new_basename))
     
     vmf = product_dict['vmf1']['local']
     os.rename(vmf, os.path.join(campaign_dir, 'ATM', os.path.basename(vmf)))
@@ -613,14 +608,23 @@ if __name__ == '__main__':
     ## verbose print
     verboseprint = print if options['verbose'] else lambda *a, **k: None
 
-    ## check that the campaign directory exists
+    ## load the b_loadgps file
+    bpe.addtopath_load(options['b_loadgps'])
 
     ## date we are solving for as datetime instance
     dt = datetime.datetime.strptime('{:}-{:03d}'.format(options['year'], int(options['doy'])), '%Y-%j')
-
+    
     ## if the user specified an ATX file, run the ATX2PCV script
-    if options['atxinf'] != None and options['atxinf'].strip() != '':
-        atx2pcv(options, dt, temp_files)
+    if 'atxinf' in options and options['atxinf'] is not None and options['atxinf'].strip() != '':
+        atxinf = os.path.join(options['tables_dir'], 'atx', options['atxinf'] + '.ATX')
+        pcvout = os.path.join(options['tables_dir'], 'pcv', options['campaign'].upper() + '.PCV')
+        stainf = os.path.join(options['tables_dir'], 'sta', options['stainf'].upper() + '.STA')
+        pcvext = options['pcvext']
+        pcv_file = a2p.atx2pcv({'atxinf':atxinf, 'pcvout':pcvout, 'stainf':stainf, 'pcvext':pcvext})
+        options['pcvfile'] = pcv_file
+    
+    ## link needed files from tables_dir to campaign-specific directories
+    link2campaign(options, dt, temp_files)
 
     ## download the RINEX files for the given network. Hold results int the
     ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
@@ -675,7 +679,7 @@ if __name__ == '__main__':
     except Exception as e:
         print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
         sys.exit(1)
-    products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), temp_files)
+    products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, temp_files)
 
     ## check that we have at least min_reference_sites reference sites included
     ## in the processing
@@ -740,23 +744,22 @@ STATION NAME      CLU
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
     pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')
 
-    ## link needed files from tables_dir to campaign-specifi directories
-    link2campaign(options, dt, temp_files)
-
     ## ready to call the perl script for processing ...
     bpe_start_at = datetime.datetime.now()
-    bern_task_id = options['campaign'].upper()[0] + 'DD'
+    bern_task_id = '{:}'.format(os.getpid()) ## options['campaign'].upper()[0] + 'DD'
     bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
-        addtopath_load(options['b_loadgps'])
-        #print('{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id)))
-        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper(), '{:}'.format(bern_task_id))], stdout=logf, stderr=logf)
+        subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper()), bern_task_id], stdout=logf, stderr=logf)
+    bpe_stop_at = datetime.datetime.now()
 
     ## check if we have an error; if we do, make a report
-    bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', options['campaign'].upper()[0:3] + '_.RUN')
+    ## bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', options['campaign'].upper()[0:3] + '_.RUN')
+    bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'R2S_{}.RUN'.format(bern_task_id))
     if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
-        errlog = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'bpe_error_{}.log'.format(os.getpid()))
+        errlog = os.path.join(log_dir, 'bpe_error_{:}.log'.format(bern_task_id))
         print('[ERROR] BPE failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
         # print('[ERROR] Compiling error report to {:}'.format(err_report), file=sys.stderr)
-        bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), errlog)
+        bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), bern_task_id, errlog)
+
+    rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)

@@ -129,6 +129,7 @@ if __name__ == '__main__':
     datum = 'IGS_14'
     flag = 'APR'
     num = 0
+    sta_sofar = []
     with open(args.crd_out, 'w') as bout:
         print("{:}".format(header), file=bout)
         print("--------------------------------------------------------------------------------", file=bout)
@@ -143,16 +144,17 @@ if __name__ == '__main__':
             index = find_station_in_ssc_records(station, ssc_records)
             if index >=0 :
                 x, y, z = ssc_records[index].extrapolate(args.date)
-                print('{:3d}  {:} {:}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, ssc_records[index].id, ssc_records[index].domes, x, y, z), file=bout)
+                print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, ssc_records[index].id, ssc_records[index].domes, x, y, z), file=bout)
+                sta_sofar.append(station)
                 station_found = True
             
             else:
                 index = find_station_in_crd_records(station, crd_records)
                 if index >=0 :
                     sta_dct = crd_records[index][station.upper()]
-                    print('{:3d}  {:} {:}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, station.upper(), sta_dct['domes'], sta_dct['x'], sta_dct['y'], sta_dct['z']), file=bout)
+                    print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, station.upper(), sta_dct['domes'], sta_dct['x'], sta_dct['y'], sta_dct['z']), file=bout)
                     station_found = True
+                    sta_sofar.append(station)
             
             if not station_found:
                 print('[WRNNG] Failed to find station {:} in any of the provided SSC/CRD files!'.format(station), file=sys.stderr)
-
