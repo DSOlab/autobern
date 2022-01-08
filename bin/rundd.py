@@ -14,7 +14,7 @@ import smtplib, ssl
 import pybern.products.rnxdwnl_impl as rnxd
 import pybern.products.fileutils.decompress as dcomp
 from pybern.products.fileutils.keyholders import parse_key_file
-from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
+from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net, query_tsupd_net
 from pybern.products.codesp3 import get_sp3
 from pybern.products.codeerp import get_erp
 from pybern.products.codeion import get_ion
@@ -482,6 +482,22 @@ def send_report_mail(options, message_head, message_body):
             server.login(sender_email, options['mail_account_password'])
             server.sendmail(sender_email, recipients_list, message)
 
+def update_ts(options, adnq2_fn):
+    ## path to ts files
+    ts_path = options['path_to_ts_files']
+    if not os.path.isdir(ts_path):
+        print('[ERROR] Failed to located station time-series path {:}'.format(ts_path))
+        return
+    
+    db_credentials_dct = parse_db_credentials_file(options['config_file'])
+    tsupd_dict = query_tsupd_net(options['network'], db_credentials_dct)
+
+    with open(adnq2_fn, 'r') as adnq2:
+        aqnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(aqnq2_dct['program'] == 'ADDNEQ2')
+        aqnq2_dct = baddneq.parse_addneq_out(adnq2)
+        aqnq2_dct = aqnq2_dct['stations']
+
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -833,9 +849,13 @@ STATION NAME      CLU
         # sys.exit(1)
         bpe_error = True
 
-    ### collect warning messages in a list (of dictionaries for every warning)
+    ## collect warning messages in a list (of dictionaries for every warning)
     if not bpe_error:
         warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
+
+    ## update station-specif time-series (if needed)
+    #if options['update_sta_ts'].lower() == 'yes':
+    #    update_ts()
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
     ## station; save the text to a local variable cause we may need to send it 
@@ -850,7 +870,7 @@ STATION NAME      CLU
 
         with open(bern_log_fn, 'a') as logfn:
             print('{:15s} {:15s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH'), file=logfn)
-            for ndct in netsta_dct:
+            for ndct in sorted(netsta_dct):
                 station = ndct['mark_name_DSO']
                 if station in rinex_holdings:
                     rnx_dct = rinex_holdings[station]
@@ -876,4 +896,4 @@ STATION NAME      CLU
         send_report_mail(options, message_head, message_body)
 
     ## remove all files created/modified by BPE
-    rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)
+    #rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)

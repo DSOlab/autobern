@@ -12,6 +12,19 @@ from mysql.connector import errorcode
 
 g_verbose_rnxdwnl = False
 
+net_upd_ts_query=(
+    """SELECT
+        stacode.mark_name_DSO,
+        stacode.mark_numb_OFF,
+        network.network_name,
+        sta2nets.upd_tssta
+        FROM stacode
+        JOIN station ON stacode.stacode_id = station.stacode_id
+        JOIN sta2nets ON station.station_id = sta2nets.station_id
+        JOIN network ON sta2nets.network_id = network.network_id
+        WHERE network.network_name = %s
+        AND sta2nets.upd_tssta = 1;""")
+
 sta_in_net_query=(
     """SELECT station.station_id, 
         station.mark_name_DSO, 
@@ -74,3 +87,9 @@ def query_sta_in_net(network, credentials_dct):
         [{'station_id': 1, 'mark_name_DSO': 'pdel', ...}, {...}]
     """
     return execute_query(credentials_dct, sta_in_net_query, network)
+
+def query_tsupd_net(network, credentials_dct):
+    """ Returns a dictionary of type:
+        [{'station_id': 1, 'mark_name_DSO': 'pdel', ...}, {...}]
+    """
+    return execute_query(credentials_dct, net_upd_ts_query, network)
