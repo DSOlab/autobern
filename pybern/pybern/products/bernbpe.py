@@ -7,6 +7,35 @@ import os
 import re
 import datetime
 
+def parse_warning_file(fn):
+    warning_list = []
+    with open(fn, 'r') as fin:
+        line = fin.readline()
+        while line:
+            ## e.g.  ### SR GTOCNL: OCEAN LOADING CORRECTION VALUES NOT FOUND
+            if re.match(r"### .*", line.strip()):
+                g = re.match(r"### SR (?P<sr_name>[A-Za-z0-9_]+):\s(?P<description>.*)$", line.strip())
+                dct = {'subroutine': g.group('sr_name'), 'description': g.group('description')}
+                line = fin.readline()
+                while line.strip() != '':
+                    l = line.strip().split(':')
+                    dct[l[0].strip()] = ' '.join([x.strip() for x in l[1:]])
+                    line = fin.readline()
+                warning_list.append(dct)
+            line = fin.readline()
+    return warning_list
+
+
+def collect_warning_messages(campaign_dir, doy, bpe_start, bpe_stop):
+    warning_list = []
+    out_dir = os.path.join(campaign_dir, 'OUT')
+    for fn in os.listdir(out_dir):
+        f = os.path.join(out_dir, fn)
+        mtime = datetime.datetime.fromtimestamp(os.stat(f).st_mtime, tz=datetime.timezone.utc)
+        if mtime>=bpe_start and mtime <=bpe_stop and re.match(r"WRN"+doy+r"[0-9]{4}\.SUM", fn):
+            warning_list += parse_warning_file(f)
+    return warning_list
+
 def path2dirs(pth):
     dirs = []
     it = 0

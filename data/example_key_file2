@@ -1,0 +1,10 @@
+## Example of a key file parsed by out module
+## Every line starting with '#' is comment
+
+## Empty lines are just ignored
+
+## Ok let's see some example:
+var1 = some value
+var2 = 222
+var3 = 1
+var5 = foobar

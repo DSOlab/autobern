@@ -34,7 +34,7 @@ def atx2pcv(**kwargs):
     if atxinf[-4:] != '.ATX': atxinf += '.ATX'
     stainf = kwargs['stainf']
     if stainf[-4:] == '.STA': stainf = stainf[0:-4]
-    phginf = basename(atxinf[0:-4])
+    phginf = os.path.basename(atxinf[0:-4])
 
     ## load the gps LOADVAR file
     bpe.addtopath_load(kwargs['b_loadgps'])
@@ -106,7 +106,7 @@ def atx2pcv(**kwargs):
         raise RuntimeError(errmsg)
     
     if 'pcvout' not in kwargs or kwargs['pcvout'] is None:
-        kwargs['pcvout'] = os.basename(atxinf[0:-3]) + '.PCV'
+        kwargs['pcvout'] = os.path.basename(atxinf[0:-3]) + '.PCV'
     os.rename(os.path.join(campaign_dir, 'OUT', phginf + '.PHG'), kwargs['pcvout'])
 
     ## remove un-needed files

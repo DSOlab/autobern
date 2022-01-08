@@ -226,7 +226,7 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
         verboseprint("[DEBUG] This is the remote file we should download: {:}".format(remote_fn))
         try:
             status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'])
-            print('Downloaded remote file {:} to {:}'.format(target, saveas))
+            verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
             holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
             return
         except:

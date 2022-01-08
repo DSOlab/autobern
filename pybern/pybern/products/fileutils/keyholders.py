@@ -24,7 +24,7 @@ def expand_env_vars(line):
 def parse_key_file(fn, parse_error_is_fatal=False, expand_envvars=True):
     result = {}
     lnrgx = re.compile(
-        '^\s*(?P<var_name>\w+)\s*=\s*"?(?P<var_value>[ a-zA-Z0-9!@#;\$%\^\&\.\/*\)\(+=._-]+)"?\s*$'
+        '^\s*(?P<var_name>\w+)\s*=\s*"?(?P<var_value>[ a-zA-Z0-9!@#;\$%\^\&\.,\/*\)\(+=._-]+)"?\s*$'
     )
     with open(fn, 'r') as f:
         for line in f.readlines():

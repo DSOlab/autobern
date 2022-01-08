@@ -10,6 +10,7 @@ import subprocess
 import datetime
 import atexit
 from shutil import copyfile
+import smtplib, ssl
 import pybern.products.rnxdwnl_impl as rnxd
 import pybern.products.fileutils.decompress as dcomp
 from pybern.products.fileutils.keyholders import parse_key_file
@@ -20,9 +21,11 @@ from pybern.products.codeion import get_ion
 from pybern.products.codedcb import get_dcb
 from pybern.products.euref.utils import get_euref_exclusion_list
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
-import pybern.products.vmf1 as vmf1
+import pybern.products.bernparsers.bern_out_parse as bparse
+import pybern.products.bernparsers.bern_addneq_parser as baddneq
 import pybern.products.bernparsers.bernsta as bsta
 import pybern.products.bernparsers.bernpcf as bpcf
+import pybern.products.vmf1 as vmf1
 import pybern.products.bernbpe as bpe
 import pybern.products.atx2pcv as a2p
 
@@ -47,12 +50,12 @@ def cleanup(tmp_file_list, verbosity=False):
     
     for f in tmp_file_list:
         try:
-            verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
+            #verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
             os.remove(f)
-            verboseprint(' done')
+            #verboseprint(' done')
         except:
-            verboseprint(' failed')
-            #pass
+            #verboseprint(' failed')
+            pass
     return
 
 def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
@@ -63,22 +66,13 @@ def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
         if re.match(r"[A-Z0-9]{4}"+doy_str+r"0\.SMT", fn):
             os.remove(os.path.join(raw_dir, fn))
 
-    ## remove all files in the campaign that have been created between the 
-    ## start/stop of bpe
-    # define epoch time
-    t0 = datetime.datetime.utcfromtimestamp(0)
-
-    # define time ranges
-    d1 = (bpe_start  - t0).total_seconds()
-    d2 = (bpe_stop - t0).total_seconds()
-
     for (dirpath, dirnames, filenames) in os.walk(campaign_dir):
         for filename in filenames:
-            # f = '/'.join([dirpath,filename])
             f = os.path.join(dirpath, filename)
-            ctime = os.stat(f)[-1]
-            if ctime>=d1 and ctime <=d2:
-                print('>> removing file {:}'.format(f))
+            mtime = datetime.datetime.fromtimestamp(os.stat(f).st_mtime, tz=datetime.timezone.utc)
+            if mtime>=bpe_start and mtime <=bpe_stop:
+                #verboseprint('[DEBUG] Removing temporary file {:} rmbpetmp ...'.format(f))
+                os.remove(f)
 
 ## callback function to be called at exit
 atexit.register(cleanup, temp_files, True)
@@ -112,7 +106,7 @@ def match_rnx_vs_sta(rinex_holdings, stafn, dt):
             return 1
         matched = False
         for t2entry in stainf['type002']:
-            domes = t2entry.sta_name[4:] if len(t2entry.sta_name)>4 else ''
+            domes = t2entry.sta_name[5:] if len(t2entry.sta_name)>4 else ''
             if t2entry.start_date <= dt and t2entry.stop_date >= dt:
                 matched = True
                 break
@@ -157,7 +151,8 @@ def products2dirs(product_dict, campaign_dir, dt, temp_files=None):
     if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', new_basename))
     
     vmf = product_dict['vmf1']['local']
-    os.rename(vmf, os.path.join(campaign_dir, 'ATM', os.path.basename(vmf)))
+    new_basename = 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))
+    os.rename(vmf, os.path.join(campaign_dir, 'GRD', new_basename))
     if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ATM', os.path.basename(vmf)))
 
 def prepare_products(dt, credentials_file, product_dir=None, verbose=False, temp_files=None):
@@ -240,6 +235,43 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, temp
     product_dict['vmf1'] = {'local': merge_to, 'remote': None, 'type': 'forecast' if has_forecast else 'final' }
 
     return product_dict
+
+def rinex3to2_mv(rinex_holdings, campaign_name, dt, temp_files=None):
+    raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
+    new_holdings = {}
+    for station, dct in rinex_holdings.items():
+        new_holdings[station] = rinex_holdings[station]
+        if dct['local'] is not None and not dct['exclude']:
+            # HERS00GBR_R_20200250000_01D_30S_MO.RNX
+            rnx3_name = os.path.basename(dct['local'])
+            if rnx3_name[-4:] == ".RNX":
+                rnx2_name = rnx3_name[0:4] + '{:}0.{:}O'.format(dt.strftime('%j'), dt.strftime('%y'))
+                os.rename(os.path.join(raw, rnx3_name), os.path.join(raw, rnx2_name))
+                print('[DEBUG] Renamed {:} to {:}'.format(rnx3_name, os.path.join(raw, rnx2_name)))
+                new_holdings[station]['local'] = os.path.join(raw, rnx2_name)
+                if temp_files is not None:
+                    try:
+                        temp_files[temp_files.index(dct['local'])] = new_holdings[station]['local']
+                    except:
+                        temp_files.append(new_holdings[station]['local'])
+    return new_holdings
+
+def rinex3to2_link(rinex_holdings, campaign_name, dt, temp_files=None):
+    files2del = []
+    raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
+    for station, dct in rinex_holdings.items():
+        if dct['local'] is not None and not dct['exclude']:
+            # HERS00GBR_R_20200250000_01D_30S_MO.RNX
+            rnx3_name = os.path.basename(dct['local'])
+            if rnx3_name[-4:] == ".RNX":
+                rnx2_name = rnx3_name[0:4] + '{:}0.{:}O'.format(dt.strftime('%j'), dt.strftime('%y'))
+                os.symlink(os.path.join(raw, rnx3_name), os.path.join(raw, rnx2_name))
+                print('[DEBUG] Linked {:} to {:}'.format(rnx3_name, os.path.join(raw, rnx2_name)))
+                files2del.append(os.path.join(raw, rnx2_name))
+    
+    if temp_files is not None:
+        temp_files.append(files2del)
+    return rinex_holdings
     
 def rinex2raw(rinex_holdings, campaign_name, cp_not_mv=False, temp_files=None):
     raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
@@ -317,13 +349,13 @@ def decompress_rinex(rinex_holdings):
                     assert(os.path.isfile(drnx))
                     ## decompress from Hatanaka
                     drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
-                    new_holdings[station] = rinex_holdings[station] ##{'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
+                    new_holdings[station] = rinex_holdings[station]
                     new_holdings[station]['local'] = rnx
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
                 drnx, rnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
-                new_holdings[station] = rinex_holdings[station] ##{'local': rnx, 'remote': dct['remote'], 'exclude': dct['exclude']}
+                new_holdings[station] = rinex_holdings[station]
                 new_holdings[station]['local'] = rnx
             
             else:
@@ -360,20 +392,22 @@ def atx2pcv(options, dt, tmp_file_list=None):
     if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
         errlog = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'bpe_a2p_error_{}.log'.format(os.getpid()))
         print('[ERROR] ATX2PCV failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
-        # print('[ERROR] Compiling error report to {:}'.format(err_report), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), errlog)
-    sys.exit(9)
 
 def link2campaign(options, dt, tmp_file_list=None):
     PDIR = os.path.abspath(os.path.join(os.getenv('P'), options['campaign'].upper()))
     TDIR = os.path.abspath(options['tables_dir'])
     link_dict = []
-    ## reference crd/vel/psd files
+    ## reference crd/vel/psd/fix files
     src = os.path.join(TDIR, 'crd', options['refinf'].upper()+'_R.CRD')
     dest = os.path.join(PDIR, 'STA', os.path.basename(src))
     link_dict.append({'src': src, 'dest': dest})
     
     src = os.path.join(TDIR, 'crd', options['refinf'].upper()+'_R.VEL')
+    dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+    link_dict.append({'src': src, 'dest': dest})
+    
+    src = os.path.join(TDIR, 'crd', options['fixinf'].upper()+'.FIX')
     dest = os.path.join(PDIR, 'STA', os.path.basename(src))
     link_dict.append({'src': src, 'dest': dest})
 
@@ -407,8 +441,22 @@ def link2campaign(options, dt, tmp_file_list=None):
             raise RuntimeError(errmsg)
         link_dict.append({'src': os.path.join(TDIR, pcv_path, pcv_file), 'dest': os.path.join(os.getenv('X'), 'GEN', pcv_file)})
 
+    ## link the observation selection file (if not in GEN)
+    if 'obssel' in options and options['obssel'] is not None and options['obssel'] != '':
+        obssel_fn = options['obssel'].upper() + '.SEL'
+        gen_obssel = os.path.join(os.getenv('X'), 'GEN', obssel_fn)
+        if not os.path.isfile(gen_obssel):
+            tab_obssel = os.path.join(TDIR, 'sel', obssel_fn)
+            if not os.path.isfile(tab_obssel):
+                errmsg = '[ERROR] Failed to find selection file {:} in either {:} or {:}'.format(obssel_fn, os.path.dirname(gen_obssel), os.path.dirname(tab_obssel))
+                raise RuntimeError(msg)
+            link_dict.append({'src': tab_obssel, 'dest': gen_obssel})
+
     for pair in link_dict:
         print('[DEBUG] Linking source {:} to {:}'.format(pair['src'], pair['dest']))
+        if os.path.isfile(pair['dest']):
+            print('[WRNNG] Removing file {:}; need to make a new link!'.format(pair['dest']), file=sys.stderr)
+            os.remove(pair['dest'])
         os.symlink(pair['src'], pair['dest'])
         if tmp_file_list is not None:
             tmp_file_list.append(pair['dest'])
@@ -600,11 +648,6 @@ if __name__ == '__main__':
         elif v is None and k not in options:
             options[k.lower()] = v
 
-    ##
-    print('------------------------------------------------------------------')
-    for k in options: print('{:.20s} -> {:}'.format(k, options[k]))
-    print('------------------------------------------------------------------')
-
     ## verbose print
     verboseprint = print if options['verbose'] else lambda *a, **k: None
 
@@ -707,6 +750,8 @@ if __name__ == '__main__':
     rinex_holdings = rinex2raw(rinex_holdings, options['campaign'], True, temp_files)
     ## rinex 2 uppercase
     rinex_holdings = rinex2uppercase(rinex_holdings, temp_files)
+    ## rinex3 names to rinex2
+    rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, temp_files)
 
     ## make cluster file
     with open(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), 'w') as fout:
@@ -714,12 +759,11 @@ if __name__ == '__main__':
 --------------------------------------------------------------------------------
 
 STATION NAME      CLU
-****************  ***
-        """.format(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')), file=fout)
+****************  ***""".format(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')), file=fout)
         sta_counter = 0
         for sta in rinex_holdings:
             if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
-                print('{:16s}  {:3d}'.format(sta.upper()+' '+rinex_holdings[sta]['domes'], sta_counter//options['files_per_cluster']+1), file=fout)
+                print('{:16s}  {:3d}'.format(' '.join([sta.upper(), rinex_holdings[sta]['domes']]), sta_counter//options['files_per_cluster']+1), file=fout)
                 sta_counter += 1
     print('[DEBUG] Created cluster file {:} with total number of stations {:}'.format(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), sta_counter))
 
@@ -739,27 +783,96 @@ STATION NAME      CLU
         print('[ERROR] Failed to find PCF file {:}'.format(pcf_file), file=sys.stderr)
         sys.exit(1)
     pcf = bpcf.PcfFile(pcf_file)
-    for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster']]):
+    for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
         pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
     pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')
 
+    ## Just a reminder, here is an entry of rinex_holdings
+    ## hofn {'local': '/home/bpe/data/GPSDATA/CAMPAIGN52/GREECE/RAW/HOFN0050.19O', 'remote': 'ftp://anonymous:anonymous@igs.ensg.ign.fr/pub/igs/data/2019/005/hofn0050.19d.Z', 'exclude': False, 'domes': '10204M002'}
+
     ## ready to call the perl script for processing ...
-    bpe_start_at = datetime.datetime.now()
-    bern_task_id = '{:}'.format(os.getpid()) ## options['campaign'].upper()[0] + 'DD'
+    bpe_start_at = datetime.datetime.now(tz=datetime.timezone.utc)
+    bern_task_id = '{:}'.format(os.getpid())
     bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
         subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper()), bern_task_id], stdout=logf, stderr=logf)
-    bpe_stop_at = datetime.datetime.now()
+    bpe_stop_at = datetime.datetime.now(tz=datetime.timezone.utc)
 
     ## check if we have an error; if we do, make a report
-    ## bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', options['campaign'].upper()[0:3] + '_.RUN')
     bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'R2S_{}.RUN'.format(bern_task_id))
     if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
         errlog = os.path.join(log_dir, 'bpe_error_{:}.log'.format(bern_task_id))
         print('[ERROR] BPE failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
-        # print('[ERROR] Compiling error report to {:}'.format(err_report), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), bern_task_id, errlog)
+        print('[DEBUG] Stopping now ...')
+        sys.exit(1)
 
+    ### collect warning messages in a list (of dictionaries for every warning)
+    warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
+
+    ## compile a quick report based on the ADDNEQ2 output file for every 
+    ## station; save the text to a local variable cause we may need to send it 
+    ## via mail latter on.
+    adnq2_text = ""
+    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
+    with open(final_out, 'r') as adnq2:
+        aqnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(aqnq2_dct['program'] == 'ADDNEQ2')
+        aqnq2_dct = baddneq.parse_addneq_out(adnq2)
+        aqnq2_dct = aqnq2_dct['stations']
+
+    with open(bern_log_fn, 'a') as logfn:
+        # print('{:15s} {:15s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH'), file=logfn)
+        header = '{:15s} {:45s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH')
+        print(header, logfn)
+        adnq2_text += header + '\n'
+        for ndct in netsta_dct:
+            station = ndct['mark_name_DSO']
+            if station in rinex_holdings:
+                rnx_dct = rinex_holdings[station]
+                full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
+                half_line = '{:15s} {:45s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude']))
+                print(half_line, file=logfn, end='')
+                adnq2_text += half_line
+                # print('{:15s} {:15s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude'])), file=logfn, end='')
+                sta_found = False
+                for num,record in aqnq2_dct.items():
+                    if record['station_name'].lower().strip() == full_name.lower().strip():
+                        #print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h']), file=logfn)
+                        second_half = '{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'])
+                        print(second_half, file=logfn)
+                        adnq2_text += second_half + '\n'
+                        sta_found = True
+                if not sta_found:
+                    print('', file=logfn)
+                    adnq2_text += '\n'
+            #except:
+            else:
+                print('{:15s} {:^45s}'.format(station, 'x'), file=logfn)
+    print('[DEBUG] Addneq2 file {:} parsed; summary written to {:}'.format(final_out, bern_log_fn))
+
+    ## do we need to send mail?
+    if 'send_mail_to' in options and options['send_mail_to'] is not None:
+        recipients_list = options['send_mail_to'].split(',')
+        if 'mail_account_password' not in options or 'mail_account_username' not in options:
+            print('[ERROR] Failed to send mail! No username/password provided')
+        else:
+            message = """\
+Subject: autobpe-{:} {:}@{:}
+
+""".format(options['pcf_file'], options['network'], dt.strftime("%y%d"))
+            message += adnq2_text
+
+            port = 465 # for SSL
+            sender_email = options['mail_account_username']+"@gmail.com"
+            # Create a secure SSL context
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+                server.login(sender_email, options['mail_account_password'])
+                server.sendmail(sender_email, recipients_list, message)
+
+
+    ## remove all files created/modified by BPE
     rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)
