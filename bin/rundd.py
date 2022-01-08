@@ -69,10 +69,13 @@ def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
     for (dirpath, dirnames, filenames) in os.walk(campaign_dir):
         for filename in filenames:
             f = os.path.join(dirpath, filename)
-            mtime = datetime.datetime.fromtimestamp(os.stat(f).st_mtime, tz=datetime.timezone.utc)
-            if mtime>=bpe_start and mtime <=bpe_stop:
-                #verboseprint('[DEBUG] Removing temporary file {:} rmbpetmp ...'.format(f))
-                os.remove(f)
+            try:
+                mtime = datetime.datetime.fromtimestamp(os.stat(f).st_mtime, tz=datetime.timezone.utc)
+                if mtime>=bpe_start and mtime <=bpe_stop:
+                    #verboseprint('[DEBUG] Removing temporary file {:} rmbpetmp ...'.format(f))
+                    os.remove(f)
+            except:
+                pass
 
 ## callback function to be called at exit
 atexit.register(cleanup, temp_files, True)
@@ -265,6 +268,8 @@ def rinex3to2_link(rinex_holdings, campaign_name, dt, temp_files=None):
             rnx3_name = os.path.basename(dct['local'])
             if rnx3_name[-4:] == ".RNX":
                 rnx2_name = rnx3_name[0:4] + '{:}0.{:}O'.format(dt.strftime('%j'), dt.strftime('%y'))
+                if os.path.isfile(os.path.join(raw, rnx2_name)):
+                    os.remove(os.path.join(raw, rnx2_name))
                 os.symlink(os.path.join(raw, rnx3_name), os.path.join(raw, rnx2_name))
                 print('[DEBUG] Linked {:} to {:}'.format(rnx3_name, os.path.join(raw, rnx2_name)))
                 files2del.append(os.path.join(raw, rnx2_name))
@@ -433,7 +438,7 @@ def link2campaign(options, dt, tmp_file_list=None):
         link_dict.append({'src': src, 'dest': dest})
 
     ## pcv file if at tables/pcv and not in GEN
-    pcv_file = options['pcvinf'].upper() + '.' + options['pcvext'].upper()
+    pcv_file = '{:}.{:}'.format(options['pcvinf'].upper(), options['pcvext'].upper()) 
     if not os.path.isfile(os.path.join(os.getenv('X'), 'GEN', pcv_file)):
         pcv_path = os.path.join(TDIR, 'pcv')
         if not os.path.isfile(os.path.join(TDIR, pcv_path, pcv_file)):
@@ -460,6 +465,23 @@ def link2campaign(options, dt, tmp_file_list=None):
         os.symlink(pair['src'], pair['dest'])
         if tmp_file_list is not None:
             tmp_file_list.append(pair['dest'])
+
+def send_report_mail(options, message_head, message_body):
+    recipients_list = options['send_mail_to'].split(',')
+    if 'mail_account_password' not in options or 'mail_account_username' not in options:
+        print('[ERROR] Failed to send mail! No username/password provided', file=sys.stderr)
+    else:
+        message = ""
+        message += "Subject:{:}\n\n\n".format(message_head)
+        message += message_body
+
+        port = 465 # for SSL
+        sender_email = options['mail_account_username']
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+            server.login(sender_email, options['mail_account_password'])
+            server.sendmail(sender_email, recipients_list, message)
+
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -801,78 +823,57 @@ STATION NAME      CLU
     bpe_stop_at = datetime.datetime.now(tz=datetime.timezone.utc)
 
     ## check if we have an error; if we do, make a report
+    bpe_error = False
     bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'R2S_{}.RUN'.format(bern_task_id))
     if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
         errlog = os.path.join(log_dir, 'bpe_error_{:}.log'.format(bern_task_id))
         print('[ERROR] BPE failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), bern_task_id, errlog)
-        print('[DEBUG] Stopping now ...')
-        sys.exit(1)
+        # print('[DEBUG] Stopping now ...')
+        # sys.exit(1)
+        bpe_error = True
 
     ### collect warning messages in a list (of dictionaries for every warning)
-    warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
+    if not bpe_error:
+        warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
     ## station; save the text to a local variable cause we may need to send it 
     ## via mail latter on.
-    adnq2_text = ""
-    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
-    with open(final_out, 'r') as adnq2:
-        aqnq2_dct = bparse.parse_generic_out_header(adnq2)
-        assert(aqnq2_dct['program'] == 'ADDNEQ2')
-        aqnq2_dct = baddneq.parse_addneq_out(adnq2)
-        aqnq2_dct = aqnq2_dct['stations']
+    if not bpe_error:
+        final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
+        with open(final_out, 'r') as adnq2:
+            aqnq2_dct = bparse.parse_generic_out_header(adnq2)
+            assert(aqnq2_dct['program'] == 'ADDNEQ2')
+            aqnq2_dct = baddneq.parse_addneq_out(adnq2)
+            aqnq2_dct = aqnq2_dct['stations']
 
-    with open(bern_log_fn, 'a') as logfn:
-        # print('{:15s} {:15s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH'), file=logfn)
-        header = '{:15s} {:45s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH')
-        print(header, logfn)
-        adnq2_text += header + '\n'
-        for ndct in netsta_dct:
-            station = ndct['mark_name_DSO']
-            if station in rinex_holdings:
-                rnx_dct = rinex_holdings[station]
-                full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
-                half_line = '{:15s} {:45s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude']))
-                print(half_line, file=logfn, end='')
-                adnq2_text += half_line
-                # print('{:15s} {:15s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude'])), file=logfn, end='')
-                sta_found = False
-                for num,record in aqnq2_dct.items():
-                    if record['station_name'].lower().strip() == full_name.lower().strip():
-                        #print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h']), file=logfn)
-                        second_half = '{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'])
-                        print(second_half, file=logfn)
-                        adnq2_text += second_half + '\n'
-                        sta_found = True
-                if not sta_found:
-                    print('', file=logfn)
-                    adnq2_text += '\n'
-            #except:
-            else:
-                print('{:15s} {:^45s}'.format(station, 'x'), file=logfn)
-    print('[DEBUG] Addneq2 file {:} parsed; summary written to {:}'.format(final_out, bern_log_fn))
+        with open(bern_log_fn, 'a') as logfn:
+            print('{:15s} {:15s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH'), file=logfn)
+            for ndct in netsta_dct:
+                station = ndct['mark_name_DSO']
+                if station in rinex_holdings:
+                    rnx_dct = rinex_holdings[station]
+                    full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
+                    print('{:15s} {:45s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude'])), file=logfn, end='')
+                    sta_found = False
+                    for num,record in aqnq2_dct.items():
+                        if record['station_name'].lower().strip() == full_name.lower().strip():
+                            print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h']), file=logfn)
+                            sta_found = True
+                    if not sta_found:
+                        print('', file=logfn)
+                else:
+                    print('{:15s} {:^45s}'.format(station, 'x'), file=logfn)
+        print('[DEBUG] Addneq2 file {:} parsed; summary written to {:}'.format(final_out, bern_log_fn))
 
-    ## do we need to send mail?
+    ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
-        recipients_list = options['send_mail_to'].split(',')
-        if 'mail_account_password' not in options or 'mail_account_username' not in options:
-            print('[ERROR] Failed to send mail! No username/password provided')
-        else:
-            message = """\
-Subject: autobpe-{:} {:}@{:}
-
-""".format(options['pcf_file'], options['network'], dt.strftime("%y%d"))
-            message += adnq2_text
-
-            port = 465 # for SSL
-            sender_email = options['mail_account_username']+"@gmail.com"
-            # Create a secure SSL context
-            context = ssl.create_default_context()
-            with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-                server.login(sender_email, options['mail_account_password'])
-                server.sendmail(sender_email, recipients_list, message)
-
+        message_file = errlog if bpe_error else bern_log_fn
+        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
+        with open(message_file, 'r') as fin:
+            message_body = fin.read()
+        send_report_mail(options, message_head, message_body)
 
     ## remove all files created/modified by BPE
     rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)

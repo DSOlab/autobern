@@ -45,6 +45,7 @@ def atx2pcv(**kwargs):
         src = stainf + '.STA'
         if not os.path.isfile(src):
             errmsg = '[ERROR] Failed to find .STA file {:}'.format(src)
+            deltmp(tmp_files)
             raise RuntimeError(errmsg)
         dest = os.path.join(campaign_dir, 'STA', os.path.basename(stainf) + '.STA')
         os.symlink(src, dest)
@@ -56,6 +57,7 @@ def atx2pcv(**kwargs):
         src = atxinf
         if not os.path.isfile(src):
             errmsg = '[ERROR] Failed to find .ATX file {:}'.format(src)
+            deltmp(tmp_files)
             raise RuntimeError(errmsg)
         dest = os.path.join(campaign_dir, 'OUT', os.path.basename(atxinf))
         os.symlink(src, dest)
@@ -84,13 +86,14 @@ def atx2pcv(**kwargs):
     print('[DEBUG] Started ATX2PCV conversion (log: {:})'.format(bern_log_fn))
     with open(bern_log_fn, 'w') as logf:
         subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_a2p.pl')), '{:}'.format(dt.strftime('%Y')), SESSION, '{:}'.format(kwargs['campaign']), pcf_file, PID], stdout=logf, stderr=logf)
+    
     ## error checking
     bpe_status_file = os.path.join(campaign_dir, 'BPE', 'A2P_{}.RUN'.format(PID))
     if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
         errlog = os.path.join(campaign_dir, 'BPE', 'bpe_a2p_error_{}.log'.format(os.getpid()))
         print('[ERROR] ATX2PCV failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
-        # print('[ERROR] Compiling error report to {:}'.format(err_report), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), kwargs['campaign']), PID, errlog)
+        deltmp(tmp_files)
         return None
     
     ## remove everything from BPE that matches: [PID][SESSION]_[0-9]+_[0-9]+.[LOG|PRT]

@@ -106,11 +106,15 @@ def parse_ssc(ssc_fn, station_list=[], dt=None):
             errmsg = '[ERROR] Failed to find header line in SSC file {:}'.format(ssc_fn)
             print(errmsg, file=sys.stderr)
             raise RuntimeError(errmsg)
-        # assert(line.strip() == 'DOMES NB. SITE NAME        TECH. ID.       X/Vx         Y/Vy         Z/Vz.          Sigmas      SOLN  DATA_START     DATA_END   REF. EPOCH')
-        assert(re.match(r"DOMES\s+NB\.\s+SITE NAME\s+TECH\. ID\.\s+X/Vx\s+Y/Vy\s+Z/Vz\.\s+Sigmas\s+SOLN\s+DATA_START\s+DATA_END\s+REF\.\s+EPOCH", line.strip()))
+        if not re.match(r"DOMES\s+NB\.\s+SITE NAME\s+TECH\. ID\.\s+X/Vx\s+Y/Vy\s+Z/Vz\.?\s+Sigmas\s+SOLN\s+DATA_START\s+DATA_END\s+REF\.\s+EPOCH", line.strip()):
+            errmsg = '[ERROR] Failed matching (column) header line! SSC file {:}'.format(ssc_fn)
+            print('[ERROR] Failed to resolve line: [{:}]'.format(line.strip()))
+            raise RuntimeError(errmsg)
         line = fin.readline()
-        #assert(line.strip()=='CLASS                   ----------------------------m/m/Y-------------------------')
-        assert(re.match(r"[A-ZCLASS]*\s*-*m/m/Y-*", line.strip()))
+        ## examples of this line:
+        ##[              CLASS                   ----------------------------m/m/Y-------------------------------------] (epn class A ssc)
+        ##[<>                                         -----------------------m/m/Y-------------------------] (epnd ssc)
+        assert(re.match(r"\s*[A-Z<>]*\s*-*m/m/Y-*", line.strip()))
         line = fin.readline()
         assert(line.strip().startswith('----------------------'))
 
