@@ -16,7 +16,8 @@ g_verbose_rnxdwnl = False
 network_query=(
     """SELECT station.station_id, 
         station.mark_name_DSO, 
-        stacode.mark_name_OFF, 
+        stacode.mark_name_OFF,
+        stacode.mark_numb_OFF,
         stacode.station_name, 
         stacode.long_name,
         ftprnx.dc_name, 
@@ -42,6 +43,7 @@ station_query=(
     """SELECT station.station_id,
         station.mark_name_DSO,
         stacode.mark_name_OFF,
+        stacode.mark_numb_OFF,
         stacode.station_name,
         stacode.long_name,
         ftprnx.dc_name,

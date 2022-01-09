@@ -80,7 +80,7 @@ def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
 ## callback function to be called at exit
 atexit.register(cleanup, temp_files, True)
 
-def stainf2fn(stainf, tables_dir, campaign):
+def stainf2fn_obsolete(stainf, tables_dir, campaign):
     """ Form and return a valid (aka existing) .STA file based on input 
         parameters
         stainf: Filename of the .STA file, excluding the '.STA' extension
@@ -117,7 +117,7 @@ def match_rnx_vs_sta(rinex_holdings, stafn, dt):
             print('[ERROR] No valid entry found in STA file {:} for station {:} and date {:}'.format(stafn, station, dt.strftime('%Y%m%d %H:%M:%S'), file=sys.stderr))
             return 1
 
-        rinex_holdings[station]['domes'] = domes
+        #rinex_holdings[station]['domes'] = domes
 
     return 0;
     
@@ -428,8 +428,13 @@ def link2campaign(options, dt, tmp_file_list=None):
 
     ## sta file
     src = os.path.join(TDIR, 'sta', options['stainf'].upper()+'.STA')
-    dest = os.path.join(PDIR, 'STA', os.path.basename(src))
-    link_dict.append({'src': src, 'dest': dest})
+    if not os.path.isfile(src):
+        if not os.path.isfile(os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper()+'.STA')):
+            errmsg = '[ERROR] Failed to find .STA file {:} in either {:} or {:}'.format(options['stainf'].upper()+'.STA', os.path.join(TDIR, 'sta'), os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA'))
+            raise RuntimeError(errmsg)
+    else:
+        dest = os.path.join(PDIR, 'STA', os.path.basename(src))
+        link_dict.append({'src': src, 'dest': dest})
 
     ## blq file (if any)
     if options['blqinf'] is not None and options['blqinf'].strip() != '':
@@ -482,6 +487,20 @@ def send_report_mail(options, message_head, message_body):
             server.login(sender_email, options['mail_account_password'])
             server.sendmail(sender_email, recipients_list, message)
 
+def write_ts_record(adnq2_dct, ts_file, station, comment):
+    """ station -> full station name (4char-id + domes)
+    """
+    for aa, dct in adnq2_dct.items():
+        if dct['station_name'].lower() == station.lower():
+            tfrom = dct['X_from']
+            tto = dct['X_to']
+            dt_seconds = int((tto-tfrom).seconds)/2
+            t = datetime.timedelta(days=0, seconds=dt_seconds) + tfrom
+            with open(ts_file, 'a') as ts_out:
+                print('{:} {:+15.5f} {:9.5f} {:+15.5f} {:9.5f} {:+15.5f} {:9.5f} {:+13.8f} {:9.5f} {:+13.8f} {:9.5f} {:12.5f} {:9.5f} {:}'.format(t.strftime("%Y-%m-%d %H:%M:%S"), dct['X_estimated_value'], dct['X_rms_error'], dct['Y_estimated_value'], dct['Y_rms_error'], dct['Z_estimated_value'], dct['Z_rms_error'], dct['Latitude_estimated_value'], dct['Latitude_rms_error'], dct['Longitude_estimated_value'], dct['Longitude_rms_error'], dct['Height_estimated_value'], dct['Height_rms_error'],datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), file=ts_out)
+            return True
+    return False
+
 def update_ts(options, adnq2_fn):
     ## path to ts files
     ts_path = options['path_to_ts_files']
@@ -498,6 +517,31 @@ def update_ts(options, adnq2_fn):
         aqnq2_dct = baddneq.parse_addneq_out(adnq2)
         aqnq2_dct = aqnq2_dct['stations']
 
+    stations_updated = []
+
+    for qdct in tsupd_dict:
+        sid = qdct['mark_name_DSO']
+        sdm = qdct['mark_numb_OFF']
+        station = '{:} {:}'.format(sid, sdm).strip()
+        assert(qdct['network_name'].lower() == options['network'].lower())
+        assert(qdct['upd_tssta'] == 1)
+        ts_file = os.path.join(options['path_to_ts_files'], sid, '{:}.cts'.format(sid))
+        if not os.path.isfile(ts_file):
+            print('[WRNNG] No station cts file found for station {:} (searching for {:})'.format(station, ts_file), file=sys.stderr)
+        else:
+            if not write_ts_record(aqnq2_dct, ts_file, station, options['ts_description']):
+                print('[WRNNG] Failed to update ts record for station {:}'.format(station), file=sys.stderr)
+            else:
+                stations_updated.append(station)
+
+    return stations_updated
+    
+def sta_id2domes(sta_id, netsta_dct):
+    for dct in netsta_dct:
+        if dct['mark_name_DSO'].lower() == sta_id.lower():
+            return dct['mark_numb_OFF']
+    print('[WRNNG] No domes number found for station {:} (database query)'.format(sta_id))
+    return ''
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -704,6 +748,11 @@ if __name__ == '__main__':
         pcv_file = a2p.atx2pcv({'atxinf':atxinf, 'pcvout':pcvout, 'stainf':stainf, 'pcvext':pcvext})
         options['pcvfile'] = pcv_file
     
+    ## get info on the stations that belong to the network, aka
+    ## [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
+    db_credentials_dct = parse_db_credentials_file(options['config_file'])
+    netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
+    
     ## link needed files from tables_dir to campaign-specific directories
     link2campaign(options, dt, temp_files)
 
@@ -724,10 +773,11 @@ if __name__ == '__main__':
 
 
     ## for every station add a field in its dictionary ('exclude') denoting if 
-    ## the station needs to be excluded from the processing
+    ## the station needs to be excluded from the processing and also get its
+    ## domes number
     for station in rinex_holdings:
         rinex_holdings[station]['exclude'] = False
-        rinex_holdings[station]['domes'] = None
+        rinex_holdings[station]['domes'] = sta_id2domes(station, netsta_dct)
 
     ## check if we need to exclude station from EUREF's list
     if options['use_epn_exclude_list']:
@@ -740,16 +790,12 @@ if __name__ == '__main__':
             staexcl = [x.split()[0].lower() for x in fin.readlines()]
         mark_exclude_stations(staexcl, rinex_holdings)
 
-    ## get info on the stations that belong to the network, aka
-    ## [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
-    db_credentials_dct = parse_db_credentials_file(options['config_file'])
-    netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
-
     ## uncompress (to obs) all RINEX files of the network/date
     rinex_holdings = decompress_rinex(rinex_holdings)
 
     ## validate stations using the STA file and get domes
-    stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
+    ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
+    stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
     if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
         print('[ERROR] Aborting processing!', file=sys.stderr)
         sys.exit(1)
@@ -845,8 +891,6 @@ STATION NAME      CLU
         errlog = os.path.join(log_dir, 'bpe_error_{:}.log'.format(bern_task_id))
         print('[ERROR] BPE failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), bern_task_id, errlog)
-        # print('[DEBUG] Stopping now ...')
-        # sys.exit(1)
         bpe_error = True
 
     ## collect warning messages in a list (of dictionaries for every warning)
@@ -854,8 +898,9 @@ STATION NAME      CLU
         warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
 
     ## update station-specif time-series (if needed)
-    #if options['update_sta_ts'].lower() == 'yes':
-    #    update_ts()
+    station_ts_updated = []
+    if options['update_sta_ts'].lower() == 'yes' and not bpe_error:
+        station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))))
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
     ## station; save the text to a local variable cause we may need to send it 
@@ -869,9 +914,10 @@ STATION NAME      CLU
             aqnq2_dct = aqnq2_dct['stations']
 
         with open(bern_log_fn, 'a') as logfn:
-            print('{:15s} {:15s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH'), file=logfn)
-            for ndct in sorted(netsta_dct):
+            print('{:15s} {:45s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:10s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'TsUpdate'), file=logfn)
+            for ndct in netsta_dct:
                 station = ndct['mark_name_DSO']
+                tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
                 if station in rinex_holdings:
                     rnx_dct = rinex_holdings[station]
                     full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
@@ -879,7 +925,7 @@ STATION NAME      CLU
                     sta_found = False
                     for num,record in aqnq2_dct.items():
                         if record['station_name'].lower().strip() == full_name.lower().strip():
-                            print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h']), file=logfn)
+                            print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} {:}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'], str(tsupdated)), file=logfn)
                             sta_found = True
                     if not sta_found:
                         print('', file=logfn)
@@ -896,4 +942,4 @@ STATION NAME      CLU
         send_report_mail(options, message_head, message_body)
 
     ## remove all files created/modified by BPE
-    #rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)
+    rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)

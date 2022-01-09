@@ -91,6 +91,13 @@ def find_station_in_crd_records(station, crd_records):
             return idx
     return -1
 
+def id2domes(staid, dbdct):
+    for dct in dbdct:
+        if dct['mark_name_DSO'].lower() == staid.lower():
+            return dct['mark_numb_OFF']
+    print('[WRNNG] No domes number found for station {:} (database query)'.format(staid), file=sys.stderr)
+    return ''
+
 if __name__ == '__main__':
 
     ## parse command line arguments
@@ -140,11 +147,16 @@ if __name__ == '__main__':
         for station in sta_list:
             num += 1
             station_found = False
+            db_domes = id2domes(station, netsta_dct).strip()
 
             index = find_station_in_ssc_records(station, ssc_records)
             if index >=0 :
                 x, y, z = ssc_records[index].extrapolate(args.date)
-                print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, ssc_records[index].id, ssc_records[index].domes, x, y, z), file=bout)
+                if db_domes != ssc_records[index].domes.strip():
+                    print('[WRNNG] Domes number mismatch for station {:}; DataBase entry [{:}], SSC entry [{:}]'.format(station, db_domes, ssc_records[index].domes.strip()))
+                    print('[WRNNG] Using domes number from database entry, aka: {:} {:}'.format(station, db_domes))
+                #print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, ssc_records[index].id, ssc_records[index].domes, x, y, z), file=bout)
+                print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, ssc_records[index].id, db_domes, x, y, z), file=bout)
                 sta_sofar.append(station)
                 station_found = True
             
@@ -152,7 +164,11 @@ if __name__ == '__main__':
                 index = find_station_in_crd_records(station, crd_records)
                 if index >=0 :
                     sta_dct = crd_records[index][station.upper()]
-                    print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, station.upper(), sta_dct['domes'], sta_dct['x'], sta_dct['y'], sta_dct['z']), file=bout)
+                    if db_domes.strip() != sta_dct['domes'].strip():
+                        print('[WRNNG] Domes number mismatch for station {:}; DataBase entry [{:}], CRD entry [{:}]'.format(station, db_domes, sta_dct['domes'].strip()))
+                        print('[WRNNG] Using domes number from database entry, aka: {:} {:}'.format(station, db_domes))
+                    #print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, station.upper(), sta_dct['domes'], sta_dct['x'], sta_dct['y'], sta_dct['z']), file=bout)
+                    print('{:3d}  {:} {:9s}{:+16.4f}{:+15.4f}{:+15.4f}'.format(num, station.upper(), db_domes, sta_dct['x'], sta_dct['y'], sta_dct['z']), file=bout)
                     station_found = True
                     sta_sofar.append(station)
             

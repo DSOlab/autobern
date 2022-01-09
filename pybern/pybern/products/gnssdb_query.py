@@ -28,7 +28,8 @@ net_upd_ts_query=(
 sta_in_net_query=(
     """SELECT station.station_id, 
         station.mark_name_DSO, 
-        stacode.mark_name_OFF, 
+        stacode.mark_name_OFF,
+        stacode.mark_numb_OFF,
         stacode.station_name, 
         stacode.long_name,
         network.network_name 

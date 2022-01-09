@@ -263,7 +263,6 @@ def get_erp(**kwargs):
         indct['save_as'] = kwargs['save_as']
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
-    print('>> note that target={:}'.format(target))
     status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
 
