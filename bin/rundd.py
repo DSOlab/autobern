@@ -29,12 +29,13 @@ import pybern.products.vmf1 as vmf1
 import pybern.products.bernbpe as bpe
 import pybern.products.atx2pcv as a2p
 
-##
+## path to crx2rnx program
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
 if not os.path.isdir(crx2rnx_dir):
     print('[ERROR] Invalid crx2rnx bin dir {:}'.format(crx2rnx_dir), file=sys.stderr)
     sys.exit(1)
-##
+
+## path to log files
 log_dir='/home/bpe/data/proclog'
 if not os.path.isdir(log_dir):
     print('[ERROR] Invalid temp/proc dir {:}'.format(log_dir), file=sys.stderr)
@@ -44,11 +45,25 @@ if not os.path.isdir(log_dir):
 ## before exit
 temp_files = []
 
-def cleanup(tmp_file_list, verbosity=False):
-    ## verbose print
+def update_temp_files(new_fn, old_fn=None):
+    index = -1
+    if old_fn is not None:
+        try:
+            index = temp_files.index(old_fn)
+        except:
+            index = -1
+    if index < 0:
+        temp_files.append(new_fn)
+    else:
+        temp_files[index] = new_fn
+
+def cleanup(verbosity=False):
+    """ Remove every file listed in the tmp_files list; if any operation fails,
+        the program will not thrrow.
+    """
     verboseprint = print if int(verbosity) else lambda *a, **k: None
     
-    for f in tmp_file_list:
+    for f in temp_files:
         try:
             #verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
             os.remove(f)
@@ -59,11 +74,22 @@ def cleanup(tmp_file_list, verbosity=False):
     return
 
 def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
+    """ This function will perform two operations:
+        1. remove all files in the campaign's RAW directory, that match the
+           patterns '[A-Z0-9]{4}DDD0.SMT' and '[A-Z0-9]{4}DDD0.[dDoO]'
+        2. remove all files in the campaign's directories, that have last
+           modification time tag between bpe_start and bpe_stop (aka remove
+           all files in the campaign's directories that have been 
+           created/modified by the BPE run)
+    """
     doy_str = dt.strftime('%j')
+    yy_str = dt.strftime('%y')
     raw_dir = os.path.join(campaign_dir, 'RAW')
     
     for fn in os.listdir(raw_dir):
         if re.match(r"[A-Z0-9]{4}"+doy_str+r"0\.SMT", fn):
+            os.remove(os.path.join(raw_dir, fn))
+        elif re.match(r"[A-Z0-9]{4}"+doy_str+r"0\." + yy_str + r"[oOdD]", fn):
             os.remove(os.path.join(raw_dir, fn))
 
     for (dirpath, dirnames, filenames) in os.walk(campaign_dir):
@@ -78,27 +104,12 @@ def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
                 pass
 
 ## callback function to be called at exit
-atexit.register(cleanup, temp_files, True)
-
-def stainf2fn_obsolete(stainf, tables_dir, campaign):
-    """ Form and return a valid (aka existing) .STA file based on input 
-        parameters
-        stainf: Filename of the .STA file, excluding the '.STA' extension
-        tables_dir: tables/ directory; the function expects that the .STA file
-                should be located at tables/sta/ directory
-        campaifn: Name of campaign; if the .STA file is not found in the 
-                tables_dir/sta/ folder, hen the function will search for the
-                file in $P/$campaign/STA
-    """
-    stainf_fn = os.path.join(tables_dir, 'sta', stainf+'.STA')
-    if os.path.isfile(stainf_fn): return stainf_fn
-
-    stainf_fn = os.path.join(os.getenv('P'), campaign, 'STA', stainf+'.STA')
-    if os.path.isfile(stainf_fn): return stainf_fn
-    
-    raise RuntimeError('ERROR Failed to locate .STA file')
+atexit.register(cleanup, True)
 
 def match_rnx_vs_sta(rinex_holdings, stafn, dt):
+    """ Make sure that every station in rinex_holdings has a valid recdor for
+        dt epoch in the .STA file stafn. If not, erturn an integer > 0.
+    """
     sta = bsta.BernSta(stafn)
     binfo = sta.parse().filter([s[0:4].upper() for s in rinex_holdings ], True)
 
@@ -122,43 +133,71 @@ def match_rnx_vs_sta(rinex_holdings, stafn, dt):
     return 0;
     
 def mark_exclude_stations(station_list, rinex_holdings):
-   for station in rinex_holdings:
-       if station in station_list:
-           rinex_holdings[station]['exclude'] = True
-           print('[DEBUG] Marking station {:} as excluded! will not be processed.'.format(station))
+    """ Given an exclusion list 'station_list' (aka a list of stations specified 
+        by their 4char-id), set the field rinex_holdings[station]['exclude'] 
+        to true if the station is included in the station_list
+    """
+    exclusion_list = [x.lower() for x in station_list]
+    for station in rinex_holdings:
+        if station.lower() in station_list:
+            rinex_holdings[station]['exclude'] = True
+            print('[DEBUG] Marking station {:} as excluded! will not be processed.'.format(station))
 
-def products2dirs(product_dict, campaign_dir, dt, temp_files=None):
+def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
+    """ Transfer (link) downloaded products from their current folder to the 
+        campaign-specific folders. The product filenames are collected from the
+        'product_dict' dictionary (e.g. using the product_dict['sp3']['local']
+        key/value pair). More specifically:
+        sp3: product_dict['sp3']['local'] -> $P/ORB and change extension to 
+             .PRE if needed
+        erp: product_dict['erp']['local'] -> $P/ORB
+        ion: product_dict['ion']['local'] -> $P/ATM
+        dcb: product_dict['dcb']['local'] -> $P/ORB and change filename to
+             'P1C1YYMM.DCB'
+        vmf1: product_dict['vmf1']['local'] -> $P/GRD and change filename to
+             'VMFYYDDD0.GRD'
+    """
     ## also changes sp3 extension to 'PRE'
     sp3 = product_dict['sp3']['local']
     _, sp3 = dcomp.os_decompress(sp3, True)
     target = os.path.join(campaign_dir, 'ORB', os.path.basename(sp3))
     target = re.sub(r"\.[A-Za-z0-9]{3}$", ".PRE", target)
     os.rename(sp3, target)
-    if temp_files is not None: temp_files.append(target)
+    if add2temp_files: update_temp_files(target, sp3)
 
     erp = product_dict['erp']['local']
     _, erp = dcomp.os_decompress(erp, True)
     os.rename(erp, os.path.join(campaign_dir, 'ORB', os.path.basename(erp)))
-    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', os.path.basename(erp)))
+    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'ORB', os.path.basename(erp)), erp)
 
     ion = product_dict['ion']['local']
     _, ion = dcomp.os_decompress(ion, True)
     os.rename(ion, os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
-    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
+    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'ATM', os.path.basename(ion)), ion)
     
     ## change dcb name to P1C1YYMM.DCB
     dcb = product_dict['dcb']['local']
     _, dcb = dcomp.os_decompress(dcb, True)
     new_basename = 'P1C1{:}.DCB'.format(dt.strftime('%y%m')) 
     os.rename(dcb, os.path.join(campaign_dir, 'ORB', new_basename))
-    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ORB', new_basename))
+    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'ORB', new_basename), dcb)
     
     vmf = product_dict['vmf1']['local']
     new_basename = 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))
     os.rename(vmf, os.path.join(campaign_dir, 'GRD', new_basename))
-    if temp_files is not None: temp_files.append(os.path.join(campaign_dir, 'ATM', os.path.basename(vmf)))
+    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'GRD', new_basename), vmf)
 
-def prepare_products(dt, credentials_file, product_dir=None, verbose=False, temp_files=None):
+def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2temp_files=True):
+    """ Download products for date 'dt', using the credentials file 
+        'credentials_file', to the directory 'product_dir' and if needed, add 
+        them to temp_files list. The function will also decompress the
+        downloaded files (if needed).
+        Returns a dictionary holding information for each product, e.g.
+        return product_dict, where:
+        product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
+        product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
+        ...
+    """
     ## write product information to a dictionary
     product_dict = {}
 
@@ -237,11 +276,32 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, temp
             has_forecast = True
     product_dict['vmf1'] = {'local': merge_to, 'remote': None, 'type': 'forecast' if has_forecast else 'final' }
 
+    if add2temp_files:
+        for k,dct in product_dict.items():
+            update_temp_files(dct['local'])
+
     return product_dict
 
-def rinex3to2_mv(rinex_holdings, campaign_name, dt, temp_files=None):
+def rinex3to2_mv(rinex_holdings, campaign_name, dt, add2temp_files=True):
+    """ Rename any RINEX v3.x file found in the rinex_holdings dictionary, to
+        a corresponding RINEX v2.x name, in the campaign's RAW/ directory.
+        The function will examine all (sub)dictionaries included in the
+        rinex_holdings dictionary (aka, rinex_holdings[station]['local'] values)
+        if the station is not marked as 'excluded' (aka 
+        rinex_holdings[station]['exclude'] is set to True). If the 'local' file
+        matches a RINEX v3.x pattern, it will be renamed to a corresponding 
+        RINEX v2.x filename and if needed moved to the campaign's RAW/ 
+        directory.
+
+        The station will return a copy of 'rinex_holdings', updated where 
+        needed with the new 'local' filename.
+
+        Note: expects rinex_holding to be:
+        { 'dyng': {'local':'/foo/bar/DYNG00GRC_...', 'exclude': False, ...} }
+    """
     raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
     new_holdings = {}
+    
     for station, dct in rinex_holdings.items():
         new_holdings[station] = rinex_holdings[station]
         if dct['local'] is not None and not dct['exclude']:
@@ -252,17 +312,15 @@ def rinex3to2_mv(rinex_holdings, campaign_name, dt, temp_files=None):
                 os.rename(os.path.join(raw, rnx3_name), os.path.join(raw, rnx2_name))
                 print('[DEBUG] Renamed {:} to {:}'.format(rnx3_name, os.path.join(raw, rnx2_name)))
                 new_holdings[station]['local'] = os.path.join(raw, rnx2_name)
-                if temp_files is not None:
-                    try:
-                        temp_files[temp_files.index(dct['local'])] = new_holdings[station]['local']
-                    except:
-                        temp_files.append(new_holdings[station]['local'])
+                if add2temp_files: update_temp_files(new_holdings[station]['local'], dct['local'])
     return new_holdings
 
-def rinex3to2_link(rinex_holdings, campaign_name, dt, temp_files=None):
-    files2del = []
+def rinex3to2_link(rinex_holdings, campaign_name, dt, add2temp_files=True):
     raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
+    new_holdings = {}
+
     for station, dct in rinex_holdings.items():
+        new_holdings[station] = rinex_holdings[station]
         if dct['local'] is not None and not dct['exclude']:
             # HERS00GBR_R_20200250000_01D_30S_MO.RNX
             rnx3_name = os.path.basename(dct['local'])
@@ -272,13 +330,19 @@ def rinex3to2_link(rinex_holdings, campaign_name, dt, temp_files=None):
                     os.remove(os.path.join(raw, rnx2_name))
                 os.symlink(os.path.join(raw, rnx3_name), os.path.join(raw, rnx2_name))
                 print('[DEBUG] Linked {:} to {:}'.format(rnx3_name, os.path.join(raw, rnx2_name)))
-                files2del.append(os.path.join(raw, rnx2_name))
+                new_holdings[station]['local'] = os.path.join(raw, rnx2_name)
+                if add2temp_files: update_temp_files(new_holdings[station]['local'])
+    return new_holdings
     
-    if temp_files is not None:
-        temp_files.append(files2del)
-    return rinex_holdings
-    
-def rinex2raw(rinex_holdings, campaign_name, cp_not_mv=False, temp_files=None):
+def rinex2raw(rinex_holdings, campaign_name, cp_not_mv=False, add2temp_files=True):
+    """ Move RINEX files (included in rinex_holdings) to the campaign's RAW/
+        directory, if the station is not marked as 'excluded'.
+        The station will return a copy of 'rinex_holdings', updated where 
+        needed with the new 'local' filename.
+
+        Note: expects rinex_holding to be:
+        { 'dyng': {'local':'/foo/bar/DYNG00GRC_...', 'exclude': False, ...} }
+    """
     raw = os.path.join(os.getenv('P'), campaign_name.upper(), 'RAW')
     new_holdings = {}
     
@@ -292,19 +356,22 @@ def rinex2raw(rinex_holdings, campaign_name, cp_not_mv=False, temp_files=None):
                 os.rename(dct['local'], os.path.join(raw, fn))
             new_holdings[station] = rinex_holdings[station]
             new_holdings[station]['local'] = os.path.join(raw, fn)
-
-            if temp_files is not None:
-                try:
-                    index = temp_files.index(dct['local'])
-                    temp_files[index] = new_holdings[station]['local']
-                except ValueError as e:
-                    temp_files.append(new_holdings[station]['local'])
+            
+            if add2temp_files: update_temp_files(new_holdings[station]['local'], dct['local'])
 
         else:
             new_holdings[station] = rinex_holdings[station]
     return new_holdings
 
-def rinex2uppercase(rinex_holdings, temp_files=None):
+def rinex2uppercase(rinex_holdings, add2temp_files=True):
+    """ Translate RINEX files (included in rinex_holdings) to uppercase 
+        filenames, if the station is not marked as 'excluded'.
+        The station will return a copy of 'rinex_holdings', updated where 
+        needed with the new 'local' filename.
+
+        Note: expects rinex_holding to be:
+        { 'dyng': {'local':'/foo/bar/DYNG00GRC_...', 'exclude': False, ...} }
+    """
     new_holdings = {}
     for station, dct in rinex_holdings.items():
         if dct['local'] is not None and not dct['exclude']:
@@ -314,13 +381,7 @@ def rinex2uppercase(rinex_holdings, temp_files=None):
             os.rename(dct['local'], os.path.join(pth, fnu))
             new_holdings[station] = rinex_holdings[station]
             new_holdings[station]['local'] = os.path.join(pth, fnu)
-            
-            if temp_files is not None:
-                try:
-                    index = temp_files.index(dct['local'])
-                    temp_files[index] = new_holdings[station]['local']
-                except ValueError as e:
-                    temp_files.append(new_holdings[station]['local'])
+            if add2temp_files: update_temp_files(new_holdings[station]['local'], dct['local'])   
         else:
             new_holdings[station] = rinex_holdings[station]
     return new_holdings
@@ -350,18 +411,22 @@ def decompress_rinex(rinex_holdings):
                     print('[WRNNG] Failed to decompress RINEX file {:}'.format(crnx), file=sys.stderr)
                     print('[WRNNG] Note that the RINEX file {:} will be deleted from rinex_holdings and removed'.format(crnx), file=sys.stderr)
                     os.remove(crnx)
-                if cr is not None:
+                    dct['local'] = None
+
+                if cr is not None: ## file decompressed ...
                     assert(os.path.isfile(drnx))
                     ## decompress from Hatanaka
                     drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
                     new_holdings[station] = rinex_holdings[station]
                     new_holdings[station]['local'] = rnx
+                    update_temp_files(rnx, crnx)
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
                 drnx, rnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
                 new_holdings[station] = rinex_holdings[station]
                 new_holdings[station]['local'] = rnx
+                update_temp_files(rnx, crnx)
             
             else:
                 new_holdings[station] = dct
@@ -399,7 +464,10 @@ def atx2pcv(options, dt, tmp_file_list=None):
         print('[ERROR] ATX2PCV failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), errlog)
 
-def link2campaign(options, dt, tmp_file_list=None):
+def link2campaign(options, dt, add2temp_files=True):
+    """ Link needed files from TABLES directory to campaign's corresponsing
+        folders
+    """
     PDIR = os.path.abspath(os.path.join(os.getenv('P'), options['campaign'].upper()))
     TDIR = os.path.abspath(options['tables_dir'])
     link_dict = []
@@ -468,10 +536,15 @@ def link2campaign(options, dt, tmp_file_list=None):
             print('[WRNNG] Removing file {:}; need to make a new link!'.format(pair['dest']), file=sys.stderr)
             os.remove(pair['dest'])
         os.symlink(pair['src'], pair['dest'])
-        if tmp_file_list is not None:
-            tmp_file_list.append(pair['dest'])
+        if add2temp_files: update_temp_files(pair['dest'])
 
 def send_report_mail(options, message_head, message_body):
+    """ Send report to recipients via mail.
+        We need the following from the options dictionary:
+        'send_mail_to',
+        'mail_account_password', 'mail_account_username'
+        The funcion will use smtp.gmail.com server to send the mail
+    """
     recipients_list = options['send_mail_to'].split(',')
     if 'mail_account_password' not in options or 'mail_account_username' not in options:
         print('[ERROR] Failed to send mail! No username/password provided', file=sys.stderr)
@@ -489,6 +562,17 @@ def send_report_mail(options, message_head, message_body):
 
 def write_ts_record(adnq2_dct, ts_file, station, comment):
     """ station -> full station name (4char-id + domes)
+        Update a station-specific cts (aka time-series) file with a new line, 
+        parsed from the adnq2_dct dictionary (which should be the result of
+        parsing the 'final' ADDNEQ2 output file from BPE run)
+        
+        The function will loop hrough the 'adnq2_dct' dictionary to match 
+        records for station 'station'; these records are the ones to be used 
+        for cts updating.
+
+        The fucntion will return True if the new record is indeed appended to
+        the ts_file file, and False otherwise (e.g. failed to match station to
+        any record in adnq2_dct)
     """
     for aa, dct in adnq2_dct.items():
         if dct['station_name'].lower() == station.lower():
@@ -497,11 +581,27 @@ def write_ts_record(adnq2_dct, ts_file, station, comment):
             dt_seconds = int((tto-tfrom).seconds)/2
             t = datetime.timedelta(days=0, seconds=dt_seconds) + tfrom
             with open(ts_file, 'a') as ts_out:
-                print('{:} {:+15.5f} {:9.5f} {:+15.5f} {:9.5f} {:+15.5f} {:9.5f} {:+13.8f} {:9.5f} {:+13.8f} {:9.5f} {:12.5f} {:9.5f} {:}'.format(t.strftime("%Y-%m-%d %H:%M:%S"), dct['X_estimated_value'], dct['X_rms_error'], dct['Y_estimated_value'], dct['Y_rms_error'], dct['Z_estimated_value'], dct['Z_rms_error'], dct['Latitude_estimated_value'], dct['Latitude_rms_error'], dct['Longitude_estimated_value'], dct['Longitude_rms_error'], dct['Height_estimated_value'], dct['Height_rms_error'],datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), file=ts_out)
+                print('{:} {:+15.5f} {:9.5f} {:+15.5f} {:9.5f} {:+15.5f} {:9.5f} {:+13.8f} {:9.5f} {:+13.8f} {:9.5f} {:12.5f} {:9.5f} {:} {:}'.format(t.strftime("%Y-%m-%d %H:%M:%S"), dct['X_estimated_value'], dct['X_rms_error'], dct['Y_estimated_value'], dct['Y_rms_error'], dct['Z_estimated_value'], dct['Z_rms_error'], dct['Latitude_estimated_value'], dct['Latitude_rms_error'], dct['Longitude_estimated_value'], dct['Longitude_rms_error'], dct['Height_estimated_value'], dct['Height_rms_error'],datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), comment), file=ts_out)
             return True
     return False
 
 def update_ts(options, adnq2_fn):
+    """ Given a (final) ADDNEQ2 file (result of BPE), update the involved 
+        stations cts file.
+        The function will parse the ADDNEQ2 file and get estimateds and rms 
+        values for all stations included. It will then query the database to 
+        see what station cts files should be updated (that is query the 
+        database, using the network name, to see which stations have the field
+        'upd_tssta' set to 1).
+        For each of these stations, a new record will be appended in the 
+        corresponding cts file.
+        The function will return a list of stations for which the cts files 
+        where updated.
+        Keys in options used:
+            options['path_to_ts_files']
+            options['config_file']
+            options['network']
+    """
     ## path to ts files
     ts_path = options['path_to_ts_files']
     if not os.path.isdir(ts_path):
@@ -529,7 +629,8 @@ def update_ts(options, adnq2_fn):
         if not os.path.isfile(ts_file):
             print('[WRNNG] No station cts file found for station {:} (searching for {:})'.format(station, ts_file), file=sys.stderr)
         else:
-            if not write_ts_record(aqnq2_dct, ts_file, station, options['ts_description']):
+            comment = options['ts_description'] if 'ts_description' in options else ''
+            if not write_ts_record(aqnq2_dct, ts_file, station, comment):
                 print('[WRNNG] Failed to update ts record for station {:}'.format(station), file=sys.stderr)
             else:
                 stations_updated.append(station)
@@ -537,11 +638,62 @@ def update_ts(options, adnq2_fn):
     return stations_updated
     
 def sta_id2domes(sta_id, netsta_dct):
+    """ Translate a station 4-char id to its full name, aka id+domes. The info
+        are serached for in the netsta_dct dictionary (which is a list of 
+        dictionaries with keys 'mark_name_DSO' and 'mark_numb_OFF'). The 
+        netsta_dct dictionary is normally a query result from the database.
+    """
     for dct in netsta_dct:
         if dct['mark_name_DSO'].lower() == sta_id.lower():
             return dct['mark_numb_OFF']
     print('[WRNNG] No domes number found for station {:} (database query)'.format(sta_id))
     return ''
+        
+
+def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rinex_holdings):
+    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
+    with open(final_out, 'r') as adnq2:
+        aqnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(aqnq2_dct['program'] == 'ADDNEQ2')
+        aqnq2_dct = baddneq.parse_addneq_out(adnq2)
+        aqnq2_dct = aqnq2_dct['stations']
+
+    with open(bern_log_fn, 'a') as logfn:
+        print('{:15s} {:45s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:10s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'TsUpdate'), file=logfn)
+        for ndct in netsta_dct:
+            station = ndct['mark_name_DSO']
+            tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
+            if station in rinex_holdings:
+                rnx_dct = rinex_holdings[station]
+                full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
+                print('{:15s} {:45s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude'])), file=logfn, end='')
+                sta_found = False
+                for num,record in aqnq2_dct.items():
+                    if record['station_name'].lower().strip() == full_name.lower().strip():
+                        print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} {:}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'], str(tsupdated)), file=logfn)
+                        sta_found = True
+                if not sta_found:
+                    print('', file=logfn)
+            else:
+                print('{:15s} {:^45s}'.format(station, 'x'), file=logfn)
+    print('[DEBUG] Addneq2 file {:} parsed; summary written to {:}'.format(final_out, bern_log_fn))
+    return bern_log_fn
+
+def make_cluster_file(options, rinex_holdings):
+    ## make cluster file
+    cluster_file = os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU')
+    with open(cluster_file, 'w') as fout:
+        print("""Cluster file automaticaly created by rundd on {:}
+--------------------------------------------------------------------------------
+
+STATION NAME      CLU
+****************  ***""".format(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')), file=fout)
+        sta_counter = 0
+        for sta in rinex_holdings:
+            if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
+                print('{:16s}  {:3d}'.format(' '.join([sta.upper(), rinex_holdings[sta]['domes']]), sta_counter//options['files_per_cluster']+1), file=fout)
+                sta_counter += 1
+    return cluster_file, sta_counter
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -802,11 +954,11 @@ if __name__ == '__main__':
 
     ## download and prepare products
     try:
-        products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'])
+        products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
     except Exception as e:
         print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
         sys.exit(1)
-    products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, temp_files)
+    products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, True)
 
     ## check that we have at least min_reference_sites reference sites included
     ## in the processing
@@ -831,25 +983,15 @@ if __name__ == '__main__':
 
     ## transfer (uncompressed) rinex files to the campsign's RAW directory
     ## TODO at production, change cp_not_mv parameter
-    rinex_holdings = rinex2raw(rinex_holdings, options['campaign'], True, temp_files)
+    rinex_holdings = rinex2raw(rinex_holdings, options['campaign'], True, True)
     ## rinex 2 uppercase
-    rinex_holdings = rinex2uppercase(rinex_holdings, temp_files)
+    rinex_holdings = rinex2uppercase(rinex_holdings, True)
     ## rinex3 names to rinex2
-    rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, temp_files)
+    rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, True)
 
     ## make cluster file
-    with open(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), 'w') as fout:
-        print("""Cluster file automaticaly created by rundd on {:}
---------------------------------------------------------------------------------
-
-STATION NAME      CLU
-****************  ***""".format(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')), file=fout)
-        sta_counter = 0
-        for sta in rinex_holdings:
-            if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
-                print('{:16s}  {:3d}'.format(' '.join([sta.upper(), rinex_holdings[sta]['domes']]), sta_counter//options['files_per_cluster']+1), file=fout)
-                sta_counter += 1
-    print('[DEBUG] Created cluster file {:} with total number of stations {:}'.format(os.path.join(os.getenv('P'), options['campaign'], 'STA', options['campaign']+'.CLU'), sta_counter))
+    cluster_file, num_stations = make_cluster_file(options, rinex_holdings)
+    print('[DEBUG] Created cluster file {:} with total number of stations {:}'.format(cluster_file, num_stations))
 
     ## Set solution identifiers
     solution_id = {'final': options['solution_id'] }
@@ -903,35 +1045,9 @@ STATION NAME      CLU
         station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))))
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
-    ## station; save the text to a local variable cause we may need to send it 
-    ## via mail latter on.
+    ## station
     if not bpe_error:
-        final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
-        with open(final_out, 'r') as adnq2:
-            aqnq2_dct = bparse.parse_generic_out_header(adnq2)
-            assert(aqnq2_dct['program'] == 'ADDNEQ2')
-            aqnq2_dct = baddneq.parse_addneq_out(adnq2)
-            aqnq2_dct = aqnq2_dct['stations']
-
-        with open(bern_log_fn, 'a') as logfn:
-            print('{:15s} {:45s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:10s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'TsUpdate'), file=logfn)
-            for ndct in netsta_dct:
-                station = ndct['mark_name_DSO']
-                tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
-                if station in rinex_holdings:
-                    rnx_dct = rinex_holdings[station]
-                    full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
-                    print('{:15s} {:45s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude'])), file=logfn, end='')
-                    sta_found = False
-                    for num,record in aqnq2_dct.items():
-                        if record['station_name'].lower().strip() == full_name.lower().strip():
-                            print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} {:}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'], str(tsupdated)), file=logfn)
-                            sta_found = True
-                    if not sta_found:
-                        print('', file=logfn)
-                else:
-                    print('{:15s} {:^45s}'.format(station, 'x'), file=logfn)
-        print('[DEBUG] Addneq2 file {:} parsed; summary written to {:}'.format(final_out, bern_log_fn))
+        compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rinex_holdings)
 
     ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
