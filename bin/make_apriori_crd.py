@@ -118,7 +118,7 @@ if __name__ == '__main__':
     netsta_dct = query_sta_in_net(args.network, db_credentials_dct)
 
     ## make a list of the stations in the network, using their 4-char id's
-    sta_list = [s['mark_name_OFF'].upper() for s in netsta_dct]
+    sta_list = [s['mark_name_DSO'].upper() for s in netsta_dct]
 
     ## parse ssc file (in the order they were passed in) for the given station
     ## list
