@@ -93,7 +93,13 @@ def split_field(line):
   ## e.g. Date Installed           : 1995-05-13T00:00Z
   l = line.split(':')
   if len(l) > 1:
-    return l[0].strip(), ':'.join(l[1:]).strip()
+    ## handle cases where the default (driver) string is there, e.g.
+    ## (A*, but note the first A5 is used in SINEX), or
+    ## (A20, from rcvr_ant.tab; see instructions)
+    ## replace with empty string
+    value = '' if re.match(r"^\(A[0-9\*]+.*\)$", ':'.join(l[1:]).strip()) else ':'.join(l[1:]).strip()
+    #return l[0].strip(), ':'.join(l[1:]).strip()
+    return l[0].strip(), value
   else:
     return line.strip(), None
 

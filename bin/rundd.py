@@ -108,7 +108,7 @@ atexit.register(cleanup, True)
 
 def match_rnx_vs_sta(rinex_holdings, stafn, dt):
     """ Make sure that every station in rinex_holdings has a valid recdor for
-        dt epoch in the .STA file stafn. If not, erturn an integer > 0.
+        dt epoch in the .STA file stafn. If not, return an integer > 0.
     """
     sta = bsta.BernSta(stafn)
     binfo = sta.parse().filter([s[0:4].upper() for s in rinex_holdings ], True)
@@ -224,9 +224,9 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
             verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
     
     ## download ion
-    for count,iontype in enumerate(['final', 'rapid', 'current']):
+    for count,iontype in enumerate(['final', 'rapid', 'urapid', 'current']):
         try:
-            status, remote, local = get_ion(type=erptype, pydt=dt, save_dir=product_dir)
+            status, remote, local = get_ion(type=iontype, pydt=dt, save_dir=product_dir)
             verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
             product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
             break
@@ -612,10 +612,16 @@ def update_ts(options, adnq2_fn):
     tsupd_dict = query_tsupd_net(options['network'], db_credentials_dct)
 
     with open(adnq2_fn, 'r') as adnq2:
-        aqnq2_dct = bparse.parse_generic_out_header(adnq2)
-        assert(aqnq2_dct['program'] == 'ADDNEQ2')
-        aqnq2_dct = baddneq.parse_addneq_out(adnq2)
-        aqnq2_dct = aqnq2_dct['stations']
+        adnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(adnq2_dct['program'] == 'ADDNEQ2')
+        adnq2_dct = baddneq.parse_addneq_out(adnq2)
+        adnq2_dct = adnq2_dct['stations']
+    
+    def station_in_addneq2(station_):
+        for aa, dct in adnq2_dct.items():
+            if dct['station_name'].lower().strip() == station_.lower().strip():
+                return aa
+        return None
 
     stations_updated = []
 
@@ -625,18 +631,48 @@ def update_ts(options, adnq2_fn):
         station = '{:} {:}'.format(sid, sdm).strip()
         assert(qdct['network_name'].lower() == options['network'].lower())
         assert(qdct['upd_tssta'] == 1)
-        ts_file = os.path.join(options['path_to_ts_files'], sid, '{:}.cts'.format(sid))
-        if not os.path.isfile(ts_file):
-            print('[WRNNG] No station cts file found for station {:} (searching for {:})'.format(station, ts_file), file=sys.stderr)
-        else:
-            comment = options['ts_description'] if 'ts_description' in options else ''
-            if not write_ts_record(aqnq2_dct, ts_file, station, comment):
-                print('[WRNNG] Failed to update ts record for station {:}'.format(station), file=sys.stderr)
+
+        ## we are only interested in this station, if it is included in the 
+        ## ADDNEQ2 output
+        if station_in_addneq2(station) is not None:
+
+            ts_file = os.path.join(options['path_to_ts_files'], sid, '{:}.cts'.format(sid))
+            if not os.path.isfile(ts_file):
+                print('[WRNNG] No station cts file found for station {:} (searching for {:})'.format(station, ts_file), file=sys.stderr)
             else:
-                stations_updated.append(station)
+                comment = options['ts_description'] if 'ts_description' in options else ''
+                if not write_ts_record(adnq2_dct, ts_file, station, comment):
+                    print('[WRNNG] Failed to update ts record for station {:}'.format(station), file=sys.stderr)
+                else:
+                    stations_updated.append(station)
 
     return stations_updated
+
+def check_downloaded_are_processed(rinex_holdings, addneq2_out, bern_log_fn):
+    with open(addneq2_out, 'r') as adnq2:
+        adnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(adnq2_dct['program'] == 'ADDNEQ2')
+        adnq2_dct = baddneq.parse_addneq_out(adnq2)
+        adnq2_dct = adnq2_dct['stations']
+
+    addneq2_sta_list = [ dct['station_name'].lower().strip() for aa,dct in adnq2_dct.items() ]
+    rinex_sta_list = [ '{:} {:}'.format(staid, dict['domes']).lower().strip() for staid, dict in rinex_holdings.items() if 'local' in dict and dict['local'] is not None and not dict['exclude'] ]
+
+    #assert(len(addneq2_sta_list) == len(rinex_sta_list))
+    #for sta in addneq2_sta_list: assert(sta in rinex_sta_list)
+
+    if len(addneq2_sta_list) != len(rinex_sta_list):
+        with open(bern_log_fn, 'a') as fout:
+            print('[WRNNG] Number of RINEX files downloaded not equal to number of sites included in the final ADDNEQ2', file=sys.stderr)
+            print('\n[WRNNG] Number of RINEX files downloaded not equal to number of sites included in the final ADDNEQ2', file=fout)
+            missing_from_addneq = [station for station in addneq2_sta_list if station not in rinex_sta_list]
+            if len(missing_from_addneq)>0: print('[WRNNG] (cont\'d) Included in ADDNEQ2 but missing from RINEX holdings: {:}'.format(' '.join(missing_from_addneq)), file=sys.stderr)
+            if len(missing_from_addneq)>0: print('[WRNNG] (cont\'d) Included in ADDNEQ2 but missing from RINEX holdings: {:}'.format(' '.join(missing_from_addneq)), file=fout)
+            missing_from_holdings = [station for station in rinex_sta_list if station not in addneq2_sta_list]
+            if len(missing_from_holdings)>0: print('[WRNNG] (cont\'d) Included in RINEX holdings but missing from ADDNEQ2: {:}'.format(' '.join(missing_from_holdings)), file=sys.stderr)
+            if len(missing_from_holdings)>0: print('[WRNNG] (cont\'d) Included in RINEX holdings but missing from ADDNEQ2: {:}'.format(' '.join(missing_from_holdings)), file=fout)
     
+
 def sta_id2domes(sta_id, netsta_dct):
     """ Translate a station 4-char id to its full name, aka id+domes. The info
         are serached for in the netsta_dct dictionary (which is a list of 
@@ -666,7 +702,11 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
             if station in rinex_holdings:
                 rnx_dct = rinex_holdings[station]
                 full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
-                print('{:15s} {:45s} {:5s} '.format(full_name, os.path.basename(rnx_dct['remote']), str(rnx_dct['exclude'])), file=logfn, end='')
+                ## Note! some rnx_dct['remote'] values may be None, cause the 
+                ## respective RINEX files were skipped from downloaded (they
+                ## were already available)
+                remote_rnx = os.path.basename(rnx_dct['remote']) if rnx_dct['remote'] is not None else 'download skipped'
+                print('{:15s} {:45s} {:5s} '.format(full_name, remote_rnx, str(rnx_dct['exclude'])), file=logfn, end='')
                 sta_found = False
                 for num,record in aqnq2_dct.items():
                     if record['station_name'].lower().strip() == full_name.lower().strip():
@@ -694,6 +734,24 @@ STATION NAME      CLU
                 print('{:16s}  {:3d}'.format(' '.join([sta.upper(), rinex_holdings[sta]['domes']]), sta_counter//options['files_per_cluster']+1), file=fout)
                 sta_counter += 1
     return cluster_file, sta_counter
+
+def count_reference_sta(options, rinex_holdings):
+    refcrd_fn = options['refinf'] + '_R.CRD'
+    refcrd_fn_list = [ os.path.join(x, refcrd_fn) for x in [os.path.join(options['tables_dir'], 'crd'), os.path.join(os.getenv('P'), options['campaign'], 'STA')]]
+    refcrd = None
+    
+    for rfn in refcrd_fn_list:
+        if os.path.isfile(rfn):
+            refcrd = rfn
+            break;
+    if refcrd is None:
+        errmsg = '[ERROR] Failed to find reference coordinate file {:} or {:}'.format(refcrd_fn_list[0], refcrd_fn_list[1])
+        raise RuntimeError(errmsg)
+
+    crddct = parse_bern52_crd(refcrd)
+    refsta_list = [ '{:} {:}'.format(k.lower(), v['domes']) for k,v in crddct.items() if k not in ['title', 'ref_frame', 'date'] ]
+    dwnldsta_list = [ '{:} {:}'.format(k.lower(), v['domes']) for k,v in rinex_holdings.items() ]
+    return [ s for s in refsta_list if s in dwnldsta_list ]
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -853,6 +911,13 @@ parser.add_argument(
                     metavar='REFPSD',
                     dest='refpsd',
                     default=None)
+parser.add_argument(
+                    '--aprinf',
+                    required=False,
+                    help="""A-priori CRD file (containing all regional sites). Must be located in $TABLES_DIR/crd (provide no extension; .CRD is assumed)""",
+                    metavar='APRINF',
+                    dest='aprinf',
+                    default=None)
 
 
 if __name__ == '__main__':
@@ -874,13 +939,17 @@ if __name__ == '__main__':
         options[k.lower()] = v
     ## translate YES/NO to True/False
     for k,v in config_file_dict.items():
-        if v.upper() == "YES": options[k] = True
-        elif v.upper() == "NO": options[k] = False
+        if v.upper() == "YES": options[k.lower()] = True
+        elif v.upper() == "NO": options[k.lower()] = False
     for k,v in vars(args).items():
         if v is not None:
             options[k.lower()] = v
         elif v is None and k not in options:
             options[k.lower()] = v
+
+    ## print key/value pairs in options
+    #for k,v in options.items():
+    #    print('{:} -> {:}'.format(k, v))
 
     ## verbose print
     verboseprint = print if options['verbose'] else lambda *a, **k: None
@@ -918,10 +987,8 @@ if __name__ == '__main__':
         'network': options['network'],
         'verbose': options['verbose']
     }
-    if args.skip_rinex_download:
-        rinex_holdings = {}
-    else:
-        rinex_holdings = rnxd.main(**rnxdwnl_options)
+    rinex_holdings = rnxd.main(**rnxdwnl_options)
+    print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
 
 
     ## for every station add a field in its dictionary ('exclude') denoting if 
@@ -953,33 +1020,22 @@ if __name__ == '__main__':
         sys.exit(1)
 
     ## download and prepare products
-    try:
-        products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
-    except Exception as e:
-        print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
-        sys.exit(1)
+    #try:
+    products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
+    #except Exception as e:
+    #    print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
+    #    sys.exit(1)
     products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, True)
 
     ## check that we have at least min_reference_sites reference sites included
     ## in the processing
     if options['min_reference_sites'] > 0:
-        refcrd_fn = options['refinf'] + '_R.CRD'
-        refcrd_fn_list = [ os.path.join(x, refcrd_fn) for x in [os.path.join(options['tables_dir'], 'crd'), os.path.join(os.getenv('P'), options['campaign'], 'STA')]]
-        refcrd = None
-        
-        for rfn in refcrd_fn_list:
-            if os.path.isfile(rfn):
-                refcrd = rfn
-                break;
-        if refcrd is None:
-            print('[ERROR] Failed to find reference coordinate file {:} or {:}'.format(refcrd_fn_list[0], refcrd_fn_list[1]), file=sys.stderr)
-            sys.exit(1)
-
-        crddct = parse_bern52_crd(refcrd)
-        ref_sta = [ s for s in rinex_holdings if s in crddct ]
+        ref_sta = count_reference_sta(options, rinex_holdings)
         if len(ref_sta) < options['min_reference_sites']:
             print('[ERROR] Too few reference sites available for processing! Stoping the analysis now!', file=sys.stderr)
             sys.exit(1)
+        else:
+            print('[DEBUG] Initial number of reference stations (downloaded) {:}'.format(len(ref_sta)))
 
     ## transfer (uncompressed) rinex files to the campsign's RAW directory
     ## TODO at production, change cp_not_mv parameter
@@ -1041,13 +1097,18 @@ if __name__ == '__main__':
 
     ## update station-specif time-series (if needed)
     station_ts_updated = []
-    if options['update_sta_ts'].lower() == 'yes' and not bpe_error:
+    if options['update_sta_ts'] and not bpe_error:
         station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))))
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
     ## station
     if not bpe_error:
         compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rinex_holdings)
+
+    ## assert that all stations (RINEX) downloaded are indeed included in the
+    ## processing
+    if not bpe_error:
+        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))), bern_log_fn)
 
     ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:

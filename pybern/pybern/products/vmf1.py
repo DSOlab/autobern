@@ -188,7 +188,8 @@ def main(**kwargs):
     ## 3. date requested is less than 2 days from today
     if not downloading_complete(grid_files_dict, 'op') and kwargs['allow_fc'] and (datetime.datetime.now().date() - dt.date()).days < 2:
         verboseprint('Trying to download forecast grid files.')
-        user, passwd = get_credentials_from_args(vars(args))
+        #user, passwd = get_credentials_from_args(vars(args))
+        user, passwd = get_credentials_from_args(kwargs)
         for fn in grid_files_remote:
             if not grid_files_dict[fn]['op'] and (datetime.datetime.now().date() -
                                                 dt.date()).days < 2:

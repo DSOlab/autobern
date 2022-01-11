@@ -59,7 +59,7 @@ def answer2dict(text):
     for k,v in zip(header_keys, fields): dct[k]=v
     return dct
 
-def request_metadata_list(site, country_code='GRE'):
+def request_metadata_list(site, country_code='GRC'):
     """ Get the metadata list (if any) for a given site. This function will
         use the M3G API.
         The input 'site' parameter should be the site's 9-char-id (aka the
@@ -109,7 +109,7 @@ def get_m3g_network_stations(netid, use_4char_ids=False):
 
     return [s[0:4] for s  in ndict['included']]
 
-def get_exportlog(site, save_dir=os.getcwd(), only_if_newer=False, country_code='GRE'):
+def get_exportlog(site, save_dir=os.getcwd(), only_if_newer=False, country_code='GRC'):
   """ Download the latest available M3G igs log file for a given station.
       The input 'site' parameter should be the site's 9-char-id (aka the
       site's  long name). If it is only the 4-char-id, then also the site's
