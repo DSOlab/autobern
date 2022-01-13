@@ -33,7 +33,7 @@ python3 ${ABPE_DIR}/bin/rundd.py \
   -d ${idoy} \
   --verbose \
   --use-euref-exclusion-list \
-  --min-reference-stations 4 \
+  --min-reference-stations 10 \
   --aprinf REG${yr2}${doy}0 \
   || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 

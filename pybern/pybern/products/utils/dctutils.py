@@ -11,17 +11,17 @@ def merge_dicts_impl(x, y):
     return z
 
 
-def merge_dicts(dicta, dictb):
+def merge_dicts(dicta, dictb,accept_none=False):
     ## see https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression-taking-union-of-dictiona
-    #if sys.version_info[0] >= 3:
-    #    if sys.version_info[1] >= 9:
-    #        return dicta | dictb
-    #    elif sys.version_info[1] >= 5:
-    return {**dicta, **dictb}
-    #    else:
-    #        return merge_dicts_impl(dicta, dictb)
-    #else:
-    #    return merge_dicts_impl(dicta, dictb)
+    if not accept_none:
+        return {**dicta, **dictb}
     
-    ## Just make it work for Python 2.7 !!
-    #return merge_dicts_impl(dicta, dictb)
+    else:
+        if dicta is None and dictb is None:
+            return None
+        elif dicta is None and dictb is not None:
+            return dictb
+        elif dicta is not None and dictb is None:
+            return dicta
+        else:
+            return {**dicta, **dictb}

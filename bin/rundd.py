@@ -9,6 +9,7 @@ import argparse
 import subprocess
 import datetime
 import atexit
+import getpass
 from shutil import copyfile
 import smtplib, ssl
 import pybern.products.rnxdwnl_impl as rnxd
@@ -21,6 +22,8 @@ from pybern.products.codeion import get_ion
 from pybern.products.codedcb import get_dcb
 from pybern.products.euref.utils import get_euref_exclusion_list
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
+from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
+from pybern.products.utils.dctutils import merge_dicts
 import pybern.products.bernparsers.bern_out_parse as bparse
 import pybern.products.bernparsers.bern_addneq_parser as baddneq
 import pybern.products.bernparsers.bernsta as bsta
@@ -28,6 +31,8 @@ import pybern.products.bernparsers.bernpcf as bpcf
 import pybern.products.vmf1 as vmf1
 import pybern.products.bernbpe as bpe
 import pybern.products.atx2pcv as a2p
+
+VERSION='1.0-beta'
 
 ## path to crx2rnx program
 crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
@@ -46,6 +51,11 @@ if not os.path.isdir(log_dir):
 temp_files = []
 
 def update_temp_files(new_fn, old_fn=None):
+    """ If (file) 'old_fn' exists in (global) temp_files list, replace it with
+        new_fn.
+        If 'old_fn' is not listed in temp_files list, just add new_fn to 
+        temp_files
+    """
     index = -1
     if old_fn is not None:
         try:
@@ -157,35 +167,28 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
         vmf1: product_dict['vmf1']['local'] -> $P/GRD and change filename to
              'VMFYYDDD0.GRD'
     """
-    ## also changes sp3 extension to 'PRE'
-    sp3 = product_dict['sp3']['local']
-    _, sp3 = dcomp.os_decompress(sp3, True)
-    target = os.path.join(campaign_dir, 'ORB', os.path.basename(sp3))
-    target = re.sub(r"\.[A-Za-z0-9]{3}$", ".PRE", target)
-    os.rename(sp3, target)
-    if add2temp_files: update_temp_files(target, sp3)
-
-    erp = product_dict['erp']['local']
-    _, erp = dcomp.os_decompress(erp, True)
-    os.rename(erp, os.path.join(campaign_dir, 'ORB', os.path.basename(erp)))
-    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'ORB', os.path.basename(erp)), erp)
-
-    ion = product_dict['ion']['local']
-    _, ion = dcomp.os_decompress(ion, True)
-    os.rename(ion, os.path.join(campaign_dir, 'ATM', os.path.basename(ion)))
-    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'ATM', os.path.basename(ion)), ion)
+    gweek, gsow = pydt2gps(dt)
+    gdow = sow2dow(gsow)
     
-    ## change dcb name to P1C1YYMM.DCB
-    dcb = product_dict['dcb']['local']
-    _, dcb = dcomp.os_decompress(dcb, True)
-    new_basename = 'P1C1{:}.DCB'.format(dt.strftime('%y%m')) 
-    os.rename(dcb, os.path.join(campaign_dir, 'ORB', new_basename))
-    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'ORB', new_basename), dcb)
-    
-    vmf = product_dict['vmf1']['local']
-    new_basename = 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))
-    os.rename(vmf, os.path.join(campaign_dir, 'GRD', new_basename))
-    if add2temp_files: update_temp_files(os.path.join(campaign_dir, 'GRD', new_basename), vmf)
+    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD{:}{:}.PRE'.format(gweek,  gdow)},
+        'erp': {'target_dir': 'ORB', 'target_fn': 'COD{:}{:}.ERP'.format(gweek,  gdow)},
+        'ion': {'target_dir': 'ATM', 'target_fn': 'COD{:}{:}.ION'.format(gweek,  gdow)},
+        'dcb': {'target_dir': 'ORB', 'target_fn': 'P1C1{:}.DCB'.format(dt.strftime('%y%m'))},
+        'vmf1': {'target_dir': 'GRD', 'target_fn': 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))}}
+
+    for ptype, rules in rules_d.items():
+        ## original downloaded product
+        source = product_dict[ptype]['local']
+        ## decompress if needed
+        _, source = dcomp.os_decompress(source, True)
+        ## rename rulues
+        target = os.path.join(campaign_dir, rules['target_dir'], rules['target_fn'])
+        ## mv ...
+        os.rename(source, target)
+        ## update 'local' field in dictionary
+        product_dict[ptype]['local'] = target
+        ## replace/append in temp_files list
+        if add2temp_files: update_temp_files(target, source)
 
 def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2temp_files=True):
     """ Download products for date 'dt', using the credentials file 
@@ -394,6 +397,19 @@ def decompress_rinex(rinex_holdings):
         The retuned dictionary is a copy of the input one, but the names of the
         'local' rinex have been changed to the uncompressed filenames
     """
+    def crx2rnx(crnx, station, new_holdings):
+        ## decompress from Hatanaka; in rare cases, this may fail
+        ## e.g. ERROR : The file seems to be truncated in the middle.
+        try:
+            crnx, drnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
+            # new_holdings[station] = rinex_holdings[station]
+            new_holdings[station]['local'] = drnx
+            update_temp_files(drnx, crnx)
+        except:
+            print('[WRNNG] CRX2RNX failed for RINEX file/station {:} ({:}); marking the RINEX/station as excluded'.format(crnx,station), file=sys.stderr)
+            new_holdings[station]['local'] = None
+            new_holdings[station]['exclude'] = 'CRX2RNX Error'
+
     new_holdings = {}
     for station, dct in rinex_holdings.items():
         if dct['local'] is not None and not dct['exclude']:
@@ -415,18 +431,25 @@ def decompress_rinex(rinex_holdings):
 
                 if cr is not None: ## file decompressed ...
                     assert(os.path.isfile(drnx))
-                    ## decompress from Hatanaka
-                    drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
                     new_holdings[station] = rinex_holdings[station]
-                    new_holdings[station]['local'] = rnx
-                    update_temp_files(rnx, crnx)
+                    crx2rnx(drnx, station, new_holdings)
+                    #try:
+                    #    drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
+                    #    new_holdings[station] = rinex_holdings[station]
+                    #    new_holdings[station]['local'] = rnx
+                    #    update_temp_files(rnx, crnx)
+                    #except:
+                    #    print('[WRNNG] CRX2RNX failed for RINEX file {:}; marking the RINEX/station as excluded'.format(drnx), file=sys.stderr)
+
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
-                drnx, rnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
                 new_holdings[station] = rinex_holdings[station]
-                new_holdings[station]['local'] = rnx
-                update_temp_files(rnx, crnx)
+                crx2rnx(crnx, station, new_holdings)
+                #drnx, rnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
+                #new_holdings[station] = rinex_holdings[station]
+                #new_holdings[station]['local'] = rnx
+                #update_temp_files(rnx, crnx)
             
             else:
                 new_holdings[station] = dct
@@ -649,6 +672,12 @@ def update_ts(options, adnq2_fn):
     return stations_updated
 
 def check_downloaded_are_processed(rinex_holdings, addneq2_out, bern_log_fn):
+    """ Check that the sites listed in (the final) ADDNEQ2 output file, are 
+        the same sites listed in the rinex_holdings; aka check that all
+        dowloaded stations are indeed processed.
+        In case of incosistencies, write missing stations to stderr and
+        also append to the file bern_log_fn
+    """
     with open(addneq2_out, 'r') as adnq2:
         adnq2_dct = bparse.parse_generic_out_header(adnq2)
         assert(adnq2_dct['program'] == 'ADDNEQ2')
@@ -687,35 +716,89 @@ def sta_id2domes(sta_id, netsta_dct):
         
 
 def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rinex_holdings):
-    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
-    with open(final_out, 'r') as adnq2:
-        aqnq2_dct = bparse.parse_generic_out_header(adnq2)
-        assert(aqnq2_dct['program'] == 'ADDNEQ2')
-        aqnq2_dct = baddneq.parse_addneq_out(adnq2)
-        aqnq2_dct = aqnq2_dct['stations']
+    def get_station_rinex_holdings_info(sta_full_name):
+        for staid,rnx_dct in rinex_holdings.items():
+            full_name = '{}'.format(' '.join([staid,rnx_dct['domes']])).strip()
+            if full_name.lower() == sta_full_name.lower():
+                return rnx_dct
+        return None
+    
+    def get_station_addneq2_holdings_info(sta_full_name, addneq2_dct):
+        for num,record in addneq2_dct.items():
+            if record['station_name'].lower().strip() == sta_full_name.lower().strip():
+                return record
+        return None
 
+    ## the final ADDNEQ2 output file (to be parsed)
+    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
+    
+    ## parse the ADDNEQ2 output file and keep site information
+    with open(final_out, 'r') as adnq2:
+        adnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(adnq2_dct['program'] == 'ADDNEQ2')
+        adnq2_dct = baddneq.parse_addneq_out(adnq2)
+        adnq2_dct = adnq2_dct['stations']
+
+    report_dict = []
+    
+    ## loop through all sites in network (from db query) ...
+    for ndct in netsta_dct:
+        station = ndct['mark_name_DSO']
+        sta_full_name = '{:} {:}'.format(station, ndct['mark_numb_OFF']).strip()
+        
+        ## did we update the station's time-series records ?
+        tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
+        
+        ## grap rinex_holdings info for this site
+        rnx_info = get_station_rinex_holdings_info(sta_full_name)
+        
+        ## grap addneq2 info for the site
+        nq0_info = get_station_addneq2_holdings_info(sta_full_name, adnq2_dct)
+
+        warnings = []
+        
+        ## everything ok?
+        if rnx_info is not None and rnx_info['local'] is not None and not rnx_info['exclude'] and nq0_info is None:
+            wmsg = '[WRNNG] Station {:}: Local RINEX available and station not excluded but not included in the final ADDNEQ2 file!'.format(sta_full_name)
+            print('{}'.format(wmsg), file=sys.stderr)
+            warnings.append(wmsg)
+        if nq0_info is not None and (rnx_info is None or (rnx_info is not None and rnx_info['exclude'])):
+            wmsg = '[WRNNG] Station {:}: Local RINEX is marked as excluded but station was included in final ADDNEQ2 file!'.format(sta_full_name)
+            print('{}'.format(wmsg), file=sys.stderr)
+            warnings.append(wmsg)
+        if nq0_info is not None and (rnx_info is None or (rnx_info is not None and rnx_info['local'] is None)):
+            wmsg = '[WRNNG] Station {:}: Local RINEX is not recorded but station was included in final ADDNEQ2 file!'.format(sta_full_name)
+            print('{}'.format(wmsg), file=sys.stderr)
+            warnings.append(wmsg)
+
+        tsupdated = True if sta_full_name.strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
+
+        report_dict.append(merge_dicts(merge_dicts(rnx_info, nq0_info, True),{'sort_by':sta_full_name, 'tsupdated':tsupdated}, True))
+
+    ## sort based on site name
+    report_dict = sorted(report_dict, key=lambda x: x['sort_by'])
+
+    ## write the report
     with open(bern_log_fn, 'a') as logfn:
-        print('{:15s} {:45s} {:5s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:10s}'.format('Station', 'Remote', 'Excl.', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'TsUpdate'), file=logfn)
-        for ndct in netsta_dct:
-            station = ndct['mark_name_DSO']
-            tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
-            if station in rinex_holdings:
-                rnx_dct = rinex_holdings[station]
-                full_name = '{}'.format(' '.join([station,rnx_dct['domes']]))
-                ## Note! some rnx_dct['remote'] values may be None, cause the 
-                ## respective RINEX files were skipped from downloaded (they
-                ## were already available)
-                remote_rnx = os.path.basename(rnx_dct['remote']) if rnx_dct['remote'] is not None else 'download skipped'
-                print('{:15s} {:45s} {:5s} '.format(full_name, remote_rnx, str(rnx_dct['exclude'])), file=logfn, end='')
-                sta_found = False
-                for num,record in aqnq2_dct.items():
-                    if record['station_name'].lower().strip() == full_name.lower().strip():
-                        print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} {:}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'], str(tsupdated)), file=logfn)
-                        sta_found = True
-                if not sta_found:
-                    print('', file=logfn)
+        print('\n{:15s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:8s} {:45s} {:5s}'.format('Station', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'TsUpdate', 'Remote RINEX filename', 'Excl.'), file=logfn)
+        print('{:15s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:8s} {:45s} {:5s}'.format('-'*15, '-'*8, '-'*8, '-'*8, '-'*8, '-'*8, '-'*8, '-'*9, '-'*9, '-'*9, '-'*7, '-'*8, '-'*45, '-'*5), file=logfn)
+        for record in report_dict:
+            print('{:15s} '.format(record['sort_by']), end='', file=logfn)
+
+            if 'X_correction' in record:
+                print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} {:8s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'], str(record['tsupdated'])), end='', file=logfn)
             else:
-                print('{:15s} {:^45s}'.format(station, 'x'), file=logfn)
+                print('{:100s}'.format(''), end='', file=logfn)
+            
+            if 'local' in record:
+                remote_rnx = os.path.basename(record['remote']) if record['remote'] is not None else 'download skipped'
+                print(' {:45s} {:5s}'.format(remote_rnx, str(record['exclude'])), file=logfn)
+            else:
+                print(' {:^45s} {:^5s}'.format('x','x'), file=logfn)
+
+        ## append warning messages
+        for wrn in warnings: print('{}'.format(wrn), file=logfn)
+
     print('[DEBUG] Addneq2 file {:} parsed; summary written to {:}'.format(final_out, bern_log_fn))
     return bern_log_fn
 
@@ -752,6 +835,34 @@ def count_reference_sta(options, rinex_holdings):
     refsta_list = [ '{:} {:}'.format(k.lower(), v['domes']) for k,v in crddct.items() if k not in ['title', 'ref_frame', 'date'] ]
     dwnldsta_list = [ '{:} {:}'.format(k.lower(), v['domes']) for k,v in rinex_holdings.items() ]
     return [ s for s in refsta_list if s in dwnldsta_list ]
+
+def print_initial_loginfo(options, logfn):
+    with open(logfn, 'w') as fout:
+        print('{}-{} started at {}'.format('rundd', VERSION, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), file=fout)
+        print('user: {} PID: {} System: {}'.format(getpass.getuser(), os.getpid(), '||'.join(os.uname())), file=fout)
+        print('\n{:25s} {:25s}\n{:25s} {:25s}'.format('Parameter', 'Value', '-'*25, '-'*25), file=fout)
+        for k,v in options.items(): print('{:25s} {:25s}'.format(str(k), str(v)), file=fout)
+        print('', file=fout)
+
+def append_product_info(products_dict, logfn):
+    with open(logfn, 'a') as fout:
+        print('{:15s} {:15s} {:55s} {:55s}\n{:15s} {:15s} {:55s} {:55s}'.format('Product', 'Type', 'Remote', 'Local', '-'*15, '-'*15, '-'*55, '-'*55), file=fout)
+        for prodtype, proddict in products_dict.items():
+            print('{:15s} {:15s} {:55s} {:55s}'.format(str(prodtype), str(proddict['type']), str(proddict['remote']), str(proddict['local'])), file=fout)
+        print('', file=fout)
+
+def appendf2f(source_fn, target_fn, header=None):
+    with open(source_fn, 'r') as fin:
+        text = fin.read()
+    with open(target_fn, 'a') as fout:
+        if header is not None: print('{}'.format(header), file=fout)
+        fout.write(text)
+
+def append2f(fn, text, header=None):
+    with open(fn, 'a') as fout:
+        if header is not None: print('{}'.format(header), file=fout)
+        fout.write(text)
+        print('', file=fout)
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -960,6 +1071,10 @@ if __name__ == '__main__':
     ## date we are solving for as datetime instance
     dt = datetime.datetime.strptime('{:}-{:03d}'.format(options['year'], int(options['doy'])), '%Y-%j')
     
+    ## make the log file --cat any info there--
+    logfn = os.path.join(log_dir, 'rundd_{}_{}.log'.format(dt.strftime('%y%j'), os.getpid()))
+    print_initial_loginfo(options, logfn)
+    
     ## if the user specified an ATX file, run the ATX2PCV script
     if 'atxinf' in options and options['atxinf'] is not None and options['atxinf'].strip() != '':
         atxinf = os.path.join(options['tables_dir'], 'atx', options['atxinf'] + '.ATX')
@@ -990,7 +1105,6 @@ if __name__ == '__main__':
     rinex_holdings = rnxd.main(**rnxdwnl_options)
     print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
 
-
     ## for every station add a field in its dictionary ('exclude') denoting if 
     ## the station needs to be excluded from the processing and also get its
     ## domes number
@@ -1017,15 +1131,18 @@ if __name__ == '__main__':
     stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
     if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
         print('[ERROR] Aborting processing!', file=sys.stderr)
+        append2f(logfn, 'Failed to validate station records in STA file', 'FATAL ERROR; Processing stoped')
         sys.exit(1)
 
     ## download and prepare products
-    #try:
-    products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
-    #except Exception as e:
-    #    print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
-    #    sys.exit(1)
+    try:
+        products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
+    except Exception as e:
+        print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
+        append2f(logfn, 'Failed to download products! Traceback info {:}'.format(e), 'FATAL ERROR; Processing stoped')
+        sys.exit(1)
     products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, True)
+    append_product_info(products_dict, logfn)
 
     ## check that we have at least min_reference_sites reference sites included
     ## in the processing
@@ -1033,6 +1150,7 @@ if __name__ == '__main__':
         ref_sta = count_reference_sta(options, rinex_holdings)
         if len(ref_sta) < options['min_reference_sites']:
             print('[ERROR] Too few reference sites available for processing! Stoping the analysis now!', file=sys.stderr)
+            append2f(logfn, 'Too few reference sites available for processing!', 'FATAL ERROR; Processing stoped')
             sys.exit(1)
         else:
             print('[DEBUG] Initial number of reference stations (downloaded) {:}'.format(len(ref_sta)))
@@ -1054,15 +1172,17 @@ if __name__ == '__main__':
     for descr, sid in zip(['prelim', 'reduced', 'free_net'], [ 'P', 'R', 'N']):
         if options['solution_id'][-1] == sid:
             print('[ERROR] Final solution identifier cannot end in {:}; reserved for {:} solution'.format(sid, descr), file=sys.stderr)
+            append2f(logfn, 'Final solution identifier cannot end in {:}; reserved for {:} solution'.format(sid, descr), 'FATAL ERROR; Processing stoped')
             sys.exit(1)
         solution_id[descr] = options['solution_id'][0:-1] + sid
     for descr, sid in solution_id.items():
-        print('[DEBUG] {:} solution identifier set to {:}'.format(descr, sid))
+        print('[DEBUG] {:} solution identifier set to {:}'.format(descr.upper(), sid))
 
     ## Set variables in PCF file
     pcf_file = os.path.join(os.getenv('U'), 'PCF', options['pcf_file'])
     if not os.path.isfile(pcf_file):
         print('[ERROR] Failed to find PCF file {:}'.format(pcf_file), file=sys.stderr)
+        append2f(logfn, 'Failed to find PCF file {:}'.format(pcf_file), 'FATAL ERROR; Processing stoped')
         sys.exit(1)
     pcf = bpcf.PcfFile(pcf_file)
     for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
@@ -1077,23 +1197,30 @@ if __name__ == '__main__':
     bpe_start_at = datetime.datetime.now(tz=datetime.timezone.utc)
     bern_task_id = '{:}'.format(os.getpid())
     bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
+    temp_files.append(bern_log_fn) ## delete it at exit
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
+    append2f(logfn, 'Firing up the Bernese Processing Engine at {:} UTC'.format(bpe_start_at.strftime(bpe_start_at.strftime('%x %X'))))
     with open(bern_log_fn, 'w') as logf:
         subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper()), bern_task_id], stdout=logf, stderr=logf)
     bpe_stop_at = datetime.datetime.now(tz=datetime.timezone.utc)
+    append2f(logfn, 'Bernese Processing Engine stoped at {:} UTC'.format(bpe_stop_at.strftime(bpe_start_at.strftime('%x %X'))))
 
-    ## check if we have an error; if we do, make a report
+    ## check if we have an error; if we do, make a report and paste it to the
+    ## log file
     bpe_error = False
     bpe_status_file = os.path.join(os.getenv('P'), options['campaign'].upper(), 'BPE', 'R2S_{}.RUN'.format(bern_task_id))
     if bpe.check_bpe_status(bpe_status_file)['error'] == 'error':
         errlog = os.path.join(log_dir, 'bpe_error_{:}.log'.format(bern_task_id))
-        print('[ERROR] BPE failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
+        print('[ERROR] BPE failed due to error! see log file {:}'.format(logfn), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), bern_task_id, errlog)
+        appendf2f(errlog, logfn, 'Error Report') ## paste error report to log-file
+        temp_files.append(errlog) ## delete it at exit
         bpe_error = True
 
     ## collect warning messages in a list (of dictionaries for every warning)
     if not bpe_error:
         warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
+        print(warning_messages)
 
     ## update station-specif time-series (if needed)
     station_ts_updated = []
@@ -1101,18 +1228,19 @@ if __name__ == '__main__':
         station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))))
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
-    ## station
+    ## station (appended to the log-file)
     if not bpe_error:
-        compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rinex_holdings)
+        compile_report(options, dt, logfn, netsta_dct, station_ts_updated, rinex_holdings)
 
     ## assert that all stations (RINEX) downloaded are indeed included in the
     ## processing
     if not bpe_error:
-        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))), bern_log_fn)
+        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))), logfn)
 
     ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
-        message_file = errlog if bpe_error else bern_log_fn
+        #message_file = errlog if bpe_error else bern_log_fn
+        message_file = logfn
         message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
         with open(message_file, 'r') as fin:
             message_body = fin.read()
