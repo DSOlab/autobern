@@ -157,6 +157,11 @@ USE_EPN_EXCLUDE_LIST = YES
 ##+ per line) to be excluded from the processing.
 EXCLUSION_LIST = /home/bpe/tables/sta/GREECE.EXC
 
+##  If you need to download forecast VMF1 grid files, you will need credentials
+##+ to access the TUVienna server
+TUWIEN_VMF1_USER =
+TUWIEN_VMF1_PASS 
+
 ##  Specify where the saved (output) files are going to be placed. If you want
 ##+ them to be saved at this HOST, then only set the 'SAVE_DIR_DIR' variable.
 ##+ Else, you also need to specify a HOST ('SAVE_DIR_HOST') and a username

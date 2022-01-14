@@ -8,11 +8,7 @@ import os
 import shutil
 from contextlib import closing
 import requests
-
-if sys.version_info.major == 3:
-    import urllib.request
-else:
-    import urllib2
+import urllib.request
 
 
 def url_split(target):
@@ -125,16 +121,6 @@ def http_retrieve(url, filename=None, **kwargs):
     status = 0
     if not use_credentials:  ## download with no credentials
         try:
-            #if sys.version_info.major == 2:
-            #    response = urllib2.urlopen(target)
-            #    data = response.read()
-            #    with open(saveas, 'wb') as f:
-            #        f.write(data)
-            #else:
-
-            ## this does not allow a timeout
-            ## urllib.request.urlretrieve(target, saveas)
-
             ## allow timeout with requests
             request = requests.get(target, timeout=20, stream=True)
             if request.status_code == 200:
@@ -150,7 +136,7 @@ def http_retrieve(url, filename=None, **kwargs):
         try:
             with requests.get(target, auth=(username, password), timeout=20) as r:
                 r.raise_for_status()
-                if request.status_code == 200:
+                if r.status_code == 200:
                   with open(saveas, 'wb') as f:
                       #shutil.copyfileobj(r.raw, f)
                       f.write(r.content)

@@ -267,7 +267,7 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
         'year': iyear,
         'doy': idoy,
         'output_dir': product_dir,
-        'credentials_file': credentials_file,
+        'config_file': credentials_file,
         'verbose': verbose,
         'merge_to': merge_to,
         'allow_fc': True,
@@ -433,23 +433,11 @@ def decompress_rinex(rinex_holdings):
                     assert(os.path.isfile(drnx))
                     new_holdings[station] = rinex_holdings[station]
                     crx2rnx(drnx, station, new_holdings)
-                    #try:
-                    #    drnx, rnx = dcomp.crx2rnx(drnx, True, crx2rnx_dir)
-                    #    new_holdings[station] = rinex_holdings[station]
-                    #    new_holdings[station]['local'] = rnx
-                    #    update_temp_files(rnx, crnx)
-                    #except:
-                    #    print('[WRNNG] CRX2RNX failed for RINEX file {:}; marking the RINEX/station as excluded'.format(drnx), file=sys.stderr)
-
             
             elif crnx.endswith('d') or crnx.endswith('crx'):
                 ## else if hatanaka compressed
                 new_holdings[station] = rinex_holdings[station]
                 crx2rnx(crnx, station, new_holdings)
-                #drnx, rnx = dcomp.crx2rnx(crnx, True, crx2rnx_dir)
-                #new_holdings[station] = rinex_holdings[station]
-                #new_holdings[station]['local'] = rnx
-                #update_temp_files(rnx, crnx)
             
             else:
                 new_holdings[station] = dct
@@ -836,6 +824,20 @@ def count_reference_sta(options, rinex_holdings):
     dwnldsta_list = [ '{:} {:}'.format(k.lower(), v['domes']) for k,v in rinex_holdings.items() ]
     return [ s for s in refsta_list if s in dwnldsta_list ]
 
+def compile_warnings_report(warnings, logfn):
+    unique_warnings = []
+    for w in warnings:
+        subroutine = w['subroutine']
+        description = w['description']
+        if not {'subroutine':subroutine, 'description':description} in unique_warnings:
+            unique_warnings.append({'subroutine':subroutine, 'description':description})
+    
+    with open(logfn, 'a') as fout:
+        print('\n{:20s} {:50s}\n{:20s} {:50s}'.format('SubRoutine', 'Description (*)', '-'*20, '-'*50), file=fout)
+        for w in unique_warnings:
+            print('{:20s} {:50s}'.format(w['subroutine'], w['description']), file=fout)
+        print('(*) Only unique subroutine/description pairs reported; one warning may have occured many times\n', file=fout)
+
 def print_initial_loginfo(options, logfn):
     with open(logfn, 'w') as fout:
         print('{}-{} started at {}'.format('rundd', VERSION, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), file=fout)
@@ -1199,11 +1201,11 @@ if __name__ == '__main__':
     bern_log_fn = os.path.join(log_dir, '{:}-{:}{:}.log'.format(options['campaign'], bern_task_id, dt.strftime('%y%j')))
     temp_files.append(bern_log_fn) ## delete it at exit
     print('[DEBUG] Firing up the Bernese Processing Engine (log: {:})'.format(bern_log_fn))
-    append2f(logfn, 'Firing up the Bernese Processing Engine at {:} UTC'.format(bpe_start_at.strftime(bpe_start_at.strftime('%x %X'))))
+    append2f(logfn, 'Firing up the Bernese Processing Engine at {:} UTC'.format(bpe_start_at.strftime('%x %X')))
     with open(bern_log_fn, 'w') as logf:
         subprocess.call(['{:}'.format(os.path.join(os.getenv('U'), 'SCRIPT', 'ntua_pcs.pl')), '{:}'.format(dt.strftime('%Y')), '{:}0'.format(dt.strftime('%j')), '{:}'.format(pcf_file), 'USER', '{:}'.format(options['campaign'].upper()), bern_task_id], stdout=logf, stderr=logf)
     bpe_stop_at = datetime.datetime.now(tz=datetime.timezone.utc)
-    append2f(logfn, 'Bernese Processing Engine stoped at {:} UTC'.format(bpe_stop_at.strftime(bpe_start_at.strftime('%x %X'))))
+    append2f(logfn, 'Bernese Processing Engine stoped at {:} UTC'.format(bpe_stop_at.strftime('%x %X')))
 
     ## check if we have an error; if we do, make a report and paste it to the
     ## log file
@@ -1216,11 +1218,6 @@ if __name__ == '__main__':
         appendf2f(errlog, logfn, 'Error Report') ## paste error report to log-file
         temp_files.append(errlog) ## delete it at exit
         bpe_error = True
-
-    ## collect warning messages in a list (of dictionaries for every warning)
-    if not bpe_error:
-        warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
-        print(warning_messages)
 
     ## update station-specif time-series (if needed)
     station_ts_updated = []
@@ -1236,7 +1233,12 @@ if __name__ == '__main__':
     ## processing
     if not bpe_error:
         check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))), logfn)
-
+    
+    ## collect warning messages in a list (of dictionaries for every warning)
+    if not bpe_error:
+        warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
+        compile_warnings_report(warning_messages, logfn)
+    
     ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
         #message_file = errlog if bpe_error else bern_log_fn
