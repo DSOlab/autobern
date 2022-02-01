@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import os, sys
+import re
 import datetime
 from pybern.products.errors.errors import FileFormatError
 
@@ -36,7 +37,10 @@ def parse_bern52_crd(fn):
 
         line = fin.readline()
         line = fin.readline()
-        assert(line.strip() == 'NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG')
+        ## Note that IGB14 has an extra column named 'SYSTEM'!
+        if not re.match(r"^NUM\s+STATION NAME\s+X \(M\)\s+Y \(M\)\s+Z \(M\)\s+FLAG(\s+SYSTEM)?$", line.strip()):
+            errmsg = '[ERROR] Failed parsing Bern-52 CRD file: {:}\n[ERROR] Expected {:}, found [{:}]'.format(fn, 'NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG', line.strip())
+            raise RuntimeError(errmsg)
 
         line = fin.readline()
         while True:

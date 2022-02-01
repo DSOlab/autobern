@@ -491,7 +491,7 @@ def link2campaign(options, dt, add2temp_files=True):
     dest = os.path.join(PDIR, 'STA', os.path.basename(src))
     link_dict.append({'src': src, 'dest': dest})
     
-    src = os.path.join(TDIR, 'crd', options['fixinf'].upper()+'.FIX')
+    src = os.path.join(TDIR, 'fix', options['fixinf'].upper()+'.FIX')
     dest = os.path.join(PDIR, 'STA', os.path.basename(src))
     link_dict.append({'src': src, 'dest': dest})
 
@@ -596,6 +596,14 @@ def write_ts_record(adnq2_dct, ts_file, station, comment):
             return True
     return False
 
+def match_ts_file(ts_path, ts_file_pattern, station_id, station_domes):
+    ts_file = ts_file_pattern
+    ts_file = re.sub(r"\$\{" + "site_id"  + r"\}", station_id.lower(), ts_file)
+    ts_file = re.sub(r"\$\{" + "SITE_ID"  + r"\}", station_id.upper(), ts_file)
+    ts_file = re.sub(r"\$\{" + "site_domes"  + r"\}", station_domes.lower(), ts_file)
+    ts_file = re.sub(r"\$\{" + "SITE_DOMES"  + r"\}", station_domes.upper(), ts_file)
+    return os.path.join(ts_path, ts_file)
+
 def update_ts(options, adnq2_fn):
     """ Given a (final) ADDNEQ2 file (result of BPE), update the involved 
         stations cts file.
@@ -606,12 +614,22 @@ def update_ts(options, adnq2_fn):
         'upd_tssta' set to 1).
         For each of these stations, a new record will be appended in the 
         corresponding cts file.
-        The function will return a list of stations for which the cts files 
-        where updated.
+        
+        The function will return a dictionary of stations for which the cts
+        files where updated, in the sense:
+        {
+            'dion 1234M001': '/home/bpe.../dion.cts', 
+            'noa1 1234M001': '/home/bpe.../noa1.cts', ...
+        }
+        aka, the key is the site name (siteid+domes as recorded in the 
+        database) and the value is the corresponding time-series file as 
+        compiled from the corresponding options variables.
+
         Keys in options used:
             options['path_to_ts_files']
             options['config_file']
             options['network']
+            options['ts_file_name']
     """
     ## path to ts files
     ts_path = options['path_to_ts_files']
@@ -634,7 +652,7 @@ def update_ts(options, adnq2_fn):
                 return aa
         return None
 
-    stations_updated = []
+    stations_updated = {}
 
     for qdct in tsupd_dict:
         sid = qdct['mark_name_DSO']
@@ -647,7 +665,8 @@ def update_ts(options, adnq2_fn):
         ## ADDNEQ2 output
         if station_in_addneq2(station) is not None:
 
-            ts_file = os.path.join(options['path_to_ts_files'], sid, '{:}.cts'.format(sid))
+            # ts_file = os.path.join(options['path_to_ts_files'], sid, '{:}.cts'.format(sid))
+            ts_file = match_ts_file(options['path_to_ts_files'], options['ts_file_name'], sid, sdm)
             if not os.path.isfile(ts_file):
                 print('[WRNNG] No station cts file found for station {:} (searching for {:})'.format(station, ts_file), file=sys.stderr)
             else:
@@ -655,7 +674,8 @@ def update_ts(options, adnq2_fn):
                 if not write_ts_record(adnq2_dct, ts_file, station, comment):
                     print('[WRNNG] Failed to update ts record for station {:}'.format(station), file=sys.stderr)
                 else:
-                    stations_updated.append(station)
+                    # stations_updated.append(station)
+                    stations_updated[station] = ts_file
 
     return stations_updated
 
@@ -704,6 +724,22 @@ def sta_id2domes(sta_id, netsta_dct):
         
 
 def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rinex_holdings):
+    def get_rinex_version_info():
+        version_info = {}
+        for staid,rnx_dct in rinex_holdings.items():
+            with open(rnx_dct['local'], 'r') as fin:
+                fline = fin.readline()
+                if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
+                    print('[WRNNG] RINEX file {:} is missing version field!'.format(rnx_dct['local']), file=sys.stderr)
+                    version = 'unknown'
+                else:
+                    version = fline.split()[0].strip()
+            if version in version_info:
+                version_info[version] += 1
+            else:
+                version_info[version] = 1
+        return version_info
+
     def get_station_rinex_holdings_info(sta_full_name):
         for staid,rnx_dct in rinex_holdings.items():
             full_name = '{}'.format(' '.join([staid,rnx_dct['domes']])).strip()
@@ -717,14 +753,27 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
                 return record
         return None
 
+    def get_station_tsupdate_info(sta_full_name):
+        for k,v in station_ts_updated.items():
+            if k.lower().strip() == sta_full_name.lower().strip():
+                return v
+        return ''
+
     ## the final ADDNEQ2 output file (to be parsed)
     final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
     
     ## parse the ADDNEQ2 output file and keep site information
+    addneq2_info = {}
     with open(final_out, 'r') as adnq2:
         adnq2_dct = bparse.parse_generic_out_header(adnq2)
         assert(adnq2_dct['program'] == 'ADDNEQ2')
         adnq2_dct = baddneq.parse_addneq_out(adnq2)
+        ## extract some info
+        addneq2_info = {'obs_count':adnq2_dct['statistics']['total_number_of_observations'],
+            'par_count': adnq2_dct['statistics']['total_number_of_adjusted_parameters'],
+            'rms': adnq2_dct['statistics']['a_posteriori_rms_of_unit_weight'],
+            'xdof': adnq2_dct['statistics']['chi**2/dof']}
+        ## only keep station-specific info
         adnq2_dct = adnq2_dct['stations']
 
     report_dict = []
@@ -735,7 +784,7 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
         sta_full_name = '{:} {:}'.format(station, ndct['mark_numb_OFF']).strip()
         
         ## did we update the station's time-series records ?
-        tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
+        ## tsupdated = True if '{:} {:}'.format(ndct['mark_name_DSO'], ndct['mark_numb_OFF']).strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
         
         ## grap rinex_holdings info for this site
         rnx_info = get_station_rinex_holdings_info(sta_full_name)
@@ -761,28 +810,61 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
 
         tsupdated = True if sta_full_name.strip().lower() in [x.lower().strip() for x in station_ts_updated] else False
 
-        report_dict.append(merge_dicts(merge_dicts(rnx_info, nq0_info, True),{'sort_by':sta_full_name, 'tsupdated':tsupdated}, True))
+        # report_dict.append(merge_dicts(merge_dicts(rnx_info, nq0_info, True),{'sort_by':sta_full_name, 'tsupdated':tsupdated}, True))
+        report_dict.append(merge_dicts(merge_dicts(rnx_info, nq0_info, True),{'sort_by':sta_full_name}, True))
 
     ## sort based on site name
     report_dict = sorted(report_dict, key=lambda x: x['sort_by'])
 
     ## write the report
+    num_reference_sites = 0
     with open(bern_log_fn, 'a') as logfn:
-        print('\n{:15s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:8s} {:45s} {:5s}'.format('Station', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'TsUpdate', 'Remote RINEX filename', 'Excl.'), file=logfn)
-        print('{:15s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:8s} {:45s} {:5s}'.format('-'*15, '-'*8, '-'*8, '-'*8, '-'*8, '-'*8, '-'*8, '-'*9, '-'*9, '-'*9, '-'*7, '-'*8, '-'*45, '-'*5), file=logfn)
+        print('\n{:15s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:15s} {:45s} {:5s}'.format('Station', 'Xcorr', 'Xrms', 'Ycorr', 'Yrms', 'Zcorr', 'Zrms', 'LonCorr', 'LatCorr', 'HgtCorr', 'EFH', 'T-S Updated', 'Remote RINEX filename', 'Excl.'), file=logfn)
+        print('{:15s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:9s} {:9s} {:9s} {:7s} {:15s} {:45s} {:5s}'.format('-'*15, '-'*8, '-'*8, '-'*8, '-'*8, '-'*8, '-'*8, '-'*9, '-'*9, '-'*9, '-'*7, '-'*15, '-'*45, '-'*5), file=logfn)
         for record in report_dict:
+            site_fullname = record['sort_by']
             print('{:15s} '.format(record['sort_by']), end='', file=logfn)
 
+            ## print info from addneq2
             if 'X_correction' in record:
-                print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} {:8s}'.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h'], str(record['tsupdated'])), end='', file=logfn)
+                print('{:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+8.4f} {:8.4f} {:+9.5f} {:+9.5f} {:+9.5f} {:7s} '.format(record['X_correction'], record['X_rms_error'], record['Y_correction'], record['Y_rms_error'], record['Z_correction'], record['Z_rms_error'], record['Longitude_rms_error'], record['Latitude_rms_error'], record['Height_rms_error'], record['e/f/h']), end='', file=logfn)
+                if record['e/f/h'].lower() == 'HELMR'.lower() or record['e/f/h'][0:3].lower() == 'FIX'.lower():
+                    num_reference_sites += 1
             else:
-                print('{:100s}'.format(''), end='', file=logfn)
+                print('{:91s} '.format(''), end='', file=logfn)
+                
+            ## print ts-update info
+            _tsfile = get_station_tsupdate_info(site_fullname)
+            if _tsfile.strip() != '': _tsfile = os.path.basename(_tsfile)
+            print('{:15s}'.format(_tsfile), end='', file=logfn)
             
+            ## print rinex_holdings info 
             if 'local' in record:
                 remote_rnx = os.path.basename(record['remote']) if record['remote'] is not None else 'download skipped'
                 print(' {:45s} {:5s}'.format(remote_rnx, str(record['exclude'])), file=logfn)
             else:
                 print(' {:^45s} {:^5s}'.format('x','x'), file=logfn)
+        
+        ## append general info
+        sites_processed = len(adnq2_dct)
+        site_ts_upadted = len(station_ts_updated)
+        sites_in_network = len(netsta_dct)
+        sites_downloaded = len([site for site,rnx in rinex_holdings.items() if rnx['local'] != None and not rnx['exclude']])
+        print('', file=logfn)
+        print('Number of sites in network    {:}'.format(sites_in_network), file=logfn)
+        print('Number of RINEX downloaded    {:} (excluding skipped if any)'.format(sites_downloaded), file=logfn)
+        print('Number of sites processed     {:}'.format(sites_processed), file=logfn)
+        print('Number of time-series updated {:}'.format(site_ts_upadted), file=logfn)
+        print('Number of reference stations  {:}'.format(num_reference_sites), file=logfn)
+        print('Number of observations        {:} (total)'.format(addneq2_info['obs_count']), file=logfn)
+        print('Number of parameters          {:} (adjusted)'.format(addneq2_info['par_count']), file=logfn)
+        print('RMS a-posteriori              {:} (unit weight)'.format(addneq2_info['rms']), file=logfn)
+        print('x^2 / DoF                     {:}'.format(addneq2_info['xdof']), file=logfn)
+        # statistics on RINEX versions used
+        rnx_info_dct = get_rinex_version_info()
+        rnx_info_str = ''
+        for k,v in rnx_info_dct.items(): rnx_info_str += k + ':' + str(v) + ' '
+        print('RINEX version statistics      {:}'.format(rnx_info_str), file=logfn)
 
         ## append warning messages
         for wrn in warnings: print('{}'.format(wrn), file=logfn)
@@ -1031,6 +1113,13 @@ parser.add_argument(
                     metavar='APRINF',
                     dest='aprinf',
                     default=None)
+parser.add_argument(
+                    '--ts-file-name',
+                    required=False,
+                    help="""""",
+                    metavar='TS_FILE_NAME',
+                    dest='ts_file_name',
+                    default=None)
 
 
 if __name__ == '__main__':
@@ -1059,6 +1148,11 @@ if __name__ == '__main__':
             options[k.lower()] = v
         elif v is None and k not in options:
             options[k.lower()] = v
+    
+    ## parse the config file (if any) without expanding variables, to get
+    ## only TS_FILE_NAME
+    #ts_file_name = parse_key_file(args.config_file, False, False)['TS_FILE_NAME']
+    #print('>> Note: new ts_file_name = {:}'.format(ts_file_name))
 
     ## print key/value pairs in options
     #for k,v in options.items():
@@ -1220,7 +1314,7 @@ if __name__ == '__main__':
         bpe_error = True
 
     ## update station-specif time-series (if needed)
-    station_ts_updated = []
+    station_ts_updated = {}
     if options['update_sta_ts'] and not bpe_error:
         station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))))
 

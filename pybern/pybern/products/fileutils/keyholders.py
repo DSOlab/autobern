@@ -16,15 +16,24 @@ import os
 ##
 
 def expand_env_vars(line):
+    """ Given a line, if it contains a pattern '${[A-Za-z0-9_]*}, the function
+        will try to replace the pattern with the corresponding enviromental 
+        variable (if any).
+        If the pattern is not an enviromental variable, return the string as
+        is
+    """
     for s in re.finditer(r'\$\{[a-zA-Z0-9_]+\}', line):
         evar = re.match('^\$\{([a-zA-Z0-9_]+)\}', s.group()).group(1)
+        if os.getenv(evar) is None:
+            print('[DEBUG] Failed to match pattern \'{:}\' to enviromental variable ... keeping string as-is (aka \'{:}\')'.format(evar, line.strip()))
+            return line
         line = line.replace(s.group(), os.getenv(evar, evar))
     return line
 
 def parse_key_file(fn, parse_error_is_fatal=False, expand_envvars=True):
     result = {}
     lnrgx = re.compile(
-        '^\s*(?P<var_name>\w+)\s*=\s*"?(?P<var_value>[ a-zA-Z0-9!@#;\$%\^\&\.,\/*\)\(+=._-]+)"?\s*$'
+        r'^\s*(?P<var_name>\w+)\s*=\s*"?(?P<var_value>[ \{\}a-zA-Z0-9!@#;\$%\^\&\.,\/\)\(\+_-]+)"?\s*$'
     )
     with open(fn, 'r') as f:
         for line in f.readlines():

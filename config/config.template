@@ -216,11 +216,27 @@ REF_NLIMIT = 10
 REF_ELIMIT = 10
 REF_ULIMIT = 30
 
-##  
-##
+##  Variables related to time-series updates; If UPDATE_STA_TS is set to 'YES',
+##+ then the program will (try to) update station-specific time-series files
+##+ with the coordinates estimates (cartesian and ellipsoidal allong with their
+##+ rms errors).
+##+ The naming convention for these station-specific files, is extractewd from
+##+ the variable 'TS_FILE_NAME' (which apart from the filename can include a 
+##+ path) and the 'PATH_TO_TS_FILES' variable.
+## E.g. given:
+## PATH_TO_TS_FILES = /home/bpe/data/time-series
+## TS_FILE_NAME = ${site_id}/${SITE_ID}_${SITE_DOMES}.ts
+## the script will try to find and update for station 'dion' the file:
+## /home/bpe/data/time-series/dion/DION_1234M001.ts
 UPDATE_STA_TS    = YES
 TS_DESCRIPTION   = "test"
 PATH_TO_TS_FILES = /home/bpe/data/time-series
+##  Variables that can be used here:
+##  * SITE_ID/site_id
+##  * SITE_DOMES/site_domes
+##  Note that the upper/lower case variables names will translate to 
+##+ upper/lower case substitution
+TS_FILE_NAME = ${site_id}/${site_id}.cts
 
 ##  Set this variable to 'YES' if you do not want to delete the files
 ##+ created at the campaign's directories during the ddprocess run.
