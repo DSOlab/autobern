@@ -147,7 +147,8 @@ if __name__ == '__main__':
 
     ## loop through the log files dir and get a list of site names
     sites = logdir2sites(args.log_dir)
-    for site in sites:
+    #for site in sites:
+    for site in [s for s in sites if s.upper() in [rs.upper() for rs in netsta_list]]:
       error = 0
       logfn, _ = get_latest_log(site, args.log_dir)
       print('[DEBUG] Parsing log file {:} ...'.format(logfn))

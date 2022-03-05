@@ -102,23 +102,43 @@ def query_dict_to_rinex_list(query_dict, pt):
         be downloaded (for the station described in the row). The function 
         will take into account if the station (for the given date) has RINEX
         v2 or v3 data holdings.
+        ----------------------------------------------------------------------
+        05/02/2022 Update: Special care for Metrica/SmartNet RINEX!
+            These are received by a a DSO server and ARE MARKED WITH THE RECORD:
+            'dc_name': 'DSO_MTRC'. If this holds, extra parameters are used to
+            compile the list of possible RINEX names to search for.
     """
     if 'rnx_v' not in query_dict:
         print('[WRNNG] No rinex version specified in query response; don\'t know how to make rinex')
         return []
-    return make_rinex2_fn(query_dict['mark_name_OFF'], pt) if query_dict['rnx_v'] == 2 else make_rinex3_fn(query_dict['long_name'], pt)
+    # return make_rinex2_fn(query_dict['mark_name_OFF'], pt) if query_dict['rnx_v'] == 2 else make_rinex3_fn(query_dict['long_name'], pt)
+    if query_dict['rnx_v'] == 2:
+        return make_rinex2_fn(query_dict['mark_name_OFF'], pt)
+    else:
+        return make_rinex3_fn(query_dict['long_name'], pt, query_dict['mark_name_OFF'], query_dict['dc_name']=='DSO_MTRC')
 
-def make_rinex3_fn(slong_name, pt):
+def make_rinex3_fn(slong_name, pt, mark_name_off=None, allow_metrica_names=False):
     """ Given a station long-name (e.g. DYNG00GRC) and a python datetime 
         instance (pt), make a list of possible RINEX v3.x files that can hold
         data for the station/date.
         see http://acc.igs.org/misc/rinex304.pdf, 
         ch. 4 The Exchange of RINEX files
+        ----------------------------------------------------------------------
+        05/02/2022 Update: Added the parameters mark_name_off and 
+            allow_metrica_names to handle the downloading of Metrica/SmartNet
+            data received by DSO. These are RINEX 3, but follow a different
+            naming convention, namely: ssssddd0.rnx.zip
+            If allow_metrica_names is set to True, then a name following the 
+            above convention will be added to the list of possible RINEX files
+            returned, where the parameter mark_name_off is also used.
     """
     possible_rinex_fn = []
     for data_source in ['R', 'S']:
         for content_type in ['MO', 'GO']:
             possible_rinex_fn.append('{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type))
+    ## Special naming convention for METRICA/SmartNet data coming to DSO!
+    if allow_metrica_names:
+        possible_rinex_fn.append('{:}{:}0.rnx.zip'.format(mark_name_off, pt.strftime('%j')))
     return possible_rinex_fn
 
 def make_rinex2_fn(station_id, pt):

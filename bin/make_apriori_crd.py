@@ -94,7 +94,7 @@ def find_station_in_crd_records(station, crd_records):
 def id2domes(staid, dbdct):
     for dct in dbdct:
         if dct['mark_name_DSO'].lower() == staid.lower():
-            return dct['mark_numb_OFF']
+            return dct['mark_numb_OFF'] if dct['mark_numb_OFF'] is not None else ''
     print('[WRNNG] No domes number found for station {:} (database query)'.format(staid), file=sys.stderr)
     return ''
 

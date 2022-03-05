@@ -109,7 +109,10 @@ def atx2pcv(**kwargs):
         raise RuntimeError(errmsg)
     
     if 'pcvout' not in kwargs or kwargs['pcvout'] is None:
-        kwargs['pcvout'] = os.path.basename(atxinf[0:-3]) + '.PCV'
+        # kwargs['pcvout'] = os.path.basename(atxinf[0:-3]) + '.PCV'
+        kwargs['pcvout'] = os.path.basename(atxinf[0:-3]) + '.' + kwargs['pcvext']
+    else:
+        kwargs['pcvout'] += '.' + kwargs['pcvext']
     os.rename(os.path.join(campaign_dir, 'OUT', phginf + '.PHG'), kwargs['pcvout'])
 
     ## remove un-needed files

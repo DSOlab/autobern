@@ -43,14 +43,14 @@ def runmain():
     parser.add_argument('-a',
                         '--atx',
                         required=True,
-                        help='The input ATX file',
+                        help='The input ATX file, e.g. \'/home/foo/bar/EPN_14.ATX\' (see TABLES_DIR/atx/notes)',
                         metavar='ATXINF',
                         dest='atxinf',
                         default=None)
     parser.add_argument('-s',
                         '--sta',
                         required=True,
-                        help='The input STA file',
+                        help='The input STA file, e.g. \'/home/foo/bar/GREECE.STA\'',
                         metavar='STAINF',
                         dest='stainf',
                         default=None)
@@ -64,7 +64,7 @@ def runmain():
     parser.add_argument('-e',
                         '--pcv-ext',
                         required=False,
-                        help='',
+                        help='The PCV extension (which identifies the RF), e.g. \'I14\'',
                         metavar='PCVEXT',
                         dest='pcvext',
                         default='I14')
@@ -78,7 +78,7 @@ def runmain():
     parser.add_argument('-o',
                         '--pcvout',
                         required=False,
-                        help='',
+                        help='The resulting file; the extension will be automatically added using the PCVEXT variable; e.g. \'/home/foo/bar/pcv/PCV_EPN\'',
                         metavar='OUTPUT_PCV_FILE',
                         dest='pcvout',
                         default=None)
