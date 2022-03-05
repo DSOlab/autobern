@@ -138,7 +138,7 @@ def make_rinex3_fn(slong_name, pt, mark_name_off=None, allow_metrica_names=False
             possible_rinex_fn.append('{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type))
     ## Special naming convention for METRICA/SmartNet data coming to DSO!
     if allow_metrica_names:
-        possible_rinex_fn.append('{:}{:}0.rnx.zip'.format(mark_name_off, pt.strftime('%j')))
+        possible_rinex_fn = [ '{:}{:}0.rnx.zip'.format(mark_name_off, pt.strftime('%j')) ]
     return possible_rinex_fn
 
 def make_rinex2_fn(station_id, pt):
@@ -220,6 +220,7 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
         remote_path = remote_path.replace(tf[1], pt.strftime(tf[0]))
     ## some urls may contain the 'official' station name, as _OFF_STA_NAME_
     remote_path = remote_path.replace('_OFF_STA_NAME_', query_dict['mark_name_OFF'])
+    remote_path = remote_path.replace('_UOFF_STA_NAME_', query_dict['mark_name_OFF'].upper())
     ## here is the final URL
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
 

@@ -119,6 +119,14 @@ if __name__ == '__main__':
 
     ## make a list of the stations in the network, using their 4-char id's
     sta_list = [s['mark_name_DSO'].upper() for s in netsta_dct]
+    
+    ## check for duplicates
+    if len(sta_list) != len(set(sta_list)):
+        print('[ERROR] Station list for network contains duplicates!')
+        for s in set(sta_list):
+            if len([x for x in sta_list if x==s])>1:
+                print('[ERROR] More than one records for station [{:}]'.format(s))
+        sys.exit(1)
 
     ## parse ssc file (in the order they were passed in) for the given station
     ## list
