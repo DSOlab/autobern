@@ -104,9 +104,13 @@ def os_decompress(filename, remove_original=False):
             with zipfile.ZipFile(filename, "r") as zipin:
                 flist = zipin.namelist()
                 ## check .zip contents; it should only have one file, namely noncmp_filename
-                assert (len(flist) == 1 and
-                        flist[0] == os.path.basename(noncmp_filename))
+                ##assert (len(flist) == 1 and
+                ##        flist[0] == os.path.basename(noncmp_filename))
+                ## print(">>num of files: {:}, here is the list: {:}".format(len(flist), flist))
+                if len(flist) == 1:
+                    noncmp_filename = os.path.join(os.path.dirname(filename), flist[0])
                 zipin.extractall(os.path.dirname(filename))
+                ## print(">>extractall ok-> extracted to {:}!".format(noncmp_filename));
         except:
             status = 4
     else:
@@ -115,6 +119,7 @@ def os_decompress(filename, remove_original=False):
     if status > 0 or not os.path.isfile(noncmp_filename):
         msg = "[ERROR] decompress::os_decompress failed to decompress file {:} (code: {:})".format(
             filename, status)
+        msg += "note: expected descompressed file {:} not found!".format(noncmp_filename)
         raise RuntimeError(msg)
     else:
         if remove_original and ctype != '.Z':

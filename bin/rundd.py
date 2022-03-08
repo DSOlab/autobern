@@ -31,6 +31,7 @@ import pybern.products.bernparsers.bernpcf as bpcf
 import pybern.products.vmf1 as vmf1
 import pybern.products.bernbpe as bpe
 import pybern.products.atx2pcv as a2p
+from pybern.products.formats.rinex import Rinex
 
 VERSION='1.0-beta'
 
@@ -389,6 +390,25 @@ def rinex2uppercase(rinex_holdings, add2temp_files=True):
             new_holdings[station] = rinex_holdings[station]
     return new_holdings
 
+def rename_rinex_markers(rinex_holdings, netsta_dct):
+    """ In case of a databse incosistency, aka mark_name_OFF != mark_name_DSO
+        update the 'MARKER NAME' field within the RINEX file(s) to match
+        mark_name_DSO.
+        Rinex files should be decompressed!
+        Note, netsta_dct = 
+        [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
+    """
+    for dct in netsta_dct:
+        if dct['mark_name_DSO'].upper() != dct['mark_name_OFF'].upper():
+            if dct['mark_name_DSO'] in rinex_holdings:
+                print('[NOTE ] Changing marker name of station {:}/{:} to match DSO name'.format(dct['mark_name_DSO'], dct['mark_name_OFF']))
+                rnx = Rinex(rinex_holdings[dct['mark_name_DSO']]['local'])
+                if not rnx.updateMarkerName(dct['mark_name_DSO'].upper()):
+                    msg = '[ERROR] Failed to change \'MARKER NAME\' for station {:}, RINEX: {:}'.format(dct['mark_name_DSO'], rinex_holdings[dct['mark_name_DSO']]['local'])
+                    raise RuntimeError(msg)
+    return rinex_holdings
+
+
 def decompress_rinex(rinex_holdings):
     """ rinex_holdings = {'pdel': {
         'local': '/home/bpe/applications/autobern/bin/pdel0250.16d.Z', 
@@ -398,6 +418,13 @@ def decompress_rinex(rinex_holdings):
         'local' rinex have been changed to the uncompressed filenames
     """
     def crx2rnx(crnx, station, new_holdings):
+        ## Note that some files (e.g. Metrica's rinex3 may be .zip, observation
+        ## RINEX, aka, do not need to be processed by CRX2RNX!
+        if crnx.endswith('o') or crnx.endswith('O'):
+            print('[NOTE ] Rinex file {:} seems to not be Hatanaka-compressed; skipping CRX2RNX call ...'.format(crnx))
+            new_holdings[station]['local'] = crnx
+            return
+
         ## decompress from Hatanaka; in rare cases, this may fail
         ## e.g. ERROR : The file seems to be truncated in the middle.
         try:
@@ -419,7 +446,7 @@ def decompress_rinex(rinex_holdings):
                 raise RuntimeError
 
             ## decompress to ascii (hatanaka compressed)
-            if crnx.endswith('.Z') or crnx.endswith('.gz'):
+            if crnx.endswith('.Z') or crnx.endswith('.gz') or crnx.endswith('.zip'):
                 cr = None
                 try:
                     cr, drnx = dcomp.os_decompress(crnx, True)
@@ -727,6 +754,7 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
     def get_rinex_version_info():
         version_info = {}
         for staid,rnx_dct in rinex_holdings.items():
+            print('>> line::730: note trying to open rinex file: {:}'.format(rnx_dct['local']))
             with open(rnx_dct['local'], 'r') as fin:
                 fline = fin.readline()
                 if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
@@ -760,7 +788,7 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
         return ''
 
     ## the final ADDNEQ2 output file (to be parsed)
-    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j')))
+    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(options['solution_id'], dt.strftime('%y%j')))
     
     ## parse the ADDNEQ2 output file and keep site information
     addneq2_info = {}
@@ -1188,7 +1216,7 @@ if __name__ == '__main__':
     ## link needed files from tables_dir to campaign-specific directories
     link2campaign(options, dt, temp_files)
 
-    ## download the RINEX files for the given network. Hold results int the
+    ## download the RINEX files for the given network. Hold results in the
     ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
     rnxdwnl_options = {
         'year': int(options['year']),
@@ -1221,6 +1249,9 @@ if __name__ == '__main__':
 
     ## uncompress (to obs) all RINEX files of the network/date
     rinex_holdings = decompress_rinex(rinex_holdings)
+
+    ## rename marker names to match mark_name_DSO if needed
+    rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
 
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
@@ -1316,7 +1347,7 @@ if __name__ == '__main__':
     ## update station-specif time-series (if needed)
     station_ts_updated = {}
     if options['update_sta_ts'] and not bpe_error:
-        station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))))
+        station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(solution_id['final'], dt.strftime('%y%j'))))
 
     ## compile a quick report based on the ADDNEQ2 output file for every 
     ## station (appended to the log-file)
@@ -1326,7 +1357,7 @@ if __name__ == '__main__':
     ## assert that all stations (RINEX) downloaded are indeed included in the
     ## processing
     if not bpe_error:
-        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', 'DSO{:}0.OUT'.format(dt.strftime('%y%j'))), logfn)
+        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(solution_id['final'], dt.strftime('%y%j'))), logfn)
     
     ## collect warning messages in a list (of dictionaries for every warning)
     if not bpe_error:
