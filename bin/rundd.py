@@ -754,7 +754,6 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
     def get_rinex_version_info():
         version_info = {}
         for staid,rnx_dct in rinex_holdings.items():
-            print('>> line::730: note trying to open rinex file: {:}'.format(rnx_dct['local']))
             with open(rnx_dct['local'], 'r') as fin:
                 fline = fin.readline()
                 if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
