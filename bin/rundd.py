@@ -502,6 +502,32 @@ def atx2pcv(options, dt, tmp_file_list=None):
         print('[ERROR] ATX2PCV failed due to error! see log file {:}'.format(errlog), file=sys.stderr)
         bpe.compile_error_report(bpe_status_file, os.path.join(os.getenv('P'), options['campaign'].upper()), errlog)
 
+def translate_sta_indv_calibrations(options):
+    """ Translate the .STA file options['stainf'], to a new .STA file located
+        in the campaign's STA folder, and named 
+        'G'+ options['stainf'].upper() + '.STA'
+        where all antenna SN numbers & strings are translated to the generic
+        value 99999
+    """
+    print('[WRNNG] Translating all non-generic antenna SN\'s to generic value; new .STA file is: ', end='')
+    TDIR = os.path.abspath(options['tables_dir'])
+    sta = os.path.join(TDIR, 'sta', options['stainf'].upper()+'.STA')
+    if not os.path.isfile(sta):
+        sta = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper()+'.STA')
+        if not os.path.isfile(sta):
+            errmsg = '[ERROR] Failed to find .STA file {:} in either {:} or {:}'.format(options['stainf'].upper()+'.STA', os.path.join(TDIR, 'sta'), os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA'))
+            raise RuntimeError(errmsg)
+    new_sta_fn = 'G' + options['stainf']
+    new_sta = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', new_sta_fn.upper()+'.STA')
+    print('{:}'.format(new_sta))
+    ## parse the station information file
+    stainf = bsta.BernSta(sta).parse()
+    ## translate all non-generic antenna serials to generic (aka 999999)
+    stainf.antennas2generic()
+    ## dump the new station information file
+    stainf.dump_as_sta(new_sta)
+    return new_sta_fn
+
 def link2campaign(options, dt, add2temp_files=True):
     """ Link needed files from TABLES directory to campaign's corresponsing
         folders
@@ -1147,6 +1173,11 @@ parser.add_argument(
                     metavar='TS_FILE_NAME',
                     dest='ts_file_name',
                     default=None)
+parser.add_argument(
+                    '--ignore-indv-calibrations',
+                    action='store_true',
+                    help='If set, then the given station information (.STA) file will be examined and all antennas with individual calibrations (aka when their SN numbers in the respective STA file are not 99999) will be translated to the generic SN. In the process, a new .STA file will be created; it will be a copy of the original (aka the one passed in) but with all antenna SN\'s set to 99999.',
+                    dest='ignore_indv_calibrations')
 
 
 if __name__ == '__main__':
@@ -1211,6 +1242,12 @@ if __name__ == '__main__':
     ## [{'station_id': 1, 'mark_name_DSO': 'pdel', 'mark_name_OFF': 'pdel',..},{...}]
     db_credentials_dct = parse_db_credentials_file(options['config_file'])
     netsta_dct = query_sta_in_net(options['network'], db_credentials_dct)
+
+    ## if needed, alter the .STA file to only hold generic calibrations; aka
+    ## translate individual calibrations to generic ones in the .STA file
+    ## WARNING! Note that this will change the options['stainf'] value
+    if options['ignore_indv_calibrations']:
+        options['stainf'] = translate_sta_indv_calibrations(options)
     
     ## link needed files from tables_dir to campaign-specific directories
     link2campaign(options, dt, temp_files)

@@ -10,6 +10,9 @@ MIN_STA_DATE = datetime.datetime.min
 MAX_STA_DATE = datetime.datetime.max
 FILE_FORMAT = '.STA (Bernese v5.2)'
 
+ANTENNA_GENERIC_NUMBER = 999999
+ANTENNA_GENERIC_STRING = '{:}'.format(ANTENNA_GENERIC_NUMBER)
+
 
 class Type002Record:
     ''' A class to hold type 002 station information records for a single station.

@@ -15,7 +15,7 @@ sys.path.append(formats_dir)
 from smart_open import smart_open
 from igs_log_file import IgsLogFile
 from bernsta_001 import Type001Record
-from bernsta_002 import Type002Record
+from bernsta_002 import Type002Record, ANTENNA_GENERIC_NUMBER, ANTENNA_GENERIC_STRING
 from bernsta_003 import Type003Record
 
 '''
@@ -70,6 +70,15 @@ class BernStaInfo:
             if op(station, key):
                 return self.dct[key]
         return None
+
+    def antennas2generic(self):
+        for sta, val in self.dct.items():
+            for count, t2rec in enumerate(val['type002']):
+                if t2rec.antenna_sn.strip() != ANTENNA_GENERIC_STRING or int(t2rec.antenna_nr) != ANTENNA_GENERIC_NUMBER:
+                    # print('Non generic antenna record for station {:}->[{:}]/[{:}] :[{:}]'.format(sta, t2rec.antenna_sn, int(t2rec.antenna_nr), t2rec))
+                    print('[NOTE ] Non-generic antenna found for station {:} for interval {:} to {:}; details NR: {:}/{:}'.format(sta, t2rec.start_date, t2rec.stop_date, t2rec.antenna_sn.strip(), int(t2rec.antenna_nr)))
+                    self.dct[sta]['type002'][count].antenna_sn = ANTENNA_GENERIC_STRING
+                    self.dct[sta]['type002'][count].antenna_nr = ANTENNA_GENERIC_STRING
     
     def update_from_log(self, igs_log_file):
         ## create the log file instance
