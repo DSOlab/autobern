@@ -780,17 +780,18 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
     def get_rinex_version_info():
         version_info = {}
         for staid,rnx_dct in rinex_holdings.items():
-            with open(rnx_dct['local'], 'r') as fin:
-                fline = fin.readline()
-                if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
-                    print('[WRNNG] RINEX file {:} is missing version field!'.format(rnx_dct['local']), file=sys.stderr)
-                    version = 'unknown'
+            if not rnx_dct['exclude']:
+                with open(rnx_dct['local'], 'r') as fin:
+                    fline = fin.readline()
+                    if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
+                        print('[WRNNG] RINEX file {:} is missing version field!'.format(rnx_dct['local']), file=sys.stderr)
+                        version = 'unknown'
+                    else:
+                        version = fline.split()[0].strip()
+                if version in version_info:
+                    version_info[version] += 1
                 else:
-                    version = fline.split()[0].strip()
-            if version in version_info:
-                version_info[version] += 1
-            else:
-                version_info[version] = 1
+                    version_info[version] = 1
         return version_info
 
     def get_station_rinex_holdings_info(sta_full_name):
@@ -1040,10 +1041,6 @@ parser.add_argument('-c',
                     metavar='CONFIG_FILE',
                     dest='config_file',
                     default=None)
-parser.add_argument('--verbose',
-                    dest='verbose',
-                    action='store_true',
-                    help='Trigger verbose run (prints debug messages).')
 parser.add_argument('-g',
                     '--campaign',
                     required=False,
@@ -1087,11 +1084,6 @@ parser.add_argument(
                     metavar='TABLES_DIR',
                     dest='tables_dir',
                     default=None)
-parser.add_argument(
-                    '--skip-rinex-download',
-                    action='store_true',
-                    help='Skip download of RINEX files; only consider RINEX files already available for network/date',
-                    dest='skip_rinex_download')
 parser.add_argument(
                     '--use-euref-exclusion-list',
                     action='store_true',
@@ -1173,11 +1165,29 @@ parser.add_argument(
                     metavar='TS_FILE_NAME',
                     dest='ts_file_name',
                     default=None)
+## Warning !!
+## Following variables (aka with action=store_true) should always default to
+## False. If the switch is set to True/YES in the config file, then this value
+## will prevail.
 parser.add_argument(
                     '--ignore-indv-calibrations',
                     action='store_true',
                     help='If set, then the given station information (.STA) file will be examined and all antennas with individual calibrations (aka when their SN numbers in the respective STA file are not 99999) will be translated to the generic SN. In the process, a new .STA file will be created; it will be a copy of the original (aka the one passed in) but with all antenna SN\'s set to 99999.',
                     dest='ignore_indv_calibrations')
+parser.add_argument(
+                    '--skip-remove',
+                    action='store_true',
+                    help='',
+                    dest='skip_remove')
+parser.add_argument(
+                    '--skip-rinex-download',
+                    action='store_true',
+                    help='Skip download of RINEX files; only consider RINEX files already available for network/date',
+                    dest='skip_rinex_download')
+parser.add_argument('--verbose',
+                    dest='verbose',
+                    action='store_true',
+                    help='Trigger verbose run (prints debug messages).')
 
 
 if __name__ == '__main__':
@@ -1199,11 +1209,16 @@ if __name__ == '__main__':
         options[k.lower()] = v
     ## translate YES/NO to True/False
     for k,v in config_file_dict.items():
-        if v.upper() == "YES": options[k.lower()] = True
-        elif v.upper() == "NO": options[k.lower()] = False
+        if v.upper().strip() == "YES": options[k.lower()] = True
+        elif v.upper().strip() == "NO": options[k.lower()] = False
     for k,v in vars(args).items():
         if v is not None:
-            options[k.lower()] = v
+            ## special care for True/False variables! if the corresponding
+            ## option in the config file is True, config file prevails!
+            if type(v) is bool and k in options:
+                options[k] = bool(options[k]) or v
+            else:
+                options[k.lower()] = v
         elif v is None and k not in options:
             options[k.lower()] = v
     
@@ -1213,8 +1228,10 @@ if __name__ == '__main__':
     #print('>> Note: new ts_file_name = {:}'.format(ts_file_name))
 
     ## print key/value pairs in options
-    #for k,v in options.items():
-    #    print('{:} -> {:}'.format(k, v))
+    # print('-------------------------------------------------------------------')
+    # for k,v in options.items():
+    #     print('{:} -> {:}'.format(k, v))
+    # sys.exit(9)
 
     ## verbose print
     verboseprint = print if options['verbose'] else lambda *a, **k: None
@@ -1410,4 +1427,7 @@ if __name__ == '__main__':
         send_report_mail(options, message_head, message_body)
 
     ## remove all files created/modified by BPE
-    rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)
+    if not options['skip_remove']:
+        rmbpetmp(os.path.join(os.getenv('P'), options['campaign'].upper()), dt, bpe_start_at, bpe_stop_at)
+    else:
+        print('[NOTE ] Skipping removal of files! campaign dirs will not be cleared')
