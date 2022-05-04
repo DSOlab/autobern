@@ -235,7 +235,8 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
     ## some urls may contain the 'official' station name, as _OFF_STA_NAME_
     remote_path = remote_path.replace('_OFF_STA_NAME_', query_dict['mark_name_OFF'])
     remote_path = remote_path.replace('_UOFF_STA_NAME_', query_dict['mark_name_OFF'].upper())
-    remote_path = remote_path.replace('_FULL_STA_NAME_', query_dict['station_name'])
+    if query_dict['station_name'] is not None:
+        remote_path = remote_path.replace('_FULL_STA_NAME_', query_dict['station_name'])
     ## TREECOMP data also include a local month name
     remote_path = remote_path.replace('_GRM3_', b2gr3(pt))
     ## here is the final URL
