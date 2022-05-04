@@ -9,11 +9,29 @@ import shutil
 from contextlib import closing
 import requests
 import urllib.request
-
+from urllib.error import HTTPError, URLError
+import socket
+import ftplib
 
 def url_split(target):
     return target[0:target.rindex('/')], target[target.rindex('/') + 1:]
 
+def ftp_retrieve_active(ftpip, path, username, password, remote, local):
+    status = 1
+    ftp = ftplib.FTP(host=ftpip, user=username, passwd=password, acct='', timeout=10)
+    # print('--> Downloading active with ftpip=[{:}], path=[{:}], username=[{:}], password=[{:}], remote=[{:}], local=[{:}]'.format(ftpip, path, username, password, remote, local))
+    ftp.set_pasv(False)
+    if path != '': ftp.cwd(path)
+    try:
+        ## query size so that we fail if the remote does not exist and no local
+        ## file is created
+        assert( ftp.size(remote) )
+        ftp.retrbinary("RETR " + remote, open(local, 'wb').write)
+        status = 0
+    except FTP.error_perm:
+        os.remove(local)
+    ftp.close()
+    return status
 
 def ftp_retrieve(url, filename=None, **kwargs):
     """
@@ -27,6 +45,7 @@ def ftp_retrieve(url, filename=None, **kwargs):
                of these two, aka os.path.join(save_dir, save_as)
     username: 'usrnm' Use the given username
     password: 'psswrd' Use the given password
+    active  : (boolean) true or false
     fail_error: True/False Throw exception if download fails. By default
                the function will throw if the download fails
   """
@@ -59,16 +78,37 @@ def ftp_retrieve(url, filename=None, **kwargs):
             url = re.sub(r'^ftp://', 'ftp://{:}:{:}@'.format(username, password), url)
 
     target = '{:}/{:}'.format(url, filename)
-    #print('>> target is {:}'.format(target))
 
     status = 0
-    # print(">> Note that target={:}".format(target))
-    try:
-        with closing(urllib.request.urlopen(target)) as r:
-            with open(saveas, 'wb') as f:
-                shutil.copyfileobj(r, f)
-    except:
-        status = 1
+    
+    ## Handle active FTP
+    if 'active' in kwargs and kwargs['active'] == True:
+        g=re.match(r'ftp://[^@]*([^/]*)(.*)', url)
+        ftpip = g.group(1).lstrip('@')
+        target = filename
+        path = g.group(2).replace(target, '')
+        status = ftp_retrieve_active(ftpip, path, username, password, target, saveas)
+    else:
+        # print(">> Note that target={:}".format(target))
+        try:
+            with closing(urllib.request.urlopen(target, timeout=10)) as r:
+                with open(saveas, 'wb') as f:
+                    shutil.copyfileobj(r, f)
+        except:
+            status = 1
+    ## For debugging
+    #try:
+    #    with closing(urllib.request.urlopen(target, timeout=10)) as r:
+    #        with open(saveas, 'wb') as f:
+    #            shutil.copyfileobj(r, f)
+    #except HTTPError as error:
+    #    print('Data not retrieved because {:}\nURL: {}', error, target)
+    #except URLError as error:
+    #    if isinstance(error.reason, socket.timeout):
+    #        print('socket timed out - URL {}', target)
+    #    else:
+    #        print('some other error happened')
+    #    status = 1
     
     if not os.path.isfile(saveas):
         status += 1

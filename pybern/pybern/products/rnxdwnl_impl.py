@@ -10,6 +10,7 @@ from pybern.products.fileutils.keyholders import extract_key_values
 from pybern.products.downloaders.retrieve import web_retrieve
 import mysql.connector
 from mysql.connector import errorcode
+import locale ## for local datetimes (TREECOMP)
 
 g_verbose_rnxdwnl = False
 
@@ -64,6 +65,16 @@ station_query=(
         WHERE station.mark_name_DSO=%s
         AND dataperiod.periodstart<=%s
         AND dataperiod.periodstop>=%s""")
+
+def b2gr3(dt):
+    """ Format a datetime instance's month as a 3-char string
+        Needs locale package and el_GR available
+        sudo apt install locales-all
+    """
+    locale.setlocale(locale.LC_ALL, "el_GR")
+    mgr = dt.strftime("%b")
+    locale.setlocale(locale.LC_ALL,locale.getdefaultlocale())
+    return mgr
 
 def rinex_exists_as(possible_rinex, output_dir=os.getcwd()):
     """ Given a list of (possible rinex) files, this function will search for
@@ -145,6 +156,9 @@ def make_rinex2_fn(station_id, pt):
     possible_rinex_fn = []
     for comp in ['Z', 'gz']:
         possible_rinex_fn.append('{:}{:}0.{:}d.{}'.format(station_id, pt.strftime('%j'), pt.strftime('%y'), comp))
+    ## TREECMP data are UNIX compressed but **not** Hatanaka compressed
+    comp = 'Z'
+    possible_rinex_fn.append('{:}{:}0.{:}o.{}'.format(station_id, pt.strftime('%j'), pt.strftime('%y'), comp))
     return possible_rinex_fn
 
 def compare_query_result_dictionaries(dict_list):
@@ -216,11 +230,14 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
 
     ## grab the first row/dictionary and formulate the url
     remote_path = query_dict['pth2rnx30s']
-    for tf in zip(['%Y', '%j', '%m', '%d', '%y'],['_YYYY_', '_DDD_', '_MM_', '_DD_', '_YY_']):
+    for tf in zip(['%Y', '%j', '%m', '%d', '%y', '%d'],['_YYYY_', '_DDD_', '_MM_', '_DD_', '_YY_', '_DOM_']):
         remote_path = remote_path.replace(tf[1], pt.strftime(tf[0]))
     ## some urls may contain the 'official' station name, as _OFF_STA_NAME_
     remote_path = remote_path.replace('_OFF_STA_NAME_', query_dict['mark_name_OFF'])
     remote_path = remote_path.replace('_UOFF_STA_NAME_', query_dict['mark_name_OFF'].upper())
+    remote_path = remote_path.replace('_FULL_STA_NAME_', query_dict['station_name'])
+    ## TREECOMP data also include a local month name
+    remote_path = remote_path.replace('_GRM3_', b2gr3(pt))
     ## here is the final URL
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
 
@@ -247,8 +264,9 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
     for fn in possible_rinex:
         remote_fn = remote_dir + fn
         verboseprint("[DEBUG] This is the remote file we should download: {:}".format(remote_fn))
+        use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
         try:
-            status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'])
+            status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
             verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
             holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
             return
