@@ -1320,6 +1320,10 @@ if __name__ == '__main__':
     except Exception as e:
         print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
         append2f(logfn, 'Failed to download products! Traceback info {:}'.format(e), 'FATAL ERROR; Processing stoped')
+        ## Send ERROR mail 
+        with open(logfn, 'r') as lfn: message_body = lfn.read()
+        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
+        send_report_mail(options, message_head, message_body)
         sys.exit(1)
     products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, True)
     append_product_info(products_dict, logfn)

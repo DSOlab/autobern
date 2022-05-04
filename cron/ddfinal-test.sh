@@ -10,9 +10,9 @@ fi
 CONFIG=config.greece
 
 ## get the date 15 days ago
-year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
-yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
-doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
+year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 315)).strftime(\"%Y\")))")
+yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 315)).strftime(\"%y\")))")
+doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 315)).strftime(\"%j\")))")
 idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 ## we need to make an a-priori crd file for the BPE
@@ -34,8 +34,7 @@ python3 ${ABPE_DIR}/bin/rundd.py \
   --verbose \
   --use-euref-exclusion-list \
   --min-reference-stations 10 \
-  --aprinf REG${yr2}${doy}0 \
-  --ignore-indv-calibrations \
+  --aprinf REG${yr2}${doy}0
   || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 
 rm ${HOME}/tables/crd/REG${yr2}${doy}0.CRD
