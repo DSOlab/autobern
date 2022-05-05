@@ -66,6 +66,16 @@ station_query=(
         AND dataperiod.periodstart<=%s
         AND dataperiod.periodstop>=%s""")
 
+def add2possible_rinex(possible_rinex_dct, mark_name_dso, remote_fn, local_fn):
+    """ Update possible_rinex_dct for key=mark_name_dso with the tuple:
+        (remote_fn, local_fn)
+    """
+    if mark_name_dso not in possible_rinex_dct:
+        possible_rinex_dct[mark_name_dso] = [(remote_fn, local_fn)]
+    else:
+        possible_rinex_dct[mark_name_dso].append((remote_fn, local_fn))
+    return possible_rinex_dct
+
 def b2gr3(dt):
     """ Format a datetime instance's month as a 3-char string
         Needs locale package and el_GR available
@@ -83,27 +93,33 @@ def rinex_exists_as(possible_rinex, output_dir=os.getcwd()):
         * decompressed (.Z, .gz)
         * Hatanaka-decompressed (d, .crx)
     """
-    for prnx in possible_rinex:
-        ## check for the fully compressed file
-        fn = os.path.join(output_dir, prnx)
-        if os.path.isfile(fn):
-            return fn
-        ## check for the decompressed Hatanaka version, aka no .Z or .gz
-        for ext in ['.Z', '.gz']:
-            if prnx.endswith(ext):
-                rnx = re.sub(r'{:}$'.format(ext), '', prnx)
-                fn = os.path.join(output_dir, rnx)
-                if os.path.isfile(fn): return fn
-        ## check for the fully-decompressed RINEX
-        for ext in ['.Z', '.gz']:
-            if prnx.endswith(ext):
-                hrnx = re.sub(r'{:}$'.format(ext), '', prnx)
-                if hrnx.endswith('d'):
-                    fn = os.path.join(output_dir, hrnx[-1]+'o')
+    # for prnx in possible_rinex:
+    for site, prl in possible_rinex.items():
+        for rltpl in prl:
+            prnx = rltpl[1] ## should-exist local RINEX filename
+            fn = os.path.join(output_dir, prnx)
+            
+            ## check for the fully compressed file
+            if os.path.isfile(fn):
+                return fn
+            
+            ## check for the decompressed Hatanaka version, aka no .Z or .gz
+            for ext in ['.Z', '.gz']:
+                if prnx.endswith(ext):
+                    rnx = re.sub(r'{:}$'.format(ext), '', prnx)
+                    fn = os.path.join(output_dir, rnx)
                     if os.path.isfile(fn): return fn
-                elif hrnx.endswith('crx'):
-                    fn = os.path.join(output_dir, hrnx[-3]+'rnx')
-                    if os.path.isfile(fn): return fn
+            
+            ## check for the fully-decompressed RINEX
+            for ext in ['.Z', '.gz']:
+                if prnx.endswith(ext):
+                    hrnx = re.sub(r'{:}$'.format(ext), '', prnx)
+                    if hrnx.endswith('d'):
+                        fn = os.path.join(output_dir, hrnx[-1]+'o')
+                        if os.path.isfile(fn): return fn
+                    elif hrnx.endswith('crx'):
+                        fn = os.path.join(output_dir, hrnx[-3]+'rnx')
+                        if os.path.isfile(fn): return fn
     return None
 
 
@@ -124,11 +140,11 @@ def query_dict_to_rinex_list(query_dict, pt):
         return []
     # return make_rinex2_fn(query_dict['mark_name_OFF'], pt) if query_dict['rnx_v'] == 2 else make_rinex3_fn(query_dict['long_name'], pt)
     if query_dict['rnx_v'] == 2:
-        return make_rinex2_fn(query_dict['mark_name_OFF'], pt)
+        return make_rinex2_fn(query_dict['mark_name_DSO'], query_dict['mark_name_OFF'], pt)
     else:
-        return make_rinex3_fn(query_dict['long_name'], pt, query_dict['mark_name_OFF'], query_dict['dc_name']=='DSO_MTRC')
+        return make_rinex3_fn(query_dict['long_name'], pt, query_dict['mark_name_DSO'], query_dict['mark_name_OFF'], query_dict['dc_name']=='DSO_MTRC')
 
-def make_rinex3_fn(slong_name, pt, mark_name_off=None, allow_metrica_names=False):
+def make_rinex3_fn(slong_name, pt, mark_name_dso, mark_name_off=None, allow_metrica_names=False):
     """ Given a station long-name (e.g. DYNG00GRC) and a python datetime 
         instance (pt), make a list of possible RINEX v3.x files that can hold
         data for the station/date.
@@ -142,23 +158,49 @@ def make_rinex3_fn(slong_name, pt, mark_name_off=None, allow_metrica_names=False
             If allow_metrica_names is set to True, then a name following the 
             above convention will be added to the list of possible RINEX files
             returned, where the parameter mark_name_off is also used.
+        05/05/2022 Update: possible_rinex_fn is now **not** a list but a 
+            dictionary with elements: 
+            [('remote': '..', 'local': '...'), ('remote': '..', 'local': '...'), 
+            ...] 
+            where the 'local' string is the corresponding filename of the RINEX 
+            localy, aka 'remote' should be downloaded to 'local'.
+            Real world example:
+            {'agr2': [('agri0050.22d.Z', 'agr20050.22d.Z'), 
+                ('agri0050.22d.gz', 'agr20050.22d.gz'), 
+                ('agri0050.22o.Z', 'agr20050.22o.Z')]}
     """
-    possible_rinex_fn = []
+    possible_rinex_fn = {}
     for data_source in ['R', 'S']:
         for content_type in ['MO', 'GO']:
-            possible_rinex_fn.append('{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type))
+            rname = '{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type)
+            if slong_name[0:4].lower() != mark_name_dso.lower():
+                # Official station id is different from dso name!
+                lname = '{:}{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(mark_name_dso.upper(), slong_name[4:], data_source, pt.strftime('%Y%j%H%M'), content_type)
+            else:
+                lname = rname
+            possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
+    
     ## Special naming convention for METRICA/SmartNet data coming to DSO!
     if allow_metrica_names:
-        possible_rinex_fn = [ '{:}{:}0.rnx.zip'.format(mark_name_off, pt.strftime('%j')) ]
+        rname = '{:}{:}0.rnx.zip'.format(mark_name_off, pt.strftime('%j'))
+        lname = '{:}{:}0.rnx.zip'.format(mark_name_dso, pt.strftime('%j'))
+        possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
+
     return possible_rinex_fn
 
-def make_rinex2_fn(station_id, pt):
-    possible_rinex_fn = []
+def make_rinex2_fn(mark_name_dso, mark_name_off, pt):
+    possible_rinex_fn = {}
     for comp in ['Z', 'gz']:
-        possible_rinex_fn.append('{:}{:}0.{:}d.{}'.format(station_id, pt.strftime('%j'), pt.strftime('%y'), comp))
+        rname = '{:}{:}0.{:}d.{}'.format(mark_name_off, pt.strftime('%j'), pt.strftime('%y'), comp)
+        lname = '{:}{:}0.{:}d.{}'.format(mark_name_dso, pt.strftime('%j'), pt.strftime('%y'), comp)
+        possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
+    
     ## TREECMP data are UNIX compressed but **not** Hatanaka compressed
     comp = 'Z'
-    possible_rinex_fn.append('{:}{:}0.{:}o.{}'.format(station_id, pt.strftime('%j'), pt.strftime('%y'), comp))
+    rname = '{:}{:}0.{:}o.{}'.format(mark_name_off, pt.strftime('%j'), pt.strftime('%y'), comp)
+    lname = '{:}{:}0.{:}o.{}'.format(mark_name_dso, pt.strftime('%j'), pt.strftime('%y'), comp)
+    possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
+
     return possible_rinex_fn
 
 def compare_query_result_dictionaries(dict_list):
@@ -232,13 +274,16 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
     remote_path = query_dict['pth2rnx30s']
     for tf in zip(['%Y', '%j', '%m', '%d', '%y', '%d'],['_YYYY_', '_DDD_', '_MM_', '_DD_', '_YY_', '_DOM_']):
         remote_path = remote_path.replace(tf[1], pt.strftime(tf[0]))
+    
     ## some urls may contain the 'official' station name, as _OFF_STA_NAME_
     remote_path = remote_path.replace('_OFF_STA_NAME_', query_dict['mark_name_OFF'])
     remote_path = remote_path.replace('_UOFF_STA_NAME_', query_dict['mark_name_OFF'].upper())
     if query_dict['station_name'] is not None:
         remote_path = remote_path.replace('_FULL_STA_NAME_', query_dict['station_name'])
+    
     ## TREECOMP data also include a local month name
     remote_path = remote_path.replace('_GRM3_', b2gr3(pt))
+    
     ## here is the final URL
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
 
@@ -262,17 +307,20 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
 
     ## iteratively try downloading RINEX files from possible_rinex; stop when
     ## we succed
-    for fn in possible_rinex:
-        remote_fn = remote_dir + fn
-        verboseprint("[DEBUG] This is the remote file we should download: {:}".format(remote_fn))
-        use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
-        try:
-            status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
-            verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
-            holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
-            return
-        except:
-            print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
+    for site, prl in possible_rinex.items():
+        for tpl in prl:
+            rfn = tpl[0]
+            lfn = tpl[1]
+            remote_fn = remote_dir + rfn
+            verboseprint("[DEBUG] This is the remote file we should download: {:} (local: {:})".format(remote_fn, lfn))
+            use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
+            try:
+                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
+                verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
+                holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
+                return
+            except:
+                print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
 
 def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
     """ Given a cursor to the GNSS database, perform a station query as
