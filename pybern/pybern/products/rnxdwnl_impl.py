@@ -170,15 +170,24 @@ def make_rinex3_fn(slong_name, pt, mark_name_dso, mark_name_off=None, allow_metr
                 ('agri0050.22o.Z', 'agr20050.22o.Z')]}
     """
     possible_rinex_fn = {}
+    long_name_warning_issued = False
+
     for data_source in ['R', 'S']:
         for content_type in ['MO', 'GO']:
-            rname = '{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type)
-            if slong_name[0:4].lower() != mark_name_dso.lower():
-                # Official station id is different from dso name!
-                lname = '{:}{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(mark_name_dso.upper(), slong_name[4:], data_source, pt.strftime('%Y%j%H%M'), content_type)
+            ## should not happen but sometimes long_name is NULL in database
+            if not slong_name:
+                ## only print warning once
+                if not long_name_warning_issued:
+                    print('[WRNNG] Long name for station {:} (mark_name_DSO) missing in database!'.format(mark_name_dso))
+                    long_name_warning_issued = True
             else:
-                lname = rname
-            possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
+                rname = '{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(slong_name, data_source, pt.strftime('%Y%j%H%M'), content_type)
+                if slong_name[0:4].lower() != mark_name_dso.lower():
+                    # Official station id is different from dso name!
+                    lname = '{:}{:}_{:}_{:}_01D_30S_{:}.crx.gz'.format(mark_name_dso.upper(), slong_name[4:], data_source, pt.strftime('%Y%j%H%M'), content_type)
+                else:
+                    lname = rname
+                possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
     
     ## Special naming convention for METRICA/SmartNet data coming to DSO!
     if allow_metrica_names:
