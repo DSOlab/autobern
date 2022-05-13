@@ -8,6 +8,7 @@ import re
 import argparse
 import subprocess
 import datetime
+from time import sleep as psleep
 import atexit
 import getpass
 from shutil import copyfile
@@ -1188,7 +1189,22 @@ parser.add_argument('--verbose',
                     dest='verbose',
                     action='store_true',
                     help='Trigger verbose run (prints debug messages).')
-
+parser.add_argument(
+                    '--download-max-tries',
+                    required=False,
+                    help='Maximum number of tries when downloading products. Each new try is started after \'download_sleep_for\' seconds after the previous fail.',
+                    metavar='PRODUCT_DOWNLOAD_MAX_TRIES',
+                    dest='product_download_max_tries',
+                    type=int,
+                    default=3)
+parser.add_argument(
+                    '--download-sleep-for',
+                    required=False,
+                    help='when product download has failed, wait for \'download_sleep_for\' seconds before starting a new try.',
+                    metavar='PRODUCT_DOWNLOAD_SLEEP_FOR',
+                    dest='product_download_sleep_for',
+                    type=int,
+                    default=3*60)
 
 if __name__ == '__main__':
 
@@ -1314,17 +1330,30 @@ if __name__ == '__main__':
         append2f(logfn, 'Failed to validate station records in STA file', 'FATAL ERROR; Processing stoped')
         sys.exit(1)
 
-    ## download and prepare products
-    try:
-        products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
-    except Exception as e:
-        print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
-        append2f(logfn, 'Failed to download products! Traceback info {:}'.format(e), 'FATAL ERROR; Processing stoped')
-        ## Send ERROR mail 
-        with open(logfn, 'r') as lfn: message_body = lfn.read()
-        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
-        send_report_mail(options, message_head, message_body)
-        sys.exit(1)
+    ## download and prepare products; do not give up if the first try fails, 
+    ## maybe some product is udated/written on the remote server. Retry a few
+    ## times after waiting
+    product_download_max_tries = options['product_download_max_tries']
+    product_download_sleep_for = options['product_download_sleep_for']
+    product_download_try = 0
+    while product_download_try < product_download_max_tries:
+        try:
+            products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
+            ## products downloaded and prepared; break loop
+            product_download_try = product_download_max_tries + 1
+        except Exception as e:
+            product_download_try += 1
+            print('[WRNNG] Failed downloading/preparing products. Try {:}/{:}'.format(product_download_try, product_download_max_tries), file=sys.stderr)
+            if product_download_try >= product_download_max_tries:
+                print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
+                append2f(logfn, 'Failed to download products! Traceback info {:}'.format(e), 'FATAL ERROR; Processing stoped')
+                ## Send ERROR mail 
+                with open(logfn, 'r') as lfn: message_body = lfn.read()
+                message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
+                send_report_mail(options, message_head, message_body)
+                sys.exit(1)
+            print('[WRNNG] Sleeping for {:} seconds and retrying ....'.format(product_download_sleep_for), file=sys.stderr)
+            psleep(product_download_sleep_for)
     products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, True)
     append_product_info(products_dict, logfn)
 
@@ -1337,7 +1366,7 @@ if __name__ == '__main__':
             append2f(logfn, 'Too few reference sites available for processing!', 'FATAL ERROR; Processing stoped')
             ## Send ERROR mail 
             with open(logfn, 'r') as lfn: message_body = lfn.read()
-            message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
+            message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
             send_report_mail(options, message_head, message_body)
             sys.exit(1)
         else:
@@ -1363,7 +1392,7 @@ if __name__ == '__main__':
             append2f(logfn, 'Final solution identifier cannot end in {:}; reserved for {:} solution'.format(sid, descr), 'FATAL ERROR; Processing stoped')
             ## Send ERROR mail 
             with open(logfn, 'r') as lfn: message_body = lfn.read()
-            message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
+            message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
             send_report_mail(options, message_head, message_body)
             sys.exit(1)
         solution_id[descr] = options['solution_id'][0:-1] + sid
@@ -1377,7 +1406,7 @@ if __name__ == '__main__':
         append2f(logfn, 'Failed to find PCF file {:}'.format(pcf_file), 'FATAL ERROR; Processing stoped')
         ## Send ERROR mail 
         with open(logfn, 'r') as lfn: message_body = lfn.read()
-        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
+        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
         send_report_mail(options, message_head, message_body)
         sys.exit(1)
     pcf = bpcf.PcfFile(pcf_file)
