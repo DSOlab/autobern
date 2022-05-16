@@ -15,6 +15,8 @@ from shutil import copyfile
 import smtplib, ssl
 import pybern.products.rnxdwnl_impl as rnxd
 import pybern.products.fileutils.decompress as dcomp
+import pybern.products.fileutils.compress as comp
+import pybern.products.uploaders.uploaders as upld
 from pybern.products.fileutils.keyholders import parse_key_file
 from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net, query_tsupd_net
 from pybern.products.codesp3 import get_sp3
@@ -241,8 +243,19 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
     ## download dcb
     days_dif = (datetime.datetime.now() - dt).days
     if days_dif > 0 and days_dif < 30:
-            status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
-            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+        for i in range(3):
+            try:
+                status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
+                product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+                verboseprint('[DEBUG] Downloaded dcb file {:} of type {:} ({:})'.format(local, 'current', status))
+                break
+            except:
+                verboseprint('[DEBUG] Failed downloading dcb file of type {:}'.format('current'), end='')
+                if i<2:
+                    verboseprint(' retrying ...')
+                else:
+                    verboseprint(' giving up...')
+                psleep(60)                   
     elif days_dif >= 30:
             status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=product_dir)
             product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
@@ -1003,6 +1016,25 @@ def append2f(fn, text, header=None):
         fout.write(text)
         print('', file=fout)
 
+def upload_sinex(options):
+    ## try locating the SINEX file
+    final_snx = os.path.join(os.getenv('P'), options['campaign'].upper(), 'SOL', '{:}{:}0.SNX'.format(options['solution_id'], dt.strftime('%y%j')))
+    ret = final_snx, None
+    if not os.path.isfile(final_snx):
+        print('[ERROR] Failed to locate (final) SINEX file {:}. Cannot upload!'.format(final_snx), file=sys.stderr)
+        return ret
+    ## compress the file
+    _, snxZ = comp.os_compress(final_snx, '.Z', False)
+    ## upload the file
+    try:
+        ret = upld.ftp_upload(options['epnd_ftp_ip'], 'snxin', snxZ, options['epnd_ftp_username'], options['epnd_ftp_password'])
+        # ret = final_snx, '{:}/snxin/{:}'.format(options['epnd_ftp_ip'], snxZ)
+    except:
+        print('[ERROR] Failed to upload (final) SINEX file {:} to {:}!'.format(final_snx, options['epnd_ftp_ip']), file=sys.stderr)
+    ## remove the compressed file
+    if os.path.isfile(snxZ): os.remove(snxZ)
+    return ret
+
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
 ##  Seems to work with multiple inheritance!
@@ -1461,6 +1493,16 @@ if __name__ == '__main__':
     if not bpe_error:
         warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
         compile_warnings_report(warning_messages, logfn)
+
+    ## upload SINEX files if needed (SINEX to EPND ftp)
+    if not bpe_error:
+        if 'epnd_ftp_ip' in options and options['epnd_ftp_ip'].strip() != '':
+            final_sinex, uploaded_to = upload_sinex(options)
+            if not uploaded_to:
+                append2f(logfn, 'Failed to upload local final SINEX file {:} to {:}'.format(final_sinex,options['epnd_ftp_ip']), '')
+            else:
+                append2f(logfn, 'Uploaded local (final) SINEX file {:} to {:}'.format(final_sinex,uploaded_to))
+                print('[DEBUG] Uploaded local (final) SINEX file {:} to {:}'.format(final_sinex,uploaded_to))
     
     ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
