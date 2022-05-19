@@ -13,6 +13,8 @@ FILE_FORMAT = '.STA (Bernese v5.2)'
 ANTENNA_GENERIC_NUMBER = 999999
 ANTENNA_GENERIC_STRING = '{:}'.format(ANTENNA_GENERIC_NUMBER)
 
+def noop(*args, **kws):
+    return None
 
 class Type002Record:
     ''' A class to hold type 002 station information records for a single station.
@@ -172,27 +174,96 @@ def merge_t2_intervals(t2_list):
         This function is mainly used in the following case: suppose we have a
         list of Type002 records, e.g. as extracted from a log file. It might 
         be the case that two consecutive records have all elements equal (e.g. 
-        the may only differ in the cut-off angle which is not recorded in the 
+        they may only differ in the cut-off angle which is not recorded in the 
         Type002 records but is recorded in the log files) but are marked as 
-        speperate intervals in the log file and in the input list.
+        seperate intervals in the log file and in the input list.
         This function will join two such intervals if they are consecutive and
         the end/start datetime of the two intervals are less than 12 hours
         aprart.
     """
 
-    def merget2(t2_list):
-        for idx, val in enumerate(t2_list[0:-1]):
-            t20 = val
-            t21 = t2_list[idx+1]
-            if t20.equal_except_dates(t21):
-                if t20.stop_date - t21.start_date < datetime.timedelta(hours=12):
-                    return idx
-        return None
-    
-    idx = merget2(t2_list)
-    while idx is not None:
-        t2_list[idx+1].start_date = t2_list[idx].start_date
-        t2_list = t2_list[0:idx] + t2_list[idx+1:]
-        idx = merget2(t2_list)
+    #def merget2(t2_list):
+    #    for idx, val in enumerate(t2_list[0:-1]):
+    #        t20 = val
+    #        t21 = t2_list[idx+1]
+    #        if t20.equal_except_dates(t21):
+    #            if t20.stop_date - t21.start_date < datetime.timedelta(hours=12):
+    #                return idx
+    #    return None
+    #
+    #idx = merget2(t2_list)
+    #while idx is not None:
+    #    t2_list[idx+1].start_date = t2_list[idx].start_date
+    #    t2_list = t2_list[0:idx] + t2_list[idx+1:]
+    #    idx = merget2(t2_list)
     
     return t2_list
+
+def match_epoch(t,t2list):
+    for rec in t2list:
+        if t>=rec.start_date and t<rec.stop_date:
+            return rec
+    #for rec in t2list:
+    #    if t==rec.stop_date:
+    #        return rec
+    #print('{:}/{:}/{:}'.format(t > t2list[len(t2list)-1].start_date, t2list[len(t2list)-1].stop_date == MAX_STA_DATE, t == MAX_STA_DATE))
+    #print('Last Stop date {:}'.format(t2list[len(t2list)-1].stop_date))
+    #if t > t2list[len(t2list)-1].start_date and t2list[len(t2list)-1].stop_date == MAX_STA_DATE and t == MAX_STA_DATE:
+    #    return t2list[len(t2list)-1]
+    return None
+
+def non_strict_comparisson(t1, t2, t1_source='N/A', t2_source='N/A', print_warning=False):
+    #print('{:} records'.format(t1_source))
+    #for i in t1: print('\t{:}'.format(i))
+    #print('{:} records'.format(t2_source))
+    #for i in t2: print('\t{:}'.format(i))
+    wrn_print = print if print_warning else noop
+    error = 0
+    if len(t1) < len(t2):
+        t1, t2 = t2, t1
+        t1_source, t2_source = t2_source, t1_source
+    
+    for interval in t1:
+        rec2 = match_epoch(interval.start_date,t2)
+        #print('Requested data for date: {:}, interval [{:} to {:}]'.format(interval.start_date, interval.start_date, interval.stop_date))
+        #print(vars(rec2))
+        #print('Comparing to:')
+        #print(vars(interval))
+        for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up']:
+            #print('[{:}] Vs [{:}]'.format(interval.antenna_t, rec2.antenna_t))
+            if vars(interval)[key] != vars(rec2)[key]:
+                print('[ERROR] (#1) Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> [{:}]/[{:}] {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key], t1_source, t2_source), file=sys.stderr)
+                error += 1
+                #sys.exit(999)
+        for key in ['receiver_sn', 'receiver_nr', 'antenna_sn', 'antenna_nr', 'remark', 'description']:
+            if vars(interval)[key] != vars(rec2)[key]:
+                wrn_print('[WRNNG] Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key]), file=sys.stderr)
+        
+        ## it sometimes happen that the .STA file (seen in EUREF.STA), does
+        ## not expand to eternity (aka the last interval's ending time is not
+        ## MAX_STA_DATE) but is a datetime fdar away (usually 2099-12-31 
+        ## 00:00:00). Hence, if we ask for the Type002 records at MAX_STA_DATE
+        ## we are going to get back None!
+        epoch = (datetime.datetime.now() if interval.stop_date == MAX_STA_DATE else interval.stop_date) - datetime.timedelta(seconds=1)
+        assert(epoch >= interval.start_date)
+        rec2 = match_epoch(epoch,t2)
+        #print('Requested data for date: {:}, interval [{:} to {:}]'.format(epoch, interval.start_date, interval.stop_date))
+        #print(vars(rec2))
+        #print('Comparing to:')
+        #print(vars(interval))
+        #print('searching info for: {:}'.format(interval.stop_date))
+        #print('got: {:}'.format(rec2))
+        #print('date is max? {:}'.format(interval.stop_date == MAX_STA_DATE))
+        if rec2 is None and interval.stop_date == MAX_STA_DATE and t2[len(t2)-1].stop_date >= datetime.datetime(2099, 12, 31):
+            rec2 = match_epoch(datetime.datetime(2099, 12, 31),t2)
+            wrn_print('[WRNNG] Interval seems to be artificial ({:}), not expanding to eternity ... Probably a EUREF Sta file (resuming).'.format(t2[len(t2)-1].stop_date))
+        for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up']:
+            if vars(interval)[key] != vars(rec2)[key]:
+                print('[ERROR] (#2) Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> [{:}]/[{:}] {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key], t1_source, t2_source), file=sys.stderr)
+                error += 1
+                #sys.exit(999)
+        for key in ['receiver_sn', 'receiver_nr', 'antenna_sn', 'antenna_nr', 'remark', 'description']:
+            if vars(interval)[key] != vars(rec2)[key]:
+                wrn_print('[WRNNG] Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key]), file=sys.stderr)
+
+    return error

@@ -154,6 +154,16 @@ STATION NAME          FLG          FROM                   TO         OLD STATION
                     return False
         return True
 
+    def different_keys(self, t001_instance, exclude_keys=[]):
+        different_keys = []
+        t10 = vars(self)
+        t11 = vars(t001_instance)
+        for key in t10:
+            if key not in exclude_keys:
+                if t10[key] != t11[key]:
+                    different_keys.append(key)
+        return different_keys
+
     def __str_format__(self):
         ''' Format the instance as a valid Type 001 record
     '''

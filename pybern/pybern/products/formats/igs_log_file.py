@@ -11,7 +11,7 @@ bernp_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
 sys.path.append(bernp_dir)
 #from bernsta_station import StationRecord
 from bernsta_003 import Type003Record
-from bernsta_002 import Type002Record, merge_t2_intervals
+from bernsta_002 import Type002Record, merge_t2_intervals, MAX_STA_DATE
 from bernsta_001 import Type001Record
 
 def parse_log_date(dstr):
@@ -20,9 +20,9 @@ def parse_log_date(dstr):
     elif re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\s*$", dstr):
         return datetime.datetime.strptime(dstr, "%Y-%m-%d")
     elif re.match(r"^\s*\(?CCYY-MM-DDThh:mmZ\)?\s*$", dstr):
-        return datetime.datetime.max
+        return MAX_STA_DATE ##datetime.datetime.max
     elif re.match(r"^\s*$", dstr):
-        return datetime.datetime.max
+        return MAX_STA_DATE ##datetime.datetime.max
     errmsg = '[ERROR] Invalid log datetime string: {:}'.format(dstr)
     raise RuntimeError(errmsg)
 
@@ -185,7 +185,7 @@ def block2intervals(block):
   for interval in block:
     start = install_date(block[interval])
     stop = remove_date(block[interval])
-    intervals.append((start, stop))
+    intervals.append([start, stop])
   return intervals
 
 def make_intervals(b3, b4):
@@ -196,55 +196,100 @@ def make_intervals(b3, b4):
   """
   b3_intervals = sorted(block2intervals(b3), key=lambda t: t[0])
   b4_intervals = sorted(block2intervals(b4), key=lambda t: t[0])
-  min3 = b3_intervals[0][0]
-  min4 = b4_intervals[0][0]
-  bfirst = b3_intervals
-  bsecond = b4_intervals
-  if min4 < min3:
-    bfirst, bsecond = b4_intervals, b3_intervals
+  ## check if we have any missing intervals ....
+  b3_missing = []
+  idx = 0
+  while idx < len(b3_intervals) - 1:
+      if b3_intervals[idx][1] < b3_intervals[idx+1][0]:
+          print('[WRNNG] Missing interval {:} to {:} : no receiver info'.format(b3_intervals[idx][1].strftime('%Y/%m/%d %H:%M:%S'), b3_intervals[idx+1][0].strftime('%Y/%m/%d %H:%M:%S')))
+          b3_missing.append([b3_intervals[idx][1], b3_intervals[idx+1][0]])
+      idx += 1
+  b4_missing = []
+  idx = 0
+  while idx < len(b4_intervals) - 1:
+      if b4_intervals[idx][1] < b4_intervals[idx+1][0]:
+          print('[WRNNG] Missing interval {:} to {:} : no antenna info'.format(b4_intervals[idx][1].strftime('%Y/%m/%d %H:%M:%S'), b4_intervals[idx+1][0].strftime('%Y/%m/%d %H:%M:%S')))
+          b4_missing.append([b4_intervals[idx][1], b4_intervals[idx+1][0]])
+      idx += 1
+
+  ## merge lists, dummy sort on first element
+  newl = sorted(b3_intervals+b4_intervals, key=lambda t: t[0])
+  #for i in newl: print(i)
+  #print('--------------------------------------------------------------------')
+
+  idx = 0
+  current_start = newl[0][0]
+  dummy=0 ## just to be sure we wont be looping for eternity
+  while idx < len(newl) and dummy<500:
+      if idx+1 < len(newl) :
+          #print('\tcomparing {:} and {:}, current start = {:}'.format(newl[idx], newl[idx+1], current_start));
+          assert(newl[idx+1][0] >= current_start)
+            
+          ## intervals are equal, only keep one and go on ...
+          if newl[idx] == newl[idx+1]:
+              #print('\ttuples are equal ...')
+              newl = newl[0:idx] + newl[idx+1:]
+
+          ## intervals are already ordered, go on ...
+          elif newl[idx][0] <= newl[idx][1] <= newl[idx+1][0] <= newl[idx+1][1]:
+              #print('\tintervals already ordered ...')
+              current_start = newl[idx+1][0]
+              idx += 1
+
+          ## e.g. [n, n+1],[n+1, n+2]
+          elif newl[idx+1][0] == current_start:
+              midpoint = min(newl[idx][1], newl[idx+1][1])
+              endpoint = max(newl[idx][1], newl[idx+1][1])
+              #print('\tnew intervals {:}/{:} instead of {:}/{:}'.format([current_start, midpoint], [midpoint, endpoint], newl[idx], newl[idx+1]))
+              newl[idx] = [current_start, midpoint]
+              newl[idx+1] = [midpoint, endpoint]
+              current_start = midpoint
+              idx += 1
+            
+          ## messed up intervals handled here, e.g. [n, n+2],[n+1, n+2]
+          ## will result in [n,n+1],[n+1,n+2]
+          elif newl[idx+1][0] < newl[idx][1]:
+              midpoint = min(newl[idx][1], newl[idx+1][1])
+              endpoint = max(newl[idx][1], newl[idx+1][1])
+              newl = newl[0:idx] + [ [newl[idx][0], newl[idx+1][0]], [newl[idx+1][0],midpoint], [midpoint,endpoint] ] +  newl[idx+2:]
+              current_start = midpoint
+              idx+=2
+
+          #for i in newl: print(i)
+          #print('--------------------------------------------------------------------')
+      
+      #else: break
+      dummy += 1
   
-  intervals = []
-  for interval in bfirst:
-    start = interval[0]
-    stop = interval[1]
-    #print('>> checking interval {:}-{:}'.format(start, stop))
+  if len(newl) > 1:
+    if newl[len(newl)-2] == newl[len(newl)-1]: newl = newl[0:-1]
+    if newl[len(newl)-1] == [MAX_STA_DATE, MAX_STA_DATE]: newl = newl[0:-1]
 
-    for int2 in bsecond:
-      start2 = int2[0]
-      stop2 = int2[1]
-      
-      if start2 <= start and stop2 >= stop:
-        intervals.append(interval)
-      
-      elif start2>stop:
+  ## validate
+  # for i in newl: print(i)
+  newlc=[]
+  for i,v in enumerate(newl):
+      if v[0] == v[1]:
         pass
-      
-      elif start2 >= start:
-        if start2 == start and stop2 == stop:
-          pass
-        
-        elif stop2 < stop:
-          ## subinterval: start ... start2 ... stop2 ... stop
-          intervals.append((start, start2))
-          intervals.append((start2, stop2))
-          start = stop2
-        
-        elif stop2 >= stop:
-          ## interval outside limits: start ... start2 ... stop ... stop2
-          intervals.append((start, start2))
-          intervals.append((start2, stop))
-          start = stop
-          stop = stop2
-        
-        else:
-          ## should never reach this point!
-          raise RuntimeError()
+      else:
+        assert(v[0] < v[1])
+        newlc.append(v)
+      if i+1 < len(newl):
+          assert(v[1] <= newl[i+1][0])
+  newl = newlc
+  
+  ## remove any info-missing intervals
+  newlc=[]
+  for i,v in enumerate(newl):
+      if v in b3_missing or v in b4_missing:
+          print('[WRNNG] Removing interval {:} to {:} cause of missing info ...'.format(v[0].strftime('%Y/%m/%d %H:%M:%S'), v[1].strftime('%Y/%m/%d %H:%M:%S')))
+      else:
+          newlc.append(v)
 
-  return intervals
+  return newlc
 
 def install_date(sub_dict):
   return parse_log_date(sub_dict['Date Installed'])
-
 
 def remove_date(sub_dict):
   return parse_log_date(sub_dict['Date Removed'])
@@ -257,7 +302,7 @@ def block_info_at(t, b):
       If no matching interval is found, it will return None
   """
   for sb in b:
-    if install_date(b[sb]) < t and remove_date(b[sb]) > t:
+    if install_date(b[sb]) <= t and remove_date(b[sb]) > t:
       return b[sb]
   return None
 
@@ -379,5 +424,10 @@ class IgsLogFile:
               os.path.basename(self.filename)), receiver_type=recinfo['Receiver Type'], receiver_serial=recinfo['Serial Number'], antenna_type=antinfo['Antenna Type'],
               antenna_serial=antinfo['Serial Number'], delta_north=float(antinfo['Marker->ARP North Ecc(m)']), delta_east=float(antinfo['Marker->ARP East Ecc(m)']), delta_up=float(antinfo['Marker->ARP Up Ecc. (m)']))
           t2records.append(t2)
-      
+ 
+      #print('T2 Records:')
+      #print('-----------------------------------------------------------------------')
+      #for i in t2records: print(i)
+      #print('Last date is {:} (max={:})'.format(t2records[len(t2records)-1].stop_date, t2records[len(t2records)-1].stop_date==MAX_STA_DATE))
+      #print('-----------------------------------------------------------------------')
       return merge_t2_intervals(t2records)

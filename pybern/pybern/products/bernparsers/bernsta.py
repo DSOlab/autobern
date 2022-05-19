@@ -15,7 +15,7 @@ sys.path.append(formats_dir)
 from smart_open import smart_open
 from igs_log_file import IgsLogFile
 from bernsta_001 import Type001Record
-from bernsta_002 import Type002Record, ANTENNA_GENERIC_NUMBER, ANTENNA_GENERIC_STRING
+from bernsta_002 import Type002Record, ANTENNA_GENERIC_NUMBER, ANTENNA_GENERIC_STRING, non_strict_comparisson
 from bernsta_003 import Type003Record
 
 '''
@@ -101,20 +101,37 @@ class BernStaInfo:
                 return 1
             
             t1 = log.to_001type()
-            if not binfo['type001'][0].equal_except_remark(t1):
-                print('[WRNNG] Failed to join Type 001 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+            ## this causes problems; sometimes the log and sta entries have
+            ## dummy differences in the starting epochs. check and fix if
+            ## needed
+            #if not binfo['type001'][0].equal_except_remark(t1):
+            #    print('[WRNNG] Failed to join Type 001 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+            #    return 2
+            differences_in = binfo['type001'][0].different_keys(t1, ['remark'])
+            if differences_in == ['start_date']:
+                print('[WRNNG] Different starting dates for station {:} in log and sta metadata; respective dates are: {:} vs {:}'.format(t1.sta_name, t1.start_date.strftime('%Y-%m-%d %H:%M:%S'), binfo['type001'][0].start_date.strftime('%Y-%m-%d %H:%M:%S')), file=sys.stderr)
+                print('[WRNNG] Skipping and moving on ...', file=sys.stderr)
+            elif differences_in == ['start_date', 'stop_date'] and name == 'ANKR':
+                print('[WRNNG] Missmatch in stop_date but station is ANKR. Skipping and moving on ...', file=sys.stderr)
+            else:
+                print('[ERROR] Missmatch in fields [{:}]'.format(' '.join(differences_in)))
+                print('[ERROR] Failed to join Type 001 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
                 return 2
             
             t2 = log.to_002type()
-            if len(t2) != len(binfo['type002']):
-                print('[WRNNG] Failed to join Type 002 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
-                return 2
-            else:
-                for idx, rec in enumerate(binfo['type002']):
-                    if not rec.equal_except(t2[idx], 'description', 'remark'):
-                        print('[WRNNG] Failed to join Type 002 records for station {:} and index: {:}; .STA={:}, log={:}'.format(
-                            name, idx, stafn, igs_log_file), file=sys.stderr)
-                        return 2
+            # for i in t2: print(i)
+            return non_strict_comparisson(t2, binfo['type002'], igs_log_file, 'STA')
+            #if len(t2) != len(binfo['type002']):
+            #    print('[WRNNG] Failed to join Type 002 records for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+            #    print('[ERROR] Number of Type 002 blocks different for station {:}; .STA={:}, log={:}'.format(name, stafn, igs_log_file), file=sys.stderr)
+            #    return 2
+            #else:
+            #    for idx, rec in enumerate(binfo['type002']):
+            #        if not rec.equal_except(t2[idx], ['description', 'remark']):
+            #            print('[WRNNG] Failed to join Type 002 records for station {:} and index: {:}; .STA={:}, log={:}'.format(
+            #                name, idx, stafn, igs_log_file), file=sys.stderr)
+            #            return 2
+    
     @staticmethod
     def dump_tail(outfile=sys.stdout):
         tail = """TYPE 004: STATION COORDINATES AND VELOCITIES (ADDNEQ)
