@@ -323,13 +323,14 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
             remote_fn = remote_dir + rfn
             verboseprint("[DEBUG] This is the remote file we should download: {:} (local: {:})".format(remote_fn, lfn))
             use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
-            try:
-                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
-                verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
-                holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
-                return
-            except:
-                print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
+            #try:
+            status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
+            if status == 0 and os.path.isfile(saveas): return
+            #    verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
+            #    holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
+            #    return
+            #except:
+            #    print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
 
 def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
     """ Given a cursor to the GNSS database, perform a station query as

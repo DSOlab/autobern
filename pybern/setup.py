@@ -7,5 +7,5 @@ setuptools.setup(name='pybern',
     author='Xanthos Papanikolaou, Dimitris Anastasiou',
     author_email='xanthos@mail.ntua.gr, danast@mail.ntua.gr',
     packages=setuptools.find_packages(),#['pystrain', 'pystrain.geodesy', 'pystrain.iotools'],
-    install_requires=['requests']
+    install_requires=['requests','paramiko', 'scp']
     )

@@ -12,6 +12,8 @@ import urllib.request
 from urllib.error import HTTPError, URLError
 import socket
 import ftplib
+import paramiko
+from scp import SCPClient
 
 def url_split(target):
     return target[0:target.rindex('/')], target[target.rindex('/') + 1:]
@@ -120,6 +122,47 @@ def ftp_retrieve(url, filename=None, **kwargs):
 
     return status, target, saveas
 
+def createSSHClient(server, port, user, password, timeout):
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(server, port, user, password, timeout=float(timeout))
+    return client
+
+def scp_retrieve(url, filename=None, **kwargs):
+    """ Expects url = 'ssh://147.102.106.88/foo/bar/koko.rnx'
+    """
+    if filename is None:
+        url, filename = url_split(url)
+    saveas = kwargs['save_as'] if 'save_as' in kwargs else filename
+    if 'save_dir' in kwargs:
+        if not os.path.isdir(kwargs['save_dir']):
+            msg = '[ERROR] retrieve::http_retrieve Directory does not exist {:}'.format(
+                kwargs['save_dir'])
+            raise RuntimeError(msg)
+        saveas = os.path.join(kwargs['save_dir'], saveas)
+    if not 'fail_error' in kwargs:
+        kwargs['fail_error'] = True
+    
+    ## username or password key(s) in kwargs
+    if set(['username', 'password']).intersection(set(kwargs)):
+        username = kwargs['username'] if 'username' in kwargs else ''
+        password = kwargs['password'] if 'password' in kwargs else ''
+
+    # Note that the urls is something like:
+    # ssh://147.102.106.88/foo/bar/koko.rnx -- get the ip
+    g=re.match(r'ssh://(([0-9]{1,3}\.?){4})', url)
+    server = g.group(1)
+    ## remote (path +)filename
+    remote_pfn = os.path.join(url.replace(g.group(0),''), filename) 
+
+    ssh = createSSHClient(server, 9785, username, password, 10)
+    scp = SCPClient(ssh.get_transport())
+    scp.get(remote_pfn)
+    scp.close()
+
+    os.rename(filename, saveas)
+    return 0, url, saveas
 
 def http_retrieve(url, filename=None, **kwargs):
     """
@@ -200,6 +243,8 @@ def web_retrieve(url, **kwargs):
         return http_retrieve(url, filename, **kwargs)
     elif url.startswith('ftp'):
         return ftp_retrieve(url, filename, **kwargs)
+    elif url.startswith('ssh'):
+        return scp_retrieve(url, filename, **kwargs)
     else:
         msg = '[ERROR] retrieve::web_retrieve Unknown url protocol {:}'.format(
             url)
