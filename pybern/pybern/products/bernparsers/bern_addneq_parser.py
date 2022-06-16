@@ -117,7 +117,8 @@ def parse_addneq_out(istream):
         assert (len(cols) == 2)
         dct[key][cols[1]] = {
             'file': int(cols[0])
-        }  ## aka dct[input_normal_equation_files][${P}/GREECE/SOL/DSO0630001.NQ0] = { 'file': 1, ...}
+        }
+        ## aka dct[input_normal_equation_files][${P}/GREECE/SOL/DSO0630001.NQ0] = { 'file': 1, ...}
         line = istream.readline()
     assert (line.lstrip().startswith(
         '--------------------------------------------------------------------------'
@@ -150,7 +151,7 @@ def parse_addneq_out(istream):
     assert (line.lstrip().startswith('---------------------------'))
     line = istream.readline()
     tmp_index_list = []
-    while line and len(line) > 90:
+    while line and len(line) > 90 and not line.lstrip().startswith('---------------------------'):
         cols = line.split()
         assert (len(cols) == 8)
         nq_file_name = nq_index_to_file(dct, int(cols[0]))
