@@ -9,10 +9,10 @@ fi
 
 CONFIG=config.enceladus
 
-## get the date 15 days ago
-year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
-yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
-doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
+## get the date 1 days ago
+year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 2)).strftime(\"%Y\")))")
+yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 2)).strftime(\"%y\")))")
+doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 2)).strftime(\"%j\")))")
 idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 ## we need to make an a-priori crd file for the BPE
@@ -35,6 +35,9 @@ python3 ${ABPE_DIR}/bin/rundd.py \
   --use-euref-exclusion-list \
   --min-reference-stations 8 \
   --aprinf REG${yr2}${doy}0 \
+  --download-max-tries 8 \
+  --download-sleep-for 300 \
+  --ts-file-name '${site_id}/${site_id}.cts_r' \
   || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 
 rm ${HOME}/tables/crd/REG${yr2}${doy}0.CRD

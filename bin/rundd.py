@@ -211,7 +211,8 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
     if product_dir is None: product_dir = os.getcwd()
 
     ## download sp3
-    for count,orbtype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
+    ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
+    for count,orbtype in enumerate(ptypes):
         try:
             status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=product_dir)
             verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
@@ -219,9 +220,12 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
             break
         except:
             verboseprint('[DEBUG] Failed downloading sp3 file of type {:}'.format(orbtype))
+            if count != len(ptypes) - 1:
+                verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
 
     ## download erp
-    for count,erptype in enumerate(['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']):
+    ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
+    for count,erptype in enumerate(ptypes):
         try:
             status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=product_dir)
             verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
@@ -229,9 +233,12 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
             break
         except:
             verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
+            if count != len(ptypes) - 1:
+                verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
     
     ## download ion
-    for count,iontype in enumerate(['final', 'rapid', 'urapid', 'current']):
+    ptypes = ['final', 'rapid', 'urapid', 'current']
+    for count,iontype in enumerate(ptypes):
         try:
             status, remote, local = get_ion(type=iontype, pydt=dt, save_dir=product_dir)
             verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
@@ -239,6 +246,8 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
             break
         except:
             verboseprint('[DEBUG] Failed downloading ion file of type {:}'.format(iontype))
+            if count != len(ptypes) - 1:
+                verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
     
     ## download dcb
     days_dif = (datetime.datetime.now() - dt).days
