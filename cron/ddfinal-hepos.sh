@@ -7,10 +7,11 @@ if ! test -d $ABPE_DIR
   exit 1
 fi
 
-year=2021
-yr2=21
+year=2015
+yr2=15
+doy=001
 
-for doy in {151..180} ; do
+#for doy in {151..180} ; do
   idoy=$(echo $doy | sed 's/^0*//g')
 
 ## we need to make an a-priori crd file for the BPE
@@ -38,6 +39,6 @@ for doy in {151..180} ; do
 
   rm ${HOME}/tables/crd/REG${yr2}${doy}0.CRD
 
-done
+#done
 
 exit 0

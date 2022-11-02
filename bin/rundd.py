@@ -194,89 +194,101 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
         ## replace/append in temp_files list
         if add2temp_files: update_temp_files(target, source)
 
-def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2temp_files=True):
+def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, verbose=False, add2temp_files=True):
     """ Download products for date 'dt', using the credentials file 
         'credentials_file', to the directory 'product_dir' and if needed, add 
         them to temp_files list. The function will also decompress the
         downloaded files (if needed).
+
+        Return: dictionary, success
+
         Returns a dictionary holding information for each product, e.g.
         return product_dict, where:
         product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
         product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
+        
+        and a boolean varibale to deonte if all products have been successefuly 
+        handled (aka True denotes success, False error)
         ...
     """
     ## write product information to a dictionary
-    product_dict = {}
+    # product_dict = {}
 
     if product_dir is None: product_dir = os.getcwd()
 
     ## download sp3
-    ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
-    for count,orbtype in enumerate(ptypes):
-        try:
-            status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=product_dir)
-            verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
-            product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
-            break
-        except:
-            verboseprint('[DEBUG] Failed downloading sp3 file of type {:}'.format(orbtype))
-            if count != len(ptypes) - 1:
-                verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
-
-    ## download erp
-    ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
-    for count,erptype in enumerate(ptypes):
-        try:
-            status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=product_dir)
-            verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
-            product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
-            break
-        except:
-            verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
-            if count != len(ptypes) - 1:
-                verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
-    
-    ## download ion
-    ptypes = ['final', 'rapid', 'urapid', 'current']
-    for count,iontype in enumerate(ptypes):
-        try:
-            status, remote, local = get_ion(type=iontype, pydt=dt, save_dir=product_dir)
-            verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
-            product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
-            break
-        except:
-            verboseprint('[DEBUG] Failed downloading ion file of type {:}'.format(iontype))
-            if count != len(ptypes) - 1:
-                verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
-    
-    ## download dcb
-    days_dif = (datetime.datetime.now() - dt).days
-    if days_dif > 0 and days_dif < 30:
-        for i in range(3):
+    if 'sp3' not in product_dict:
+        ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
+        for count,orbtype in enumerate(ptypes):
             try:
-                status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
-                product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
-                verboseprint('[DEBUG] Downloaded dcb file {:} of type {:} ({:})'.format(local, 'current', status))
+                status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=product_dir)
+                verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
+                product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
                 break
             except:
-                verboseprint('[DEBUG] Failed downloading dcb file of type {:}'.format('current'), end='')
-                if i<2:
-                    verboseprint(' retrying ...')
-                else:
-                    verboseprint(' giving up...')
-                psleep(60)                   
-    elif days_dif >= 30:
-            status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=product_dir)
-            product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
-    else:
-        print('[ERROR] Don\'t know what DCB product to download!')
-        raise RuntimeError
+                verboseprint('[DEBUG] Failed downloading sp3 file of type {:}'.format(orbtype))
+                if count != len(ptypes) - 1:
+                    verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
+
+    ## download erp
+    if 'erp' not in product_dict:
+        ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
+        for count,erptype in enumerate(ptypes):
+            try:
+                status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=product_dir)
+                verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
+                product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
+                break
+            except:
+                verboseprint('[DEBUG] Failed downloading erp file of type {:}'.format(erptype))
+                if count != len(ptypes) - 1:
+                    verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
     
-    ## if we failed throw, else decompress
+    ## download ion
+    if 'ion' not in product_dict:
+        ptypes = ['final', 'rapid', 'urapid', 'current']
+        for count,iontype in enumerate(ptypes):
+            try:
+                status, remote, local = get_ion(type=iontype, pydt=dt, save_dir=product_dir)
+                verboseprint('[DEBUG] Downloaded ion file {:} of type {:} ({:})'.format(local, iontype, status))
+                product_dict['ion'] = {'remote': remote, 'local': local, 'type': iontype}
+                break
+            except:
+                verboseprint('[DEBUG] Failed downloading ion file of type {:}'.format(iontype))
+                if count != len(ptypes) - 1:
+                    verboseprint('[DEBUG] Next try for file of type {:}'.format(ptypes[count+1]))
+    
+    ## download dcb
+    if 'dcb' not in product_dict:
+        days_dif = (datetime.datetime.now() - dt).days
+        if days_dif > 0 and days_dif < 30:
+            for i in range(3):
+                try:
+                    status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
+                    product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+                    verboseprint('[DEBUG] Downloaded dcb file {:} of type {:} ({:})'.format(local, 'current', status))
+                    break
+                except:
+                    verboseprint('[DEBUG] Failed downloading dcb file of type {:}'.format('current'), end='')
+                    if i<2:
+                        verboseprint(' retrying ...')
+                    else:
+                        verboseprint(' giving up...')
+                    psleep(60)                   
+        elif days_dif >= 30:
+                status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=product_dir)
+                product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
+        else:
+            print('[ERROR] Don\'t know what DCB product to download!')
+            raise RuntimeError
+    
+    ## if we failed throw, else decompress. Go in here only if all products
+    ## are available (in the dict)
     for product in ['sp3', 'erp', 'ion', 'dcb']:
         if product not in product_dict:
-            print('[ERROR] Failed to download (any) {:} file! Giving up ...'.format(product), file=sys.stderr)
-            raise RuntimeError
+            print('[ERROR] Failed to download (any) {:} file! Giving up current try'.format(product), file=sys.stderr)
+            # raise RuntimeError
+            return product_dict, False
         else:
             lfile = product_dict[product]['local']
             if lfile.endswith('.Z') or lfile.endswith('.gz'):
@@ -307,7 +319,7 @@ def prepare_products(dt, credentials_file, product_dir=None, verbose=False, add2
         for k,dct in product_dict.items():
             update_temp_files(dct['local'])
 
-    return product_dict
+    return product_dict, True
 
 def rinex3to2_mv(rinex_holdings, campaign_name, dt, add2temp_files=True):
     """ Rename any RINEX v3.x file found in the rinex_holdings dictionary, to
@@ -1245,7 +1257,13 @@ parser.add_argument(
                     metavar='PRODUCT_DOWNLOAD_SLEEP_FOR',
                     dest='product_download_sleep_for',
                     type=int,
-                    default=3*60)
+                    default=1*60)
+parser.add_argument(
+                    '--upload-to-epnd',
+                    action='store_true',
+                    dest='upload_to_epnd',
+                    help='If set, then the progeam will try to upload the final SINEX file to EPNDensification FTP site, using the credentials that should exist in the corresponding config file (entries: \'EPND_FTP_IP\', \'EPND_FTP_USERNAME\', \'EPND_FTP_PASSWORD\')'
+                    )
 
 if __name__ == '__main__':
 
@@ -1377,22 +1395,25 @@ if __name__ == '__main__':
     product_download_max_tries = options['product_download_max_tries']
     product_download_sleep_for = options['product_download_sleep_for']
     product_download_try = 0
-    while product_download_try < product_download_max_tries:
-        try:
-            products_dict = prepare_products(dt, options['config_file'], os.getenv('D'), options['verbose'], True)
+    products_ok = False
+    products_dict = {}
+    while product_download_try < product_download_max_tries and not products_ok:
+        #try:
+        products_dict, products_ok = prepare_products(dt, options['config_file'], products_dict, os.getenv('D'), options['verbose'], True)
             ## products downloaded and prepared; break loop
-            product_download_try = product_download_max_tries + 1
-        except Exception as e:
-            product_download_try += 1
-            print('[WRNNG] Failed downloading/preparing products. Try {:}/{:}'.format(product_download_try, product_download_max_tries), file=sys.stderr)
-            if product_download_try >= product_download_max_tries:
-                print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
-                append2f(logfn, 'Failed to download products! Traceback info {:}'.format(e), 'FATAL ERROR; Processing stoped')
-                ## Send ERROR mail 
-                with open(logfn, 'r') as lfn: message_body = lfn.read()
-                message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
-                send_report_mail(options, message_head, message_body)
-                sys.exit(1)
+            ## product_download_try = product_download_max_tries + 1
+        #except Exception as e:
+        #    product_download_try += 1
+        #    print('[WRNNG] Failed downloading/preparing products. Try {:}/{:}'.format(product_download_try, product_download_max_tries), file=sys.stderr)
+        #    if product_download_try >= product_download_max_tries:
+        #        print('[ERROR] Failed to download products! Traceback info {:}'.format(e), file=sys.stderr)
+        #        append2f(logfn, 'Failed to download products! Traceback info {:}'.format(e), 'FATAL ERROR; Processing stoped')
+        #        ## Send ERROR mail 
+        #        with open(logfn, 'r') as lfn: message_body = lfn.read()
+        #        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
+        #        send_report_mail(options, message_head, message_body)
+        #        sys.exit(1)
+        if not products_ok:
             print('[WRNNG] Sleeping for {:} seconds and retrying ....'.format(product_download_sleep_for), file=sys.stderr)
             psleep(product_download_sleep_for)
     products2dirs(products_dict, os.path.join(os.getenv('P'), options['campaign'].upper()), dt, True)
@@ -1504,7 +1525,7 @@ if __name__ == '__main__':
         compile_warnings_report(warning_messages, logfn)
 
     ## upload SINEX files if needed (SINEX to EPND ftp)
-    if not bpe_error:
+    if not bpe_error and options['upload_to_epnd']:
         if 'epnd_ftp_ip' in options and options['epnd_ftp_ip'].strip() != '':
             final_sinex, uploaded_to = upload_sinex(options)
             if not uploaded_to:

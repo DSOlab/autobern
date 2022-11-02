@@ -1,5 +1,9 @@
 #! /bin/bash
 
+args=("$@")
+before=${args[0]}
+echo "Num days before: $before"
+
 ABPE_DIR="/home/bpe/applications/autobern"
 if ! test -d $ABPE_DIR
   then
@@ -10,9 +14,9 @@ fi
 CONFIG=config.enceladus
 
 ## get the date 1 days ago
-year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 2)).strftime(\"%Y\")))")
-yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 2)).strftime(\"%y\")))")
-doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 2)).strftime(\"%j\")))")
+year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = $before)).strftime(\"%Y\")))")
+yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = $before)).strftime(\"%y\")))")
+doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = $before)).strftime(\"%j\")))")
 idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 ## we need to make an a-priori crd file for the BPE

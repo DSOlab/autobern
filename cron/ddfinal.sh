@@ -35,6 +35,7 @@ python3 ${ABPE_DIR}/bin/rundd.py \
   --use-euref-exclusion-list \
   --min-reference-stations 10 \
   --aprinf REG${yr2}${doy}0 \
+  --upload-to-epnd \
   || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 
 rm ${HOME}/tables/crd/REG${yr2}${doy}0.CRD
