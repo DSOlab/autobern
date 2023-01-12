@@ -7,11 +7,11 @@ if ! test -d $ABPE_DIR
   exit 1
 fi
 
-year=2015
-yr2=15
-doy=001
+year=2021
+yr2=21
+#doy=020
 
-#for doy in {151..180} ; do
+for doy in {123..365} ; do
   idoy=$(echo $doy | sed 's/^0*//g')
 
 ## we need to make an a-priori crd file for the BPE
@@ -34,11 +34,10 @@ doy=001
     --use-euref-exclusion-list \
     --min-reference-stations 10 \
     --aprinf REG${yr2}${doy}0 \
-    || echo "ERROR. BPE and/or rundd script failed!"
-#    || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
+    || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 
   rm ${HOME}/tables/crd/REG${yr2}${doy}0.CRD
 
-#done
+done
 
 exit 0

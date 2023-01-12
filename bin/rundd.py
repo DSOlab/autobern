@@ -816,13 +816,17 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
         version_info = {}
         for staid,rnx_dct in rinex_holdings.items():
             if not rnx_dct['exclude']:
+                print('opening file {:}'.format(rnx_dct['local']))
                 with open(rnx_dct['local'], 'r') as fin:
-                    fline = fin.readline()
-                    if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
-                        print('[WRNNG] RINEX file {:} is missing version field!'.format(rnx_dct['local']), file=sys.stderr)
-                        version = 'unknown'
-                    else:
-                        version = fline.split()[0].strip()
+                    try:
+                      fline = fin.readline()
+                      if not fline.rstrip().endswith('RINEX VERSION / TYPE'):
+                          print('[WRNNG] RINEX file {:} is missing version field!'.format(rnx_dct['local']), file=sys.stderr)
+                          version = 'unknown'
+                      else:
+                          version = fline.split()[0].strip()
+                    except:
+                      version = 'unknown'
                 if version in version_info:
                     version_info[version] += 1
                 else:

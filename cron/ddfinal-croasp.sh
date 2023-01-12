@@ -7,7 +7,7 @@ if ! test -d $ABPE_DIR
   exit 1
 fi
 
-CONFIG=config.enceladus
+CONFIG=config.greece
 
 ## get the date 15 days ago
 year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
