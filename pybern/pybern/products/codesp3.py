@@ -23,9 +23,10 @@ FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 def get_sp3_final_target(**kwargs):
     """ Final Orbit information in SP3 format from COD
 
-      CODwwwwd.EPH.Z    CODE final GNSS orbits
+      CODwwwwd.EPH.Z    CODE final GNSS orbits (up to 2237)
       COXwwwwd.EPH.Z    CODE final GLONASS orbits (for GPS weeks
                         0990 to 1066)
+      COD0OPSFIN_yyyyddd0000_01D_05M_ORB.SP3.gz (from 2238)
 
       kwargs that matter:
       format='sp3' Optional but if given it must be sp3
@@ -34,7 +35,7 @@ def get_sp3_final_target(**kwargs):
         The latter (cox) are only available within the interval for GPS weeks
         0990 to 1066
       To provide a date, use either:
-        * pydt=datetime.datetime(...) or 
+        * pydt=datetime.datetime(...) or
         * year=... and doy=...
 
       Default values:
@@ -63,11 +64,19 @@ def get_sp3_final_target(**kwargs):
     pydt = _date(**kwargs)  ## this may throw
     week, sow = pydt2gps(pydt)
     acn = 'COD' if kwargs['acid'] == 'cod' else 'COX'
-    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-    frmt = 'EPH'
+
+    if week <= 2237:
+        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+        frmt = 'EPH'
+        eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
+    else:
+        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+        frmt = 'SP3'
+        eph = '{:}0OPSFIN_{:}0000_01D_05M_ORB.{:}.gz'.format(acn, sdate, frmt)
+
     url_dir = '{:}'.format(pydt.strftime('%Y'))
 
-    eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
+    #eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     target = '{:}/CODE/{:}/{:}'.format(CODE_URL, url_dir, eph)
     return target
 
@@ -80,7 +89,7 @@ def get_sp3_rapid_target(**kwargs):
       type='frapid' Cn be any of current, current-5d, .... (see Table below)
       acid='cod' Optional but if given it must be 'cod'
       To provide a date, use either:
-        * pydt=datetime.datetime(...) or 
+        * pydt=datetime.datetime(...) or
         * year=... and doy=...
 
       Default values:
@@ -106,7 +115,7 @@ def get_sp3_rapid_target(**kwargs):
       CODwwwwd.EPH_P    CODE 24-hour GNSS orbit predictions
       CODwwwwd.EPH_P2   CODE 48-hour GNSS orbit predictions
       CODwwwwd.EPH_5D   CODE 5-day GNSS orbit predictions
-      
+
       type=current               | COD.EPH_U
       type=current-5d            | COD.EPH_5D
       type=urapid or ultra-rapid | CODwwwwd.EPH_U
@@ -173,18 +182,18 @@ def get_sp3(**kwargs):
       acid: 'cod' or 'cox' for final, GLONASS only solutions
       type='final', rapid, prediction, .... (see Table)
       save_as: '/some/path/foo.ION' Rename downloaded file to this filename
-      save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
+      save_dir: 'foo/bar' Directory to save remote file; if both save_dir and
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
       To provide a date, use either:
-        * pydt=datetime.datetime(...) or 
+        * pydt=datetime.datetime(...) or
         * year=... and doy=...
 
       Default values:
       kwargs['format'] = sp3
       kwargs['acid'] = cod
       kwargs['type'] = final
-      
+
       type=final
       CODwwwwd.EPH.Z    CODE final GNSS orbits
       COXwwwwd.EPH.Z    CODE final GLONASS orbits (for GPS weeks
@@ -230,8 +239,17 @@ def get_sp3(**kwargs):
         target = get_sp3_rapid_target(**kwargs)
 
     indct = {}
+    ## Rename LONG NAME to old names
+    ##+not e pemanent solution check again
+    pydt = _date(**kwargs)  ## this may throw
+    week, sow = pydt2gps(pydt)
+
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
+    elif week >= 2238 and kwargs['type'] == 'final':
+        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+        frmt = 'EPH'
+        indct['save_as'] = 'COD{:}.{:}.Z'.format(sdate, frmt)
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
     status, remote, local = web_retrieve(target, **indct)
@@ -239,8 +257,8 @@ def get_sp3(**kwargs):
 
 
 def list_products():
-    print(""" Information on Sp3 products available via CODE's ftp site can be 
-  found at: {:}. Here is a table of products that can be downloaded via this 
+    print(""" Information on Sp3 products available via CODE's ftp site can be
+  found at: {:}. Here is a table of products that can be downloaded via this
   script:\n
 
   _Available files in FTP____________________________________________________
@@ -267,13 +285,28 @@ def list_products():
   yyyy/
   CODwwwwd.EPH.Z    CODE final GNSS orbits
   COXwwwwd.EPH.Z    CODE final GLONASS orbits (for GPS weeks
-                    0990 to 1066)
+                    0990 to 1066
+     --- from 2022 331 (gps week = 2238) ---
+  COD0OPSFIN_yyyyddd0000_01D_05M_ORB.SP3.gz
+                    CODE final GNSS orbits
+
   yyyy_M/
   CODwwwwd.EPH_M.Z  CODE final rapid GNSS orbits (**)
-    
+
   _Arguments for Products____________________________________________________
   type=final, acid=cod       | CODwwwwd.EPH.Z
   type=final, acid=cox       | COXwwwwd.EPH.Z
+  type=current               | COD.EPH_U
+  type=current-5d            | COD.EPH_5D
+  type=urapid or ultra-rapid | CODwwwwd.EPH_U
+  type=frapid or final-rapid | CODwwwwd.EPH_M
+  type=erapid or early-rapid | CODwwwwd.EPH_R
+  type=prediction            | CODwwwwd.EPH_P
+  type=p2                    | CODwwwwd.EPH_P2
+  type=p5                    | CODwwwwd.EPH_5D
+  --after 2022 331 (gpsd week = 2238)
+  type=final, acid=cod       | COD0OPSFIN_yyyyddd0000_01D_05M_ORB.SP3.gz
+  type=final, acid=cox       | (**)
   type=current               | COD.EPH_U
   type=current-5d            | COD.EPH_5D
   type=urapid or ultra-rapid | CODwwwwd.EPH_U

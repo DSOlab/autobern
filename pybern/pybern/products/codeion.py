@@ -28,7 +28,7 @@ def get_ion_final_target(**kwargs):
       acid='coe' to get the EUREF solution.
       type='final' Optional but if given must be 'final'
       To provide a date, use either:
-        * pydt=datetime.datetime(...) or 
+        * pydt=datetime.datetime(...) or
         * year=... and doy=...
 
       Default values:
@@ -39,6 +39,13 @@ def get_ion_final_target(**kwargs):
       --------+-----------------------------+------------------------------+
       acid=coe|BSWUSER52/ATM/yyyy/COEyyddd.INX.Z| BSWUSER52/ATM/yyyy/COEyyddd.ION.Z|
       acid=cod|CODE/yyyy/CODGddd0.yyI.Z     | CODE/yyyy/CODwwwwd.ION.Z     |
+
+      type=final (from week 2238)
+      ---------------+-----------------------------+------------------------+
+      acid=cod       |CODE/yyyy/                                            |
+      format=ionex   |          COD0OPSFIN_yyyyddd0000_01D_01H_GIM.INX.gz   |
+      format=bernese |          COD0OPSFIN_yyyyddd0000_01D_01H_GIM.ION.gz   |
+      ---------------+-----------------------------+------------------------+
   """
     if 'format' in kwargs and kwargs['format'] not in [
             'ionex', 'inx', 'ion', 'bernese'
@@ -59,6 +66,7 @@ def get_ion_final_target(**kwargs):
 
     pydt = _date(**kwargs)  ## this may throw
     yy, ddd = pydt2yydoy(pydt)
+    week, sow = pydt2gps(pydt)
     if kwargs['format'] in ['bernese', 'ion']:
         frmt = 'ION'
     else:
@@ -75,19 +83,23 @@ def get_ion_final_target(**kwargs):
         url_dir = 'CODE/{:}'.format(pydt.strftime("%Y"))
         if kwargs['format'] in ['bernese', 'ion']:
             acn = 'COD'
-            week, sow = pydt2gps(pydt)
-            sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+            if week <= 2237:
+                sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+                ion = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
+            else:
+                sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+                ion = '{:}0OPSFIN_{:}0000_01D_01H_GIM.{:}.gz'.format(acn, sdate, frmt)
         else:
             acn = 'CODG'
             sdate = '{:03d}0'.format(ddd)
+            ion = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
 
-    ion = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, ion)
     return target
 
 
 def get_ion_rapid_target(**kwargs):
-    """ Rapid or Ultra-rapid ionosphere information in IONEX or Bernese format 
+    """ Rapid or Ultra-rapid ionosphere information in IONEX or Bernese format
       from COD
 
       CORGddd0.yyI.Z    CODE rapid ionosphere product, IONEX format
@@ -98,7 +110,7 @@ def get_ion_rapid_target(**kwargs):
       CODwwwwd.ION_P2   CODE 2-day ionosphere predictions, Bernese format
       CODwwwwd.ION_P5   CODE 5-day ionosphere predictions, Bernese format
       COD.ION_U         Last update of CODE rapid ionosphere product
-                        (1 day) complemented with ionosphere predictions 
+                        (1 day) complemented with ionosphere predictions
                         (2 days)
 
       kwargs that matter:
@@ -106,9 +118,9 @@ def get_ion_rapid_target(**kwargs):
       format='ion' or format='bernese' to get the Bernese format.
       acid='coe' to get the EUREF solution.
       To provide a date, use either:
-        * pydt=datetime.datetime(...) or 
+        * pydt=datetime.datetime(...) or
         * year=... and doy=...
-  
+
       Default Values
       kwargs['format'] = 'bernese'
       kwargs['type'] = 'rapid'
@@ -193,11 +205,11 @@ def get_ion(**kwargs):
       acid='coe' to get the EUREF solution.
       type='final', rapid, prediction, current, p2, p5 (see Table 2)
       save_as: '/some/path/foo.ION' Rename downloaded file to this filename
-      save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
+      save_dir: 'foo/bar' Directory to save remote file; if both save_dir and
           save_as are given, then the local file will be the concatenation
           of these two, aka os.path.join(save_dir, save_as)
       To provide a date, use either:
-        * pydt=datetime.datetime(...) or 
+        * pydt=datetime.datetime(...) or
         * year=... and doy=...
 
       Default values:
@@ -210,8 +222,14 @@ def get_ion(**kwargs):
       --------+-----------------------------+------------------------------+
       acid=coe|BSWUSER52/yyyy/COEyyddd.INX.Z| BSWUSER52/yyyy/COEyyddd.ION.Z|
       acid=cod|CODE/yyyy/CODGddd0.yyI.Z     | CODE/yyyy/CODwwwwd.ION.Z     |
-      
-  
+
+      type=final (from week 2238)
+      ---------------+-----------------------------+------------------------+
+      acid=cod       |CODE/yyyy/                                            |
+      format=ionex   |          COD0OPSFIN_yyyyddd0000_01D_01H_GIM.INX.gz   |
+      format=bernese |          COD0OPSFIN_yyyyddd0000_01D_01H_GIM.ION.gz   |
+      ---------------+-----------------------------+------------------------+
+
       kwargs         |format=ionex        | format=bernese      |
       ---------------+--------------------+---------------------+
       type=rapid     |CODE/CORGddd0.yyI.Z | CODE/CODwwwwd.ION_R |
@@ -231,8 +249,17 @@ def get_ion(**kwargs):
         target = get_ion_final_target(**kwargs)
 
     indct = {}
+    ## Rename LONG NAME to old names
+    ##+not e pemanent solution check again
+    pydt = _date(**kwargs)  ## this may throw
+    week, sow = pydt2gps(pydt)
+
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
+    elif week >= 2238 and kwargs['type'] == 'final':
+        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+        frmt = 'ION'
+        indct['save_as'] = 'COD{:}.{:}.Z'.format(sdate, frmt)
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
 
@@ -243,10 +270,10 @@ def get_ion(**kwargs):
 
 def list_products():
     print(
-        """ Information on Ionospheric (and other) products available via CODE's 
-  ftp site can be found at: {:}. Here is a table of products that can be 
+        """ Information on Ionospheric (and other) products available via CODE's
+  ftp site can be found at: {:}. Here is a table of products that can be
   downloaded via this script:\n
-  
+
   _Available files in FTP____________________________________________________
   COEyyddd.INX.Z    Ionosphere information in IONEX format from EUREF solution
   COEyyddd.ION.Z    Ionosphere information in Bernese format from EUREF solution
@@ -258,7 +285,7 @@ def list_products():
   CODwwwwd.ION_P2   CODE 2-day ionosphere predictions, Bernese format
   CODwwwwd.ION_P5   CODE 5-day ionosphere predictions, Bernese format
   COD.ION_U         Last update of CODE rapid ionosphere product
-                    (1 day) complemented with ionosphere predictions 
+                    (1 day) complemented with ionosphere predictions
                     (2 days)
 
   _Arguments for Products____________________________________________________
@@ -268,6 +295,12 @@ def list_products():
   acid=coe       |BSWUSER52/yyyy/COEyyddd.INX.Z| BSWUSER52/yyyy/COEyyddd.ION.Z|
   acid=cod       |CODE/yyyy/CODGddd0.yyI.Z     | CODE/yyyy/CODwwwwd.ION.Z     |
   ---------------+-----------------------------+------------------------------+
+  type=final (from week 2238)
+  ---------------+-----------------------------+------------------------------+
+  acid=cod       |CODE/yyyy/                                                  |
+  format=ionex   |          COD0OPSFIN_yyyyddd0000_01D_01H_GIM.INX.gz         |
+  format=bernese |          COD0OPSFIN_yyyyddd0000_01D_01H_GIM.ION.gz         |
+  ---------------+-----------------------------+------------------------------+
   kwargs         |format=ionex                 | format=bernese               |
   ---------------+-----------------------------+------------------------------+
   type=rapid     |CODE/CORGddd0.yyI.Z          | CODE/CODwwwwd.ION_R          |
@@ -275,7 +308,7 @@ def list_products():
   type=urapid (*)|                             | CODE/COD.ION_U               |
   type=p2        |                             | CODE/CODwwwwd.ION_P2         |
   type=p5        |                             | CODE/CODwwwwd.ION_P5         |
-     
+
   (for non-final products, EUREF solutions, aka acid=coe, not available)
   (*) 'urapid' can be used interchangably with 'current' and 'ultra-rapid'
 
