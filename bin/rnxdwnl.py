@@ -19,12 +19,15 @@ def runmain():
     parser = argparse.ArgumentParser(
         formatter_class=myFormatter,
         description='Query DSO GNSS database and download RINEX (v2 or v3) files',
-        epilog=('''National Technical University of Athens,
+        epilog=('''
+        National Technical University of Athens,
         Dionysos Satellite Observatory\n
         Send bug reports to:
         Xanthos Papanikolaou, xanthos@mail.ntua.gr
-        Dimitris Anastasiou,danast@mail.ntua.gr
-        October, 2021'''))
+        Dimitris Anastasiou,danastasiou@mail.ntua.gr
+        Updates: 2024-01-29 minor changes
+                 October, 2021
+        '''))
 
     parser.add_argument('-y',
                         '--year',
