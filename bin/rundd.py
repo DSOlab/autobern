@@ -235,7 +235,7 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
         ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
         for count,erptype in enumerate(ptypes):
             try:
-                status, remote, local = get_erp(type=erptype, pydt=dt, span='daily', save_dir=product_dir, code_dir='bswuser52')
+                status, remote, local = get_erp(type=erptype, pydt=dt, span='weekly', save_dir=product_dir, code_dir='bswuser52')
                 verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
                 product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
                 break

@@ -1,0 +1,237 @@
+##
+##  This is a configuration template file for ddproccess.sh
+##  All lines starting with the character '#' are considered
+##+ comments and are *NOT* read.
+##
+##  To set a variables, use the form :
+##  VAR_NAME=VAR_VALUE, or
+##  VAR_NAME = VAR_VALUE
+##  without the leading '##'
+##
+##  Do not use the charactes '#' or ' ' in either the variable names or in
+##+ in variable values
+##
+
+##  set debuging mode
+DEBUG_MODE = 1
+
+## The year
+YEAR = 2016
+
+##  The doy to proccess
+DOY = 25
+
+##  The LOADGPS.setvar file
+B_LOADGPS = ${HOME}/bern52/BERN52/GPS/EXE/LOADGPS.setvar
+
+##  The name of the campaign
+CAMPAIGN = GREECE
+
+##  The solution id
+SOLUTION_ID = DSO
+
+##  The directory where the products will be saved
+## SAVE_DIR = ${HOME}/data/SAVEDISK
+
+##  Append suffix to saved products
+# APND_SUFFIX = _test1
+
+##  json output file (OBSOLETE)
+## JSON_OUT = greece.json
+
+##  The satellite system. You can choose between
+##+   * "GPS", 
+##+   * "GLONASS"
+##+   * "GALILEO"
+##+   * "GPS/GAL"
+##+   * "GPS/GLO"
+##+   * "GAL/GLO"
+SAT_SYS = GPS/GLO
+
+##  the path to 'tables' directory
+TABLES_DIR = ${HOME}/tables
+
+##  Name of the analysis center for gps/gnss products
+AC = COD
+
+##  Stations per cluster
+STATIONS_PER_CLUSTER = 3
+
+##  Files (i.e. baselines) per cluster
+FILES_PER_CLUSTER = 5
+
+##  Elevation angle in degrees (0, 90)
+ELEVATION_ANGLE = 3
+
+##  The filename of the .PCF file to use
+PCF_FILE = NTUA_DDP.PCF
+
+##  Use REPRO2 campaign products ('YES' or 'NO')
+USE_REPRO2 = NO
+
+##  Use CODE's REPRO13 products ('YES' or 'NO')
+COD_REPRO13 = YES
+
+##  Set this variable to 'YES' to skip RINEX downloading. Only the files
+##+ found in the campaign's /RAW folder will be processed (either in lower or
+##+ in upper case). The database will **not** be quried about the station/rinex
+##+ information; station information (i.e. 'MARKER NAME' and 'MARKER NUMBER')
+##+ is extracted off from the RINEX files.
+##  The RINEX files should comply with the naming convention ssssddd0.yy[o|O];
+##+ **not** (UNIX) compressed, **not** Hatanaka.
+SKIP_RNX_DOWNLOAD = NO
+
+##  Specify the a-priori coordinate file (.CRD) to be used. Only provide the
+##+ filename, the extension is automatically set to '.CRD'. The search path
+##+ for this file, is in ${TABLES_DIR}/crd/ directory.
+##  A-priori coordinates are only needed for the sites that:
+##  1. are not recorded in the IGB08_R.[CRD|VEL] files, or
+##+    is set to 'YES'
+APRINF = REG213600
+## USE_EPN_A_SSC = YES (OBSOLETE) 
+
+##  Specify the station information file (.STA) to be used. Only provide the
+##+ filename, the extension is automatically set to '.STA'. The search path
+##+ for this file, is either ${TABLES_DIR}/sta/ or the campaign's /STA
+##+ directory
+STAINF = GREECE  
+
+##  The filename of the atl (i.e atmospheric tidal loading) corrections file.
+##+ If the values is left blank, then no atl file is going to be used
+##  If you do specify a file, do **not** use an extension; also the file
+##+ should be placed either in the ${TABLES_DIR}/atl directory or in the 
+##+ campaign's /STA directory.
+ATLINF = 
+
+##  The filename of the blq (i.e tidal loading) corrections file.
+##+ If the values is left blank, then no blq file is going to be used
+##  If you do specify a file, do **not** use an extension; also the file
+##+ should be placed either in the ${TABLES_DIR}/blq directory or in the
+##+ campaign's /STA directory.
+BLQINF = NTUA  
+
+##  Specify the name of the .FIX file, i.e. the name of the file where the
+##+ reference stations are recorded. This file should be placed in either in 
+##+ the tables/fix directory or in the campaign's /STA directory.
+FIXINF = IGS14
+
+##  Specify the master (i.e. reference) coordinate and velocity file. For most
+##+ cases this should be the current IGS realization (e.g IGB08). In this last
+##+ case, the files IGB08_R.[CRD|VEL] will be used to extrapolate the coordinates
+##+ of the reference sites to the current epoch. This files are searched for in
+##+ the ~tables/crd directory or in the campaign-specific STA directory.
+REFINF = IGS14
+
+##  PSD corrections for ITRF2014 or any other ref frame
+REFPSD = IGS14
+
+##  There various options here:
+##  1. User has a PCV file ready to be used within the BPE; in this case, just
+##+ specify the 'PCVINF'/'PCVEXT' variables. 'PCVINF' should be filled with 
+##+ the filename of the PCV file to be used. The extension of the file is 
+##+ assumed be 'PCVEXT'. The rundd program will search for the file in the
+##+ locations:
+##+   - $X/GEN, and
+##+   - $TABLES_DIR/pcv
+PCVINF = PCV_EPN
+ATXINF =
+
+##  Extension to be used for:
+##+ 1. the SATELLIT file (V_SATINF in the PCF file)
+##+ 2. the PCV file (V_PCVINF in the PCF file)
+PCVEXT = I14
+
+##  Observation selection (.SEL) file to be used for importing (any) Rinex v3.x
+##+ files. Do not provide an extension, '.SEL' is appended automatically. 
+##  Search folders are (in this order):
+##  1. ${X}/GEN
+##  2. ${TABLES_DIR}/sel
+OBSSEL = OBS
+
+##  Set this option to 'YES' or 'NO' to use EUREF's weekly exclusion list.
+##  This exclusion list will be downloaded from the web and used to mark
+##+ out (exclude from procssesing) the listed stations.
+USE_EPN_EXCLUDE_LIST = YES
+
+##  Optionaly, you can specify a file with a list of stations (one 'MARKER DOME'
+##+ per line) to be excluded from the processing.
+EXCLUSION_LIST = /home/bpe/tables/sta/GREECE.EXC
+
+##  If you need to download forecast VMF1 grid files, you will need credentials
+##+ to access the TUVienna server
+TUWIEN_VMF1_USER =
+TUWIEN_VMF1_PASS =
+
+##  Specify where the saved (output) files are going to be placed. If you want
+##+ them to be saved at this HOST, then only set the 'SAVE_DIR_DIR' variable.
+##+ Else, you also need to specify a HOST ('SAVE_DIR_HOST') and a username
+##+ ('SAVE_DIR_URN') and password ('SAVE_DIR_PSS') --if needed.
+##  Note that the program 'ftp' will be used to do the transfer (if needed).
+##
+##  Warning: The saved products will actually be placed **not** in the folder 
+##+ 'SAVE_DIR_DIR' but in ${SAVE_DIR_DIR}/YYYY/DDD
+##
+SAVE_DIR_HOST = 147.102.106.135
+SAVE_DIR_DIR  = pub/gnss/products
+SAVE_DIR_URN  = mitsos
+SAVE_DIR_PSS  = mitsos1985
+
+##  This option specifies the name of the directory where the products will
+##+ be saved, i.e. how the date is resolved into directories. You can either
+##+ set the save path to ${SAVE_DIR_DIR}/YYYY/DDD by setting this option to
+##+ 'YDOY' or to ${SAVE_DIR_DIR}/WWWW by setting the option to 'GPSW'
+##  If not set, the default option is 'YDOY'
+SAVE_DIR_FORMAT = GPSW
+
+##  This option specifies the filename of the product files, i.e. how the
+##+ date is resolved into the filename's string. The default format for
+##+ product filenames is 'cccyyddd0.*' where 'ccc' is the solution id, 'yy'
+##+ is the year and 'ddd' is the day of year. This corresponds to the option
+##+ 'YDOY'.
+##  In case you want to save the product using the gps week/day of week, then
+##+ set this option to 'GPSW', in which case the file is saved as 'cccwwwwd.*'
+##  If not set, the default option is 'YDOY'
+SAVE_PRD_FORMAT = GPSW
+
+##  The following information affect the database with which the processing
+##+ will interoperate. This database will be used for:
+##  *  RINEX file downloading and validation (rnxdwnl.py, validate_ntwrnx.py)
+##  *  Add new products (optional)
+##  If you do not want to update the database with the (saved) solution files,
+##+ set the variable 'UPD_DB_PROD' to 'NO'.
+GNSS_DB_HOST     = "147.102.110.73"
+GNSS_DB_USER     = "paraskevas"
+GNSS_DB_PASS     = "paraskey;aw"
+GNSS_DB_NAME     = "procsta"
+UPD_DB_PROD = YES
+
+##  Reference stations rejection criteria. Set the max allowed offset for
+##+ reference stations, per component. If, for any station this limit is
+##+ reached, it will not be included in the refence stations (i.e. the list
+##+ of stations used to realize the frame).
+##  If unset, the limits default to 10mm for North and East and 30mm for Up
+##+ components.
+##  Units are millimeters.
+REF_NLIMIT = 10
+REF_ELIMIT = 10
+REF_ULIMIT = 30
+
+##  
+##
+UPDATE_STA_TS    = YES
+TS_DESCRIPTION   = "test"
+PATH_TO_TS_FILES = /home/bpe/data/time-series
+
+##  Set this variable to 'YES' if you do not want to delete the files
+##+ created at the campaign's directories during the ddprocess run.
+SKIP_REMOVE = NO
+
+##  Send mail with a short report to the following recipients; more than one
+##+ recipients can be set using a comma-seperated string.
+##  If no mail is to be sent, just comment the 'SEND_MAIL_TO' line or leave 
+##+ the variable empty
+SEND_MAIL_TO = xanthos.papanikolaou@gmail.com,dganastasiou@gmail.com
+MAIL_ACCOUNT_USERNAME = "autobpe.dso@gmail.com"
+MAIL_ACCOUNT_PASSWORD = "gevdais;ia"
+
+##  END OF CONFIG FILE

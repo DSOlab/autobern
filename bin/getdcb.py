@@ -10,7 +10,7 @@ from pybern.products.formats.sp3 import Sp3
 import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
-
+import time
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
 ##  Seems to work with multiple inheritance!
@@ -129,19 +129,48 @@ if __name__ == '__main__':
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
 
-    ## try downloading the dcb file; if we fail do not throw, print the error
-    ## message and return an intger > 0 to the shell.
-    status = 10
-    try:
-        status, remote, local = get_dcb(**input_dct)
-    except Exception as e:
-        verboseprint("{:}".format(str(e)), file=sys.stderr)
-        status = 50
-    if not status:
-        print('Downloaded DCB Information File: {:} as {:}'.format(
-            remote, local))
-        sys.exit(0)
-    else:
-        print('[ERROR] Failed to download DCB product', file=sys.stderr)
+#    ## try downloading the dcb file; if we fail do not throw, print the error
+#    ## message and return an intger > 0 to the shell.
+#    status = 10
+#    try:
+#        status, remote, local = get_dcb(**input_dct)
+#    except Exception as e:
+#        verboseprint("{:}".format(str(e)), file=sys.stderr)
+#        status = 50
+#    if not status:
+#        print('Downloaded DCB Information File: {:} as {:}'.format(
+#            remote, local))
+#        sys.exit(0)
+#    else:
+#        print('[ERROR] Failed to download DCB product', file=sys.stderr)
+#
+#    sys.exit(status)
 
+    ## ---- Change the function above to try 10 times for DCB file
+    ## Maximum retries and sleep duration in seconds
+    MAX_RETRIES = 10
+    SLEEP_DURATION = 300
+
+    def verboseprint(*args, **kwargs):
+        print(*args, **kwargs)
+
+    status = 10  # Default status indicating failure
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            verboseprint(f"Attempt {attempt}/{MAX_RETRIES} to download DCB product.")
+            status, remote, local = get_dcb(**input_dct)  # Your download function
+        except Exception as e:
+            verboseprint(f"Error: {str(e)}", file=sys.stderr)
+            status = 50  # Error status code
+        else:
+            if not status:
+                print(f"Downloaded DCB Information File: {remote} as {local}")
+                sys.exit(0)
+    
+        if attempt < MAX_RETRIES:
+            verboseprint(f"Retrying in {SLEEP_DURATION} seconds...", file=sys.stderr)
+            time.sleep(SLEEP_DURATION)
+
+    # If all retries fail
+    print("[ERROR] Failed to download DCB product after multiple attempts", file=sys.stderr)
     sys.exit(status)
