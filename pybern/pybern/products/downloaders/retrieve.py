@@ -15,6 +15,13 @@ import ftplib
 import paramiko
 from scp import SCPClient
 
+## Why I added the warnings bit: when verify=False, urllib3 often prints InsecureRequestWarning. This keeps output clean, but it’s optional.
+import warnings
+try:
+    from urllib3.exceptions import InsecureRequestWarning
+except Exception:
+    InsecureRequestWarning = None
+
 def url_split(target):
     return target[0:target.rindex('/')], target[target.rindex('/') + 1:]
 
@@ -37,12 +44,12 @@ def ftp_retrieve_active(ftpip, path, username, password, remote, local):
 
 def ftp_retrieve(url, filename=None, **kwargs):
     """
-    :return: An integer denoting the download status; anything other than 0 
+    :return: An integer denoting the download status; anything other than 0
              denotes an error
 
     kwargs:
     save_as:  'foobar' Save remote file as 'foobar' (can include path)
-    save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
+    save_dir: 'foo/bar' Directory to save remote file; if both save_dir and
                save_as are given, then the local file will be the concatenation
                of these two, aka os.path.join(save_dir, save_as)
     username: 'usrnm' Use the given username
@@ -82,7 +89,7 @@ def ftp_retrieve(url, filename=None, **kwargs):
     target = '{:}/{:}'.format(url, filename)
 
     status = 0
-    
+
     ## Handle active FTP
     if 'active' in kwargs and kwargs['active'] == True:
         g=re.match(r'ftp://[^@]*([^/]*)(.*)', url)
@@ -111,7 +118,7 @@ def ftp_retrieve(url, filename=None, **kwargs):
     #    else:
     #        print('some other error happened')
     #    status = 1
-    
+
     if not os.path.isfile(saveas):
         status += 1
 
@@ -143,7 +150,7 @@ def scp_retrieve(url, filename=None, **kwargs):
         saveas = os.path.join(kwargs['save_dir'], saveas)
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
-    
+
     ## username or password key(s) in kwargs
     if set(['username', 'password']).intersection(set(kwargs)):
         username = kwargs['username'] if 'username' in kwargs else ''
@@ -154,7 +161,7 @@ def scp_retrieve(url, filename=None, **kwargs):
     g=re.match(r'ssh://(([0-9]{1,3}\.?){4})', url)
     server = g.group(1)
     ## remote (path +)filename
-    remote_pfn = os.path.join(url.replace(g.group(0),''), filename) 
+    remote_pfn = os.path.join(url.replace(g.group(0),''), filename)
 
     ssh = createSSHClient(server, 9785, username, password, 10)
     scp = SCPClient(ssh.get_transport())
@@ -166,19 +173,25 @@ def scp_retrieve(url, filename=None, **kwargs):
 
 def http_retrieve(url, filename=None, **kwargs):
     """
-    :return: An integer denoting the download status; anything other than 0 
+    :return: An integer denoting the download status; anything other than 0
              denotes an error
 
     kwargs:
     username:  Use this username to access the url.
     password:  Use this password to access the url.
     save_as:  'foobar' Save remote file as 'foobar' (can include path)
-    save_dir: 'foo/bar' Directory to save remote file; if both save_dir and 
+    save_dir: 'foo/bar' Directory to save remote file; if both save_dir and
                save_as are given, then the local file will be the concatenation
                of these two, aka os.path.join(save_dir, save_as)
     fail_error: True/False Throw exception if download fails. By default
                the function will throw if the download fails
   """
+    ## Equivalent to "--no-check-certificate"
+    no_check_certificate = bool(kwargs.get('no_check_certificate', False))
+    verify = not no_check_certificate
+    if no_check_certificate and InsecureRequestWarning is not None:
+        warnings.simplefilter("ignore", InsecureRequestWarning)
+
     if filename is None:
         url, filename = url_split(url)
     saveas = kwargs['save_as'] if 'save_as' in kwargs else filename
@@ -205,7 +218,7 @@ def http_retrieve(url, filename=None, **kwargs):
     if not use_credentials:  ## download with no credentials
         try:
             ## allow timeout with requests
-            request = requests.get(target, timeout=20, stream=True)
+            request = requests.get(target, timeout=20, stream=True, verify=verify)
             if request.status_code == 200:
               with open(saveas, 'wb') as fh:
                   for chunk in request.iter_content(1024 * 1024):
@@ -217,7 +230,7 @@ def http_retrieve(url, filename=None, **kwargs):
             status = 1
     else:  ## download with credentials (not sure if this works for python 2)
         try:
-            with requests.get(target, auth=(username, password), timeout=20) as r:
+            with requests.get(target, auth=(username, password), timeout=20, verify=verify) as r:
                 r.raise_for_status()
                 if r.status_code == 200:
                   with open(saveas, 'wb') as f:

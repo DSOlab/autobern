@@ -5,7 +5,7 @@ from __future__ import print_function
 import argparse
 import os
 import pybern.products.rnxdwnl_impl as rnxd
-    
+
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
 ##  Seems to work with multiple inheritance!

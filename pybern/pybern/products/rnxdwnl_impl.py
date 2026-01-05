@@ -15,27 +15,27 @@ import locale ## for local datetimes (TREECOMP)
 g_verbose_rnxdwnl = False
 
 network_query=(
-    """SELECT station.station_id, 
-        station.mark_name_DSO, 
+    """SELECT station.station_id,
+        station.mark_name_DSO,
         stacode.mark_name_OFF,
         stacode.mark_numb_OFF,
-        stacode.station_name, 
+        stacode.station_name,
         stacode.long_name,
-        ftprnx.dc_name, 
-        ftprnx.protocol, 
-        ftprnx.url_domain, 
-        ftprnx.pth2rnx30s, 
-        ftprnx.pth2rnx01s, 
-        ftprnx.ftp_usname, 
-        ftprnx.ftp_passwd, 
-        network.network_name, 
-        dataperiod.rnx_v 
-        FROM station 
-        JOIN stacode ON station.stacode_id=stacode.stacode_id 
-        JOIN dataperiod ON station.station_id=dataperiod.station_id 
-        JOIN ftprnx ON dataperiod.ftprnx_id=ftprnx.ftprnx_id 
-        JOIN sta2nets ON sta2nets.station_id=station.station_id 
-        JOIN network ON network.network_id=sta2nets.network_id 
+        ftprnx.dc_name,
+        ftprnx.protocol,
+        ftprnx.url_domain,
+        ftprnx.pth2rnx30s,
+        ftprnx.pth2rnx01s,
+        ftprnx.ftp_usname,
+        ftprnx.ftp_passwd,
+        network.network_name,
+        dataperiod.rnx_v
+        FROM station
+        JOIN stacode ON station.stacode_id=stacode.stacode_id
+        JOIN dataperiod ON station.station_id=dataperiod.station_id
+        JOIN ftprnx ON dataperiod.ftprnx_id=ftprnx.ftprnx_id
+        JOIN sta2nets ON sta2nets.station_id=station.station_id
+        JOIN network ON network.network_id=sta2nets.network_id
         WHERE network.network_name=%s
         AND dataperiod.periodstart<=%s
         AND dataperiod.periodstop>=%s""")
@@ -98,18 +98,18 @@ def rinex_exists_as(possible_rinex, output_dir=os.getcwd()):
         for rltpl in prl:
             prnx = rltpl[1] ## should-exist local RINEX filename
             fn = os.path.join(output_dir, prnx)
-            
+
             ## check for the fully compressed file
             if os.path.isfile(fn):
                 return fn
-            
+
             ## check for the decompressed Hatanaka version, aka no .Z or .gz
             for ext in ['.Z', '.gz']:
                 if prnx.endswith(ext):
                     rnx = re.sub(r'{:}$'.format(ext), '', prnx)
                     fn = os.path.join(output_dir, rnx)
                     if os.path.isfile(fn): return fn
-            
+
             ## check for the fully-decompressed RINEX
             for ext in ['.Z', '.gz']:
                 if prnx.endswith(ext):
@@ -124,9 +124,9 @@ def rinex_exists_as(possible_rinex, output_dir=os.getcwd()):
 
 
 def query_dict_to_rinex_list(query_dict, pt):
-    """ Given a query response row as dictionary (quer_dict), as answer from 
+    """ Given a query response row as dictionary (quer_dict), as answer from
         a station_query query, formulate a list of candidate RINEX files to
-        be downloaded (for the station described in the row). The function 
+        be downloaded (for the station described in the row). The function
         will take into account if the station (for the given date) has RINEX
         v2 or v3 data holdings.
         ----------------------------------------------------------------------
@@ -145,28 +145,28 @@ def query_dict_to_rinex_list(query_dict, pt):
         return make_rinex3_fn(query_dict['long_name'], pt, query_dict['mark_name_DSO'], query_dict['mark_name_OFF'], query_dict['dc_name']=='DSO_MTRC')
 
 def make_rinex3_fn(slong_name, pt, mark_name_dso, mark_name_off=None, allow_metrica_names=False):
-    """ Given a station long-name (e.g. DYNG00GRC) and a python datetime 
+    """ Given a station long-name (e.g. DYNG00GRC) and a python datetime
         instance (pt), make a list of possible RINEX v3.x files that can hold
         data for the station/date.
-        see http://acc.igs.org/misc/rinex304.pdf, 
+        see http://acc.igs.org/misc/rinex304.pdf,
         ch. 4 The Exchange of RINEX files
         ----------------------------------------------------------------------
-        05/02/2022 Update: Added the parameters mark_name_off and 
+        05/02/2022 Update: Added the parameters mark_name_off and
             allow_metrica_names to handle the downloading of Metrica/SmartNet
             data received by DSO. These are RINEX 3, but follow a different
             naming convention, namely: ssssddd0.rnx.zip
-            If allow_metrica_names is set to True, then a name following the 
+            If allow_metrica_names is set to True, then a name following the
             above convention will be added to the list of possible RINEX files
             returned, where the parameter mark_name_off is also used.
-        05/05/2022 Update: possible_rinex_fn is now **not** a list but a 
-            dictionary with elements: 
-            [('remote': '..', 'local': '...'), ('remote': '..', 'local': '...'), 
-            ...] 
-            where the 'local' string is the corresponding filename of the RINEX 
+        05/05/2022 Update: possible_rinex_fn is now **not** a list but a
+            dictionary with elements:
+            [('remote': '..', 'local': '...'), ('remote': '..', 'local': '...'),
+            ...]
+            where the 'local' string is the corresponding filename of the RINEX
             localy, aka 'remote' should be downloaded to 'local'.
             Real world example:
-            {'agr2': [('agri0050.22d.Z', 'agr20050.22d.Z'), 
-                ('agri0050.22d.gz', 'agr20050.22d.gz'), 
+            {'agr2': [('agri0050.22d.Z', 'agr20050.22d.Z'),
+                ('agri0050.22d.gz', 'agr20050.22d.gz'),
                 ('agri0050.22o.Z', 'agr20050.22o.Z')]}
     """
     possible_rinex_fn = {}
@@ -188,7 +188,7 @@ def make_rinex3_fn(slong_name, pt, mark_name_dso, mark_name_off=None, allow_metr
                 else:
                     lname = rname
                 possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
-    
+
     ## Special naming convention for METRICA/SmartNet data coming to DSO!
     if allow_metrica_names:
         rname = '{:}{:}0.rnx.zip'.format(mark_name_off, pt.strftime('%j'))
@@ -203,7 +203,7 @@ def make_rinex2_fn(mark_name_dso, mark_name_off, pt):
         rname = '{:}{:}0.{:}d.{}'.format(mark_name_off, pt.strftime('%j'), pt.strftime('%y'), comp)
         lname = '{:}{:}0.{:}d.{}'.format(mark_name_dso, pt.strftime('%j'), pt.strftime('%y'), comp)
         possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
-    
+
     ## TREECMP data are UNIX compressed but **not** Hatanaka compressed
     comp = 'Z'
     rname = '{:}{:}0.{:}o.{}'.format(mark_name_off, pt.strftime('%j'), pt.strftime('%y'), comp)
@@ -218,18 +218,18 @@ def compare_query_result_dictionaries(dict_list):
 
         Returns tow lists; the first one contains that keys that are different
         between any pair of dictionaries in the dict_list
-        The second list, contains any key that is present in one or more of the 
+        The second list, contains any key that is present in one or more of the
         dictionaries, and missing from one or more of the rest.
     """
     verboseprint = print if g_verbose_rnxdwnl else lambda *a, **k: None
-    
+
     sz = len(dict_list)
     if sz == 1: return [], []
 
     difs = []; missing = []
     dictA = dict_list[0]
     for dictB in dict_list[1:]:
-        
+
         thispair_difs = []; thispair_missing = []
 
         ## check reference dictionary against current iteration ...
@@ -241,7 +241,7 @@ def compare_query_result_dictionaries(dict_list):
                 if dictA[key] != dictB[key]:
                     verboseprint('[WRNNG] Different values for key {:}; values are: {:} and {:}'.format(key, dictA[key],dictB[key]))
                     thispair_difs.append(key)
-        
+
         ## check current iteration against referece dictionary ...
         dict1 = dictB
         dict2 = dictA
@@ -259,7 +259,7 @@ def compare_query_result_dictionaries(dict_list):
         ## add this pair's missing/different key/value pairs to the sum
         difs = list(set(difs + thispair_difs))
         missing = list(set(missing + thispair_missing))
-                    
+
     return difs, missing
 
 def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
@@ -270,9 +270,9 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
         2. a list of candidate RINEX (2 or 3) files
         Then it will iteratively try to download the remote RINEX files, trying
         all RINEX files in the possible_rinex list
-        If a RINEX file is successefully downloaded, the holdings dictionary 
+        If a RINEX file is successefully downloaded, the holdings dictionary
         will be update with an entry of type:
-        holdings = { ...., mark_name_DSO: {'local': saved_RINEX_filename, 
+        holdings = { ...., mark_name_DSO: {'local': saved_RINEX_filename,
                                            'remote': remote_RINEX_downloaded}
                                        ...}
     """
@@ -283,16 +283,16 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
     remote_path = query_dict['pth2rnx30s']
     for tf in zip(['%Y', '%j', '%m', '%d', '%y', '%d'],['_YYYY_', '_DDD_', '_MM_', '_DD_', '_YY_', '_DOM_']):
         remote_path = remote_path.replace(tf[1], pt.strftime(tf[0]))
-    
+
     ## some urls may contain the 'official' station name, as _OFF_STA_NAME_
     remote_path = remote_path.replace('_OFF_STA_NAME_', query_dict['mark_name_OFF'])
     remote_path = remote_path.replace('_UOFF_STA_NAME_', query_dict['mark_name_OFF'].upper())
     if query_dict['station_name'] is not None:
         remote_path = remote_path.replace('_FULL_STA_NAME_', query_dict['station_name'])
-    
+
     ## TREECOMP data also include a local month name
     remote_path = remote_path.replace('_GRM3_', b2gr3(pt))
-    
+
     ## here is the final URL
     remote_dir = query_dict['protocol'] + '://' + query_dict['url_domain'] + remote_path
 
@@ -324,7 +324,7 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
             verboseprint("[DEBUG] This is the remote file we should download: {:} (local: {:})".format(remote_fn, lfn))
             use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
             try:
-                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
+                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp,     no_check_certificate=True)
                 verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
                 if status == 0 and os.path.isfile(saveas):
                     holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
@@ -337,18 +337,18 @@ def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
         defined in station_query, for a given station 4-char id (station) and
         a python datetime instance (pt).
         If we get several lines back from the database (for the query), check
-        the lines to see if and where they differ; the only acceptable 
+        the lines to see if and where they differ; the only acceptable
         difference should be in the 'network_name' column, aka a station can
-        belong to several networks. If that condition is not met trigger an 
+        belong to several networks. If that condition is not met trigger an
         error.
-        In case the above check is ok, proceed to download the corresponding 
+        In case the above check is ok, proceed to download the corresponding
         RINEX file for the station/date.
         Holdings is a dictionary that holds station RINEX download results. It
         will be passed to download_station_rinex and if we succed in RINEX
         download a new entry will be apended for the given station.
     """
     verboseprint = print if g_verbose_rnxdwnl else lambda *a, **k: None
-    
+
     ## execute the query ...
     cursor.execute(station_query, (station, pt, pt))
 
@@ -358,7 +358,7 @@ def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
     if not rows or rows == {}:
         verboseprint('[WRNNG] Empty set returned for station {:} and date {:}.'.format(station, pt.strftime('%Y-%m-%d')))
         return -1
-    
+
     ## compare rows (if multiple); the only acceptable result is that two
     ## different rows differ in the network_name key/column
     difs, missing = compare_query_result_dictionaries(rows)
@@ -376,7 +376,7 @@ def query_network(cursor, network, pt, holdings, output_dir=os.getcwd()):
     """ Given a cursor to the GNSS database, perform a network query as
         defined in network_query, for a given network name (network) and a
         a python datetime instance (pt).
-        In case the query returns results, proceed to download the corresponding 
+        In case the query returns results, proceed to download the corresponding
         RINEX files for all stations in the network (each line we get back from
         the query, is a record for a unique station belonging to the network)
         Holdings is a dictionary that holds station RINEX download results. It
@@ -416,7 +416,7 @@ def main(**kwargs):
 
     ## verbose global verbosity level
     g_verbose_rnxdwnl = kwargs['verbose']
-    
+
     ## Resolve the date from input args.
     dt = datetime.datetime.strptime('{:} {:03d}'.format(kwargs['year'], kwargs['doy']),
                                     '%Y %j')
@@ -441,9 +441,9 @@ def main(**kwargs):
     ## Connect to the database
     try:
         cnx = mysql.connector.connect(
-            host=credentials_dct['GNSS_DB_HOST'], 
-            database=credentials_dct['GNSS_DB_NAME'], 
-            user=credentials_dct['GNSS_DB_USER'], 
+            host=credentials_dct['GNSS_DB_HOST'],
+            database=credentials_dct['GNSS_DB_NAME'],
+            user=credentials_dct['GNSS_DB_USER'],
             password=credentials_dct['GNSS_DB_PASS'],
             connect_timeout=10)
         ## get a cursor to perform queries ...

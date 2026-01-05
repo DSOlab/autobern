@@ -10,15 +10,15 @@ fi
 CONFIG=config.greece
 
 ## get the date 15 days ago
-#year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
-#yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
-#doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
-#idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
+year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
+yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
+doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
+idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
-year=2023
-yr2=23
-doy=012
-idoy=12
+#year=2023
+#yr2=23
+#doy=280
+#idoy=280
 
 
 ## we need to make an a-priori crd file for the BPE
@@ -41,8 +41,10 @@ python3 ${ABPE_DIR}/bin/rundd.py \
   --use-euref-exclusion-list \
   --min-reference-stations 10 \
   --aprinf REG${yr2}${doy}0 \
+  --ignore-indv-calibrations \
   || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 
 rm ${HOME}/tables/crd/REG${yr2}${doy}0.CRD
+
 
 exit 0
