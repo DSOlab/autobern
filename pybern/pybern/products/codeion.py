@@ -14,6 +14,8 @@ else:
     from .produtils import utils_whatever2pydt as _date
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
+#CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
+CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
 CODE_URL = 'ftp://ftp.aiub.unibe.ch'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
@@ -256,10 +258,11 @@ def get_ion(**kwargs):
 
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
-    elif week >= 2238 and kwargs['type'] == 'final':
-        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-        frmt = 'ION'
-        indct['save_as'] = 'COD{:}.{:}.Z'.format(sdate, frmt)
+## REMOVE FOR BERN54
+#    elif week >= 2238 and kwargs['type'] == 'final':
+#        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+#        frmt = 'ION'
+#        indct['save_as'] = 'COD{:}.{:}.Z'.format(sdate, frmt)
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
 

@@ -39,13 +39,13 @@ from pybern.products.formats.rinex import Rinex
 VERSION='1.0-beta'
 
 ## path to crx2rnx program
-crx2rnx_dir='/home/bpe/applications/RNXCMP_4.0.6_Linux_x86_64bit/bin/'
+crx2rnx_dir='/home/bpe54/applications/RNXCMP_4.2.0_Linux_gcc_64bit/'
 if not os.path.isdir(crx2rnx_dir):
     print('[ERROR] Invalid crx2rnx bin dir {:}'.format(crx2rnx_dir), file=sys.stderr)
     sys.exit(1)
 
 ## path to log files
-log_dir='/home/bpe/data/proclog'
+log_dir='/home/bpe54/data/proclog'
 if not os.path.isdir(log_dir):
     print('[ERROR] Invalid temp/proc dir {:}'.format(log_dir), file=sys.stderr)
     sys.exit(1)
@@ -611,18 +611,18 @@ def link2campaign(options, dt, add2temp_files=True):
         link_dict.append({'src': src, 'dest': dest})
 
     ## pcv file if at tables/pcv and not in GEN
-    pcv_file = '{:}.{:}'.format(options['pcvinf'].upper(), options['pcvext'].upper())
-    if not os.path.isfile(os.path.join(os.getenv('X'), 'GEN', pcv_file)):
+    pcv_file = '{:}_{:}.PCV'.format(options['pcvinf'].upper(), options['pcvext'].upper())
+    if not os.path.isfile(os.path.join(PDIR, 'GEN', pcv_file)):
         pcv_path = os.path.join(TDIR, 'pcv')
         if not os.path.isfile(os.path.join(TDIR, pcv_path, pcv_file)):
             errmsg = '[ERROR] Failed to find PCV file {:} in neither tables dir or GEN!'.format(pcv_file)
             raise RuntimeError(errmsg)
-        link_dict.append({'src': os.path.join(TDIR, pcv_path, pcv_file), 'dest': os.path.join(os.getenv('X'), 'GEN', pcv_file)})
+        link_dict.append({'src': os.path.join(TDIR, pcv_path, pcv_file), 'dest': os.path.join(PDIR, 'GEN', pcv_file)})
 
     ## link the observation selection file (if not in GEN)
     if 'obssel' in options and options['obssel'] is not None and options['obssel'] != '':
         obssel_fn = options['obssel'].upper() + '.SEL'
-        gen_obssel = os.path.join(os.getenv('X'), 'GEN', obssel_fn)
+        gen_obssel = os.path.join(PDIR, 'GEN', obssel_fn)
         if not os.path.isfile(gen_obssel):
             tab_obssel = os.path.join(TDIR, 'sel', obssel_fn)
             if not os.path.isfile(tab_obssel):
@@ -1361,7 +1361,7 @@ if __name__ == '__main__':
     }
     rinex_holdings = rnxd.main(**rnxdwnl_options)
     print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
-
+    print(rinex_holdings)
     ## for every station add a field in its dictionary ('exclude') denoting if
     ## the station needs to be excluded from the processing and also get its
     ## domes number
@@ -1385,14 +1385,15 @@ if __name__ == '__main__':
 
     ## rename marker names to match mark_name_DSO if needed
     rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
-
+    print(rinex_holdings)
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
-    stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
-    if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
-        print('[ERROR] Aborting processing!', file=sys.stderr)
-        append2f(logfn, 'Failed to validate station records in STA file', 'FATAL ERROR; Processing stoped')
-        sys.exit(1)
+##TODO check .STA parsers
+ #   stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
+ #   if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
+ #       print('[ERROR] Aborting processing!', file=sys.stderr)
+ #       append2f(logfn, 'Failed to validate station records in STA file', 'FATAL ERROR; Processing stoped')
+ #       sys.exit(1)
 
     ## download and prepare products; do not give up if the first try fails,
     ## maybe some product is udated/written on the remote server. Retry a few
@@ -1447,6 +1448,9 @@ if __name__ == '__main__':
     ## rinex3 names to rinex2
     ## [upd54] Disable rename from r3 to r2 files
     ##rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, True)
+    print(rinex_holdings) 
+    ## DA_EXIT here to check
+    #sys.exit('EXIT before BERN54 start')
 
     ## make cluster file
     cluster_file, num_stations = make_cluster_file(options, rinex_holdings)
