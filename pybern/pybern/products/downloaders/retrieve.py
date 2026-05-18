@@ -179,6 +179,12 @@ def http_retrieve(url, filename=None, **kwargs):
     fail_error: True/False Throw exception if download fails. By default
                the function will throw if the download fails
   """
+    ## Equivalent to "--no-check-certificate"
+    no_check_certificate = bool(kwargs.get('no_check_certificate', False)) 
+    verify = not no_check_certificate
+    if no_check_certificate and InsecureRequestWarning is not None:  
+        warnings.simplefilter("ignore", InsecureRequestWarning)
+
     if filename is None:
         url, filename = url_split(url)
     saveas = kwargs['save_as'] if 'save_as' in kwargs else filename

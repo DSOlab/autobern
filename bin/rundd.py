@@ -1444,7 +1444,8 @@ if __name__ == '__main__':
     ## rinex 2 uppercase
     rinex_holdings = rinex2uppercase(rinex_holdings, True)
     ## rinex3 names to rinex2
-    rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, True)
+    ## [upd54] Disable rename from r3 to r2 files
+    ##rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, True)
 
     ## make cluster file
     cluster_file, num_stations = make_cluster_file(options, rinex_holdings)
