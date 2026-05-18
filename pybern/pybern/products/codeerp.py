@@ -14,7 +14,8 @@ else:
     from .produtils import utils_whatever2pydt as _date
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
-CODE_URL = 'ftp://ftp.aiub.unibe.ch'
+#CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
+CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
@@ -48,6 +49,9 @@ def get_erp_final_target(**kwargs):
       code_dir=code     | /CODE/yyyy/CODwwwwd.ERP.Z          | /CODE/yyyy/CODwwww7.ERP.Z          |
       code_dir=bswuser52| /BSWUSER52/ORB/yyyy/CODyyddd.ERP.Z | /BSWUSER52/ORB/yyyy/CODwwww7.ERP.Z |
 
+(from 2238)
+      COD0OPSFIN_yyyyddd0000_01D_01D_ERP.ERP.gz    ERPs belonging to these orbits
+      COD0OPSFIN_yyyyddd0000_07D_01D_ERP.ERP.gz    weekly cumulated ERPs
 
       (*) under /BSWUSER52/ORB/yyyy
       (+) under /CODE/yyyy
@@ -91,15 +95,23 @@ def get_erp_final_target(**kwargs):
 
     acn = 'COD'
     frmt = 'ERP'
-    if kwargs['span'] == 'weekly':
-        sdate = '{:04d}{:1d}'.format(week, 7)
-    else:
-        if kwargs['code_dir'] == 'code':
-            sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+    if week <= 2237:
+        if kwargs['span'] == 'weekly':
+            sdate = '{:04d}{:1d}'.format(week, 7)
         else:
-            sdate = '{:02d}{:03d}'.format(yy, ddd)
+            if kwargs['code_dir'] == 'code':
+                sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+            else:
+                sdate = '{:02d}{:03d}'.format(yy, ddd)
+        erp = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
+    else:
+        if kwargs['span'] == 'weekly':
+            sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+            erp = '{:}0OPSFIN_{:}0000_07D_01D_ERP.{:}.gz'.format(acn, sdate, frmt)
+        else:
+            sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+            erp = '{:}0OPSFIN_{:}0000_01D_01D_ERP.{:}.gz'.format(acn, sdate, frmt)
 
-    erp = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
     return target
 
