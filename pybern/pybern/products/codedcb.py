@@ -30,6 +30,7 @@ def get_dcb_final_target(**kwargs):
         span=monthly, obs=p1p2all        | CODE/yyyy/P1P2yymm_ALL.DCB.Z
         span=monthly, obs=p1c1rnx        | CODE/yyyy/P1C1yymm_RINEX.DCB
         span=monthly, obs=p2c2rnx        | CODE/yyyy/P2C2yymm_RINEX.DCB
+ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_01D_OSB.BIA.gz
 
       kwargs that matter:
       format='dcb' Optional but if given it must be dcb
@@ -62,7 +63,7 @@ def get_dcb_final_target(**kwargs):
         raise ArgumentError('[ERROR] code::get_dcb_final Invalid span', 'span',
                             **kwargs)
     if 'obs' in kwargs and kwargs['obs'] not in [
-            'p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx'
+            'p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx', 'bia'
     ]:
         raise ArgumentError('[ERROR] code::get_dcb_final Invalid obs', 'obs',
                             **kwargs)
@@ -88,6 +89,12 @@ def get_dcb_final_target(**kwargs):
         sdate = '{:02d}{:03d}'.format(yy, ddd)
         url_dir = 'BSWUSER52/ORB/{:}'.format(yyyy)
         frmt = 'DCB.Z'
+    elif kwargs['span'] == 'daily' and kwargs['obs'] == 'bia':
+        acn = 'COD0OPSFIN_'
+        sdate = '{:}{:}0000_01D_01D'.format(yyyy, ddd)
+        spec = '_OSB'
+        url_dir = 'CODE/{:}'.format(yyyy)
+        frmt = 'BIA.gz'
     elif kwargs['span'] == 'monthly':
         sdate = '{:02d}{:}'.format(yy, mm)
         url_dir = 'CODE/{:}'.format(yyyy)
@@ -111,6 +118,7 @@ def get_dcb_final_target(**kwargs):
             frmt = 'DCB.Z'
     try:
         dcb = '{:}{:}{:}.{:}'.format(acn, sdate, spec, frmt)
+        print(dcb)
         target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, dcb)
     except:
         msg = '[ERROR] code::get_dcb_final Failed to formulate DCB file'
@@ -211,9 +219,6 @@ def get_dcb_rapid_target(**kwargs):
         elif kwargs['obs'] == 'p1c2rnx':
             acn = 'P1C2'
             spec = '_RINEX'
-        elif kwargs['obs'] == 'p1c2rnx':
-            acn = 'CODE'
-            spec = ''
         elif kwargs['obs'] == 'p1p2p1c1':
             acn = 'CODE'
             spec = ''
@@ -298,10 +303,10 @@ def get_dcb(**kwargs):
     if 'format' not in kwargs:
         kwargs['format'] = 'dcb'
     if 'obs' not in kwargs:
-        kwargs['obs'] = 'p1c1'
+        kwargs['obs'] = 'bia'
     if 'type' not in kwargs:
         ## try an educated guess basesd on obs provided
-        final_obs = ['p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx']
+        final_obs = ['bia', 'p1p2', 'p1c1', 'p1p2all', 'p1c1rnx', 'p2c2rnx']
         rapid_obs = [
             'p1p2', 'p1c1', 'p1p2all', 'p1p2gps', 'p1c1rnx', 'p1c2rnx',
             'p1p2p1c1', 'full'

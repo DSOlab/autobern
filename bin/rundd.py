@@ -184,7 +184,7 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
     rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.SP3'.format(dt.strftime('%Y%j'))},
         'erp': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.ERP'.format(dt.strftime('%Y%j'))},
         'ion': {'target_dir': 'ATM', 'target_fn': 'HOI_{:}0.ION'.format(dt.strftime('%Y%j'))},
-        'dcb': {'target_dir': 'ORB', 'target_fn': 'P1C1{:}.DCB'.format(dt.strftime('%y%m'))},
+        'dcb': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0_OSB.BIA'.format(dt.strftime('%Y%j'))},
         'vmf3': {'target_dir': 'GRD', 'target_fn': 'VMF3_{:}0.GRD'.format(dt.strftime('%Y%j'))}}
 
     for ptype, rules in rules_d.items():
@@ -284,8 +284,8 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
                         verboseprint(' giving up...')
                     psleep(60)
         elif days_dif >= 30:
-                status, remote, local = get_dcb(type='final', pydt=dt, obs='p1p2all', save_dir=product_dir)
-                product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'p1p2all'}
+                status, remote, local = get_dcb(type='final', span='daily', pydt=dt, obs='bia', save_dir=product_dir)
+                product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'bia'}
         else:
             print('[ERROR] Don\'t know what DCB product to download!')
             raise RuntimeError
@@ -1356,42 +1356,42 @@ if __name__ == '__main__':
     ## link needed files from tables_dir to campaign-specific directories
     link2campaign(options, dt, temp_files)
 
-#    ## download the RINEX files for the given network. Hold results in the
-#    ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
-#    rnxdwnl_options = {
-#        'year': int(options['year']),
-#        'doy': int(options['doy'].lstrip('0')),
-#        'output_dir': os.getenv('D'),
-#        'credentials_file': options['config_file'],
-#        'network': options['network'],
-#        'verbose': options['verbose']
-#    }
-#    rinex_holdings = rnxd.main(**rnxdwnl_options)
-#    print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
-#    
-#    ## for every station add a field in its dictionary ('exclude') denoting if
-#    ## the station needs to be excluded from the processing and also get its
-#    ## domes number
-#    for station in rinex_holdings:
-#        rinex_holdings[station]['exclude'] = False
-#        rinex_holdings[station]['domes'] = sta_id2domes(station, netsta_dct)
-#
-#    ## check if we need to exclude station from EUREF's list
-#    if options['use_epn_exclude_list']:
-#        mark_exclude_stations(get_euref_exclusion_list(dt), rinex_holdings)
-#
-#    ## check if we have a file with stations to exclude
-#    if options['exclusion_list'] is not None:
-#        staexcl = []
-#        with open(options['exclusion_list'], 'r') as fin:
-#            staexcl = [x.split()[0].lower() for x in fin.readlines()]
-#        mark_exclude_stations(staexcl, rinex_holdings)
-#
-#    ## uncompress (to obs) all RINEX files of the network/date
-#    rinex_holdings = decompress_rinex(rinex_holdings)
-#
-#    ## rename marker names to match mark_name_DSO if needed
-#    rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
+    ## download the RINEX files for the given network. Hold results in the
+    ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
+    rnxdwnl_options = {
+        'year': int(options['year']),
+        'doy': int(options['doy'].lstrip('0')),
+        'output_dir': os.getenv('D'),
+        'credentials_file': options['config_file'],
+        'network': options['network'],
+        'verbose': options['verbose']
+    }
+    rinex_holdings = rnxd.main(**rnxdwnl_options)
+    print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
+    
+    ## for every station add a field in its dictionary ('exclude') denoting if
+    ## the station needs to be excluded from the processing and also get its
+    ## domes number
+    for station in rinex_holdings:
+        rinex_holdings[station]['exclude'] = False
+        rinex_holdings[station]['domes'] = sta_id2domes(station, netsta_dct)
+
+    ## check if we need to exclude station from EUREF's list
+    if options['use_epn_exclude_list']:
+        mark_exclude_stations(get_euref_exclusion_list(dt), rinex_holdings)
+
+    ## check if we have a file with stations to exclude
+    if options['exclusion_list'] is not None:
+        staexcl = []
+        with open(options['exclusion_list'], 'r') as fin:
+            staexcl = [x.split()[0].lower() for x in fin.readlines()]
+        mark_exclude_stations(staexcl, rinex_holdings)
+
+    ## uncompress (to obs) all RINEX files of the network/date
+    rinex_holdings = decompress_rinex(rinex_holdings)
+
+    ## rename marker names to match mark_name_DSO if needed
+    rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
     
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
