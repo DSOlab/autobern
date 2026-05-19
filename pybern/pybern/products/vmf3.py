@@ -11,11 +11,11 @@ from pybern.products.fileutils.keyholders import parse_key_file
 
 ## https://vmf.geo.tuwien.ac.at/trop_products/GRID/2.5x2/VMF1/VMF1_OP/2021/
 TUW_URL = 'https://vmf.geo.tuwien.ac.at'
-OP_URL_DIR = '/trop_products/GRID/2.5x2/VMF1/VMF1_OP'
-FC_URL_DIR = '/trop_products/GRID/2.5x2/VMF1/VMF1_FC'
+OP_URL_DIR = '/trop_products/GRID/1x1/VMF3/VMF3_OP'
+FC_URL_DIR = '/trop_products/GRID/1x1/VMF3/VMF3_FC'
 
 ## verbosity level
-g_verbose_getvmf1 = False
+g_verbose_getvmf3 = False
 
 def downloading_complete(dct,flag=None):
     """ Utility function: check if all files in the dictionary have been 
@@ -37,7 +37,7 @@ def downloading_complete(dct,flag=None):
 
 def remove_local(dct):
     """ Utility function: remove files specified in the dct, which has the
-        form: {...'VMFG_YYYYMMDD.H00':{'op':0/1, 'fc':0/1, 'fn':foo}...}
+        form: {...'VMF3_YYYYMMDD.H00':{'op':0/1, 'fc':0/1, 'fn':foo}...}
         For every entr, try to remove the 'fn' value if any of 'op', 'fc' is
         not zero. For more info on the passed in dictionary, see the main code.
     """
@@ -81,28 +81,28 @@ def forecast_dir(dt):
 
 
 def decompose_grid_fn(fn):
-    """ Decompose a VMF1 grid file to a Python datetime instance. 
-        Generic format of grid files is: VMFG_YYYYMMDD.H00. Return the
+    """ Decompose a VMF3 grid file to a Python datetime instance. 
+        Generic format of grid files is: VMF3_YYYYMMDD.H00. Return the
         corresponding datetime from YYYY, MM, DD and hour.
     """
     fn = os.path.basename(fn)
-    m = re.match(r'VMFG_([0-9]{8})\.H([0-9]{2})$', fn)
+    m = re.match(r'VMF3_([0-9]{8})\.H([0-9]{2})$', fn)
     if not m:
-        print('[ERROR] Invalid vmf1 grid filename', file=sys.stderr)
-        raise RuntimeError('[ERROR] Invalid vmf1 grid filename')
+        print('[ERROR] Invalid vmf3 grid filename', file=sys.stderr)
+        raise RuntimeError('[ERROR] Invalid vmf3 grid filename')
     return datetime.datetime.strptime(
         '{:} {:}:00:00'.format(g.group(1), m.group(2)), '%Y%m%d %H:%M:%S')
 
 
 #if __name__ == '__main__':
 def main(**kwargs):
-    """ Drive the get_vmf1_grd script
+    """ Drive the get_vmf3_grd script
         For a full list of command line options (or **kwargs) see the
         rnxdwnl script in the bin/ folder
     """
 
     ## verbose global verbosity level
-    g_verbose_getvmf1 = kwargs['verbose']
+    g_verbose_getvmf3   = kwargs['verbose']
     ## verbose print
     verboseprint = print if kwargs['verbose'] else lambda *a, **k: None
 
@@ -136,19 +136,19 @@ def main(**kwargs):
     ## should we delete individual files after merge ?
     if 'del_after_merge' not in kwargs: kwargs['del_after_merge'] = True
 
-    ## Generic format of grid files is: VMFG_YYYYMMDD.H00; make a list with the
+    ## Generic format of grid files is: VMF3_YYYYMMDD.H00; make a list with the
     ## (remote) grid files we want.
-    if 'hour' in kwargs:
+    if kwargs.get('hour') is not None:
         hours_ext = ['{:02d}'.format((int(kwargs['hour']) // 6) * 6)]
     else:
         hours_ext = ['{:02d}'.format(h) for h in [0, 6, 12, 18]]
     grid_files_remote = [
-        'VMFG_{:}.H{:}'.format(dt.strftime('%Y%m%d'), hstr)
+        'VMF3_{:}.H{:}'.format(dt.strftime('%Y%m%d'), hstr)
         for hstr in hours_ext
     ]
 
     ## Make a dictionary to signal the download status for each file, aka
-    ## something like {...'VMFG_YYYYMMDD.H00':{'op':0/1, 'fc':0/1, 'fn':foo}...}
+    ## something like {...'VMF3_YYYYMMDD.H00':{'op':0/1, 'fc':0/1, 'fn':foo}...}
     ## where 'op' is the status of the final download (0 if final product could 
     ## not be found/downloaded or 1 if the downloading was sucesseful), 'fc' is
     ## is the status of the forecast download (accordingly to 'op') and 'fn' is
@@ -168,9 +168,9 @@ def main(**kwargs):
               if not status:
                   grid_files_dict[fn]['op'] = 1
                   grid_files_dict[fn]['fn'] = saveas
-                  verboseprint('\tFinal VMF1 grid file {:} downloaded and saved to {:}'.format(fn, saveas))
+                  verboseprint('\tFinal VMF3 grid file {:} downloaded and saved to {:}'.format(fn, saveas))
               else:
-                  verboseprint('\tFailed downloading final VMF1 grid file {:}'.format(fn))
+                  verboseprint('\tFailed downloading final VMF3 grid file {:}'.format(fn))
             except Exception as e:
                 remove_local(grid_files_dict)
                 msg = '[ERROR] Aborting because: {:}'.format(e)
@@ -203,9 +203,9 @@ def main(**kwargs):
                     if not status:
                         grid_files_dict[fn]['fc'] = 1
                         grid_files_dict[fn]['fn'] = saveas
-                        verboseprint('\tForecast VMF1 grid file {:} downloaded and saved to {:}'.format(fn, saveas))
+                        verboseprint('\tForecast VMF3 grid file {:} downloaded and saved to {:}'.format(fn, saveas))
                     else:
-                        verboseprint('\tFailed downloading forecast VMF1 grid file {:}'.format(fn))
+                        verboseprint('\tFailed downloading forecast VMF3 grid file {:}'.format(fn))
                 except Exception as e:
                     remove_local(grid_files_dict)
                     msg = '[ERROR] Aborting! because {:}'.format(e)

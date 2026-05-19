@@ -6,6 +6,14 @@ import sys
 import os
 import argparse
 import datetime
+
+# Prefer the local repository package when running this script from the repo.
+bin_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(bin_dir)
+pybern_src = os.path.join(repo_root, 'pybern')
+if pybern_src not in sys.path:
+    sys.path.insert(0, pybern_src)
+
 import pybern.products.vmf3 as vmf3
 
 ##  If only the formatter_class could be:
@@ -125,5 +133,4 @@ def runmain():
 
 if __name__ == '__main__':
 
-    args = parser.parse_args()
     holdings = runmain()

@@ -31,7 +31,8 @@ import pybern.products.bernparsers.bern_out_parse as bparse
 import pybern.products.bernparsers.bern_addneq_parser as baddneq
 import pybern.products.bernparsers.bernsta as bsta
 import pybern.products.bernparsers.bernpcf as bpcf
-import pybern.products.vmf1 as vmf1
+#import pybern.products.vmf1 as vmf1
+import pybern.products.vmf3 as vmf3
 import pybern.products.bernbpe as bpe
 import pybern.products.atx2pcv as a2p
 from pybern.products.formats.rinex import Rinex
@@ -79,8 +80,8 @@ def cleanup(verbosity=False):
 
     for f in temp_files:
         try:
-            #verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
-            os.remove(f)
+            verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
+            #DEBUG os.remove(f)
             #verboseprint(' done')
         except:
             #verboseprint(' failed')
@@ -168,17 +169,23 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
         ion: product_dict['ion']['local'] -> $P/ATM
         dcb: product_dict['dcb']['local'] -> $P/ORB and change filename to
              'P1C1YYMM.DCB'
-        vmf1: product_dict['vmf1']['local'] -> $P/GRD and change filename to
+        vmf3: product_dict['vmf3']['local'] -> $P/GRD and change filename to
              'VMFYYDDD0.GRD'
     """
     gweek, gsow = pydt2gps(dt)
     gdow = sow2dow(gsow)
 
-    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD{:}{:}.PRE'.format(gweek,  gdow)},
-        'erp': {'target_dir': 'ORB', 'target_fn': 'COD{:}{:}.ERP'.format(gweek,  gdow)},
-        'ion': {'target_dir': 'ATM', 'target_fn': 'COD{:}{:}.ION'.format(gweek,  gdow)},
+#    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD{:}{:}.PRE'.format(gweek,  gdow)},
+#        'erp': {'target_dir': 'ORB', 'target_fn': 'COD{:}{:}.ERP'.format(gweek,  gdow)},
+#        'ion': {'target_dir': 'ATM', 'target_fn': 'COD{:}{:}.ION'.format(gweek,  gdow)},
+#        'dcb': {'target_dir': 'ORB', 'target_fn': 'P1C1{:}.DCB'.format(dt.strftime('%y%m'))},
+#        'vmf1': {'target_dir': 'GRD', 'target_fn': 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))}}
+
+    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.SP3'.format(dt.strftime('%Y%j'))},
+        'erp': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.ERP'.format(dt.strftime('%Y%j'))},
+        'ion': {'target_dir': 'ATM', 'target_fn': 'HOI_{:}0.ION'.format(dt.strftime('%Y%j'))},
         'dcb': {'target_dir': 'ORB', 'target_fn': 'P1C1{:}.DCB'.format(dt.strftime('%y%m'))},
-        'vmf1': {'target_dir': 'GRD', 'target_fn': 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))}}
+        'vmf3': {'target_dir': 'GRD', 'target_fn': 'VMF3_{:}0.GRD'.format(dt.strftime('%Y%j'))}}
 
     for ptype, rules in rules_d.items():
         ## original downloaded product
@@ -296,11 +303,11 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
                 c, d = dcomp.os_decompress(lfile, True)
                 product_dict[product]['local'] = d
 
-    ## download vmf1 grid
+    ## download vmf3 grid
     idoy = int(dt.strftime('%j').lstrip('0'))
     iyear = int(dt.strftime('%Y'))
     merge_to = os.path.join(product_dir, 'VMFG_{:}.GRD'.format(dt.strftime('%Y%m%d')))
-    vmf1_dict = vmf1.main(**{
+    vmf3_dict = vmf3.main(**{
         'year': iyear,
         'doy': idoy,
         'output_dir': product_dir,
@@ -311,10 +318,10 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
         'del_after_merge': True
         })
     has_forecast = False
-    for fn in vmf1_dict:
-        if vmf1_dict[fn]['fc'] != 0:
+    for fn in vmf3_dict:
+        if vmf3_dict[fn]['fc'] != 0:
             has_forecast = True
-    product_dict['vmf1'] = {'local': merge_to, 'remote': None, 'type': 'forecast' if has_forecast else 'final' }
+    product_dict['vmf3'] = {'local': merge_to, 'remote': None, 'type': 'forecast' if has_forecast else 'final' }
 
     if add2temp_files:
         for k,dct in product_dict.items():
@@ -1349,42 +1356,42 @@ if __name__ == '__main__':
     ## link needed files from tables_dir to campaign-specific directories
     link2campaign(options, dt, temp_files)
 
-    ## download the RINEX files for the given network. Hold results in the
-    ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
-    rnxdwnl_options = {
-        'year': int(options['year']),
-        'doy': int(options['doy'].lstrip('0')),
-        'output_dir': os.getenv('D'),
-        'credentials_file': options['config_file'],
-        'network': options['network'],
-        'verbose': options['verbose']
-    }
-    rinex_holdings = rnxd.main(**rnxdwnl_options)
-    print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
-    
-    ## for every station add a field in its dictionary ('exclude') denoting if
-    ## the station needs to be excluded from the processing and also get its
-    ## domes number
-    for station in rinex_holdings:
-        rinex_holdings[station]['exclude'] = False
-        rinex_holdings[station]['domes'] = sta_id2domes(station, netsta_dct)
-
-    ## check if we need to exclude station from EUREF's list
-    if options['use_epn_exclude_list']:
-        mark_exclude_stations(get_euref_exclusion_list(dt), rinex_holdings)
-
-    ## check if we have a file with stations to exclude
-    if options['exclusion_list'] is not None:
-        staexcl = []
-        with open(options['exclusion_list'], 'r') as fin:
-            staexcl = [x.split()[0].lower() for x in fin.readlines()]
-        mark_exclude_stations(staexcl, rinex_holdings)
-
-    ## uncompress (to obs) all RINEX files of the network/date
-    rinex_holdings = decompress_rinex(rinex_holdings)
-
-    ## rename marker names to match mark_name_DSO if needed
-    rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
+#    ## download the RINEX files for the given network. Hold results in the
+#    ## rinex_holdings variable. RINEX files are downloaded to the DATAPOOL area
+#    rnxdwnl_options = {
+#        'year': int(options['year']),
+#        'doy': int(options['doy'].lstrip('0')),
+#        'output_dir': os.getenv('D'),
+#        'credentials_file': options['config_file'],
+#        'network': options['network'],
+#        'verbose': options['verbose']
+#    }
+#    rinex_holdings = rnxd.main(**rnxdwnl_options)
+#    print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
+#    
+#    ## for every station add a field in its dictionary ('exclude') denoting if
+#    ## the station needs to be excluded from the processing and also get its
+#    ## domes number
+#    for station in rinex_holdings:
+#        rinex_holdings[station]['exclude'] = False
+#        rinex_holdings[station]['domes'] = sta_id2domes(station, netsta_dct)
+#
+#    ## check if we need to exclude station from EUREF's list
+#    if options['use_epn_exclude_list']:
+#        mark_exclude_stations(get_euref_exclusion_list(dt), rinex_holdings)
+#
+#    ## check if we have a file with stations to exclude
+#    if options['exclusion_list'] is not None:
+#        staexcl = []
+#        with open(options['exclusion_list'], 'r') as fin:
+#            staexcl = [x.split()[0].lower() for x in fin.readlines()]
+#        mark_exclude_stations(staexcl, rinex_holdings)
+#
+#    ## uncompress (to obs) all RINEX files of the network/date
+#    rinex_holdings = decompress_rinex(rinex_holdings)
+#
+#    ## rename marker names to match mark_name_DSO if needed
+#    rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
     
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
