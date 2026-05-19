@@ -181,8 +181,8 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
 #        'dcb': {'target_dir': 'ORB', 'target_fn': 'P1C1{:}.DCB'.format(dt.strftime('%y%m'))},
 #        'vmf1': {'target_dir': 'GRD', 'target_fn': 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))}}
 
-    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.SP3'.format(dt.strftime('%Y%j'))},
-        'erp': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.ERP'.format(dt.strftime('%Y%j'))},
+    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.PRE'.format(dt.strftime('%Y%j'))},
+        'erp': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}.ERP'.format(dt.strftime('%Y%j'))},
         'ion': {'target_dir': 'ATM', 'target_fn': 'HOI_{:}0.ION'.format(dt.strftime('%Y%j'))},
         'dcb': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0_OSB.BIA'.format(dt.strftime('%Y%j'))},
         'vmf3': {'target_dir': 'GRD', 'target_fn': 'VMF3_{:}0.GRD'.format(dt.strftime('%Y%j'))}}
