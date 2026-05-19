@@ -244,10 +244,14 @@ def get_sp3(**kwargs):
     ##+not e pemanent solution check again
     pydt = _date(**kwargs)  ## this may throw
     week, sow = pydt2gps(pydt)
+    acn='COD'
 
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
-    #elif week >= 2238 and kwargs['type'] == 'final':
+    elif week >= 2238 and kwargs['type'] == 'final':
+        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+        frmt = 'SP3'
+        indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt)
     #    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
     #    frmt = 'EPH'
     #    indct['save_as'] = 'COD{:}.{:}.Z'.format(sdate, frmt)

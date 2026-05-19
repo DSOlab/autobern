@@ -118,7 +118,7 @@ def rmbpetmp(campaign_dir, dt, bpe_start, bpe_stop):
                 pass
 
 ## callback function to be called at exit
-atexit.register(cleanup, True)
+atexit.register(cleanup, False)
 
 def match_rnx_vs_sta(rinex_holdings, stafn, dt):
     """ Make sure that every station in rinex_holdings has a valid recdor for
@@ -1361,7 +1361,7 @@ if __name__ == '__main__':
     }
     rinex_holdings = rnxd.main(**rnxdwnl_options)
     print('[DEBUG] Size of RINEX holdings {:}'.format(len(rinex_holdings)))
-    print(rinex_holdings)
+    
     ## for every station add a field in its dictionary ('exclude') denoting if
     ## the station needs to be excluded from the processing and also get its
     ## domes number
@@ -1385,7 +1385,7 @@ if __name__ == '__main__':
 
     ## rename marker names to match mark_name_DSO if needed
     rinex_holdings = rename_rinex_markers(rinex_holdings, netsta_dct)
-    print(rinex_holdings)
+    
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
 ##TODO check .STA parsers
@@ -1448,7 +1448,7 @@ if __name__ == '__main__':
     ## rinex3 names to rinex2
     ## [upd54] Disable rename from r3 to r2 files
     ##rinex_holdings = rinex3to2_link(rinex_holdings, options['campaign'], dt, True)
-    print(rinex_holdings) 
+    
     ## DA_EXIT here to check
     #sys.exit('EXIT before BERN54 start')
 

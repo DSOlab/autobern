@@ -269,10 +269,17 @@ def get_erp(**kwargs):
     else:
         raise ArgumentError('[ERROR] code::get_erp Invalid type', 'type',
                             **kwargs)
-
+  
+    pydt = _date(**kwargs)  ## this may throw
+    week, sow = pydt2gps(pydt) 
+    acn='COD'
     indct = {}
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
+    elif week >= 2238 and kwargs['type'] == 'final':
+        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+        frmt = 'ERP'
+        indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt) 
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
     status, remote, local = web_retrieve(target, **indct)
