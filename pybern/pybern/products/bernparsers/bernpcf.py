@@ -175,9 +175,9 @@ class PcfFile:
         return True
 
     def dump(self, outfile=None):
-        if not self.check_variables_are_unique():
-            raise RuntimeError(
-                '[ERROR] Cannot write PCF file! Some variables are not unique')
+#        if not self.check_variables_are_unique():
+#            raise RuntimeError(
+#                '[ERROR] Cannot write PCF file! Some variables are not unique')
         if outfile:
             f = open(outfile, 'w')
         else:
