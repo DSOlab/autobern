@@ -1528,18 +1528,18 @@ if __name__ == '__main__':
 
     ## compile a quick report based on the ADDNEQ2 output file for every
     ## station (appended to the log-file)
-#    if not bpe_error:
-#        compile_report(options, dt, logfn, netsta_dct, station_ts_updated, rinex_holdings)
+    if not bpe_error:
+        compile_report(options, dt, logfn, netsta_dct, station_ts_updated, rinex_holdings)
 
     ## assert that all stations (RINEX) downloaded are indeed included in the
     ## processing
-#    if not bpe_error:
-#        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(solution_id['final'], dt.strftime('%y%j'))), logfn)
+    if not bpe_error:
+        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(solution_id['final'], dt.strftime('%y%j'))), logfn)
 
     ## collect warning messages in a list (of dictionaries for every warning)
-#    if not bpe_error:
-#        warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
-#        compile_warnings_report(warning_messages, logfn)
+    if not bpe_error:
+        warning_messages = bpe.collect_warning_messages(os.path.join(os.getenv('P'), options['campaign'].upper()), dt.strftime('%j'), bpe_start_at, bpe_stop_at)
+        compile_warnings_report(warning_messages, logfn)
 
     ## upload SINEX files if needed (SINEX to EPND ftp)
     if not bpe_error and options['upload_to_epnd']:

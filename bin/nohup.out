@@ -1,0 +1,76 @@
+[WRNNG] Line is not a comment but could not be resolved: 'APRINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'ATLINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'ATXINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'APRINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'ATLINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'ATXINF ='
+[WRNNG] Removing file /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20_R.CRD; need to make a new link!
+[WRNNG] Removing file /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20_R.VEL; need to make a new link!
+[WRNNG] Removing file /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20.FIX; need to make a new link!
+[WRNNG] Removing file /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20.PSD; need to make a new link!
+[WRNNG] Removing file /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/CODE_EPN.STA; need to make a new link!
+[WRNNG] Removing file /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/NTUA.BLQ; need to make a new link!
+[WRNNG] Line is not a comment but could not be resolved: 'APRINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'ATLINF ='
+[WRNNG] Line is not a comment but could not be resolved: 'ATXINF ='
+[DEBUG] Failed to download EUREF's exclusion list file
+[DEBUG] Failed to match pattern 'site_id' to enviromental variable ... keeping string as-is (aka 'TS_FILE_NAME = ${site_id}/${site_id}.cts')
+[DEBUG] Failed to match pattern 'site_id' to enviromental variable ... keeping string as-is (aka 'TS_FILE_NAME = ${site_id}/${site_id}.cts')
+[DEBUG] Linking source /home/bpe54/tables/crd/IGS20_R.CRD to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20_R.CRD
+[DEBUG] Linking source /home/bpe54/tables/crd/IGS20_R.VEL to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20_R.VEL
+[DEBUG] Linking source /home/bpe54/tables/fix/IGS20.FIX to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20.FIX
+[DEBUG] Linking source /home/bpe54/tables/crd/IGS20.PSD to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/IGS20.PSD
+[DEBUG] Linking source /home/bpe54/tables/crd/REG_260500.CRD to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/REG_20260500.CRD
+[DEBUG] Linking source /home/bpe54/tables/sta/CODE_EPN.STA to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/CODE_EPN.STA
+[DEBUG] Linking source /home/bpe54/tables/blq/NTUA.BLQ to /home/bpe54/data/GPSDATA/CAMPAIGN54/EPNB23/STA/NTUA.BLQ
+[DEBUG] Failed to match pattern 'site_id' to enviromental variable ... keeping string as-is (aka 'TS_FILE_NAME = ${site_id}/${site_id}.cts')
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/ADAR00GBR_R_20260500000_01D_30S_MO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/ADAR00GBR_R_20260500000_01D_30S_GO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/ARIS00GBR_R_20260500000_01D_30S_MO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/ARIS00GBR_R_20260500000_01D_30S_GO.crx.gz
+[DEBUG] Skipping download for ctab; RINEX already exists as /home/bpe54/data/GPSDATA/DATAPOOL/CTAB00CZE_R_20260500000_01D_30S_MO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/graz0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/graz0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/graz0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/joze0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/joze0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/joze0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/KLOP00DEU_R_20260500000_01D_30S_MO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/KLOP00DEU_R_20260500000_01D_30S_GO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/mate0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/mate0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/mate0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/penc0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/penc0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/penc0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/pots0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/pots0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/pots0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/SCIL00GBR_R_20260500000_01D_30S_MO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/SCIL00GBR_R_20260500000_01D_30S_GO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/tlse0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/tlse0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/tlse0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/vill0500.26d.Z
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/vill0500.26d.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/vill0500.26o.Z
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/ZADA00HRV_R_20260500000_01D_30S_MO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://gnss.bev.gv.at/pub/obs/2026/050/ZADA00HRV_R_20260500000_01D_30S_GO.crx.gz
+[WRNNG] Failed retrieving remote file ftp://igs.ign.fr/pub/igs/data/2026/050/zim20500.26d.Z
+[DEBUG] Size of RINEX holdings 40
+[DEBUG] Downloaded orbit file /home/bpe54/data/GPSDATA/DATAPOOL/COD0OPSFIN_20260500.SP3.gz of type final (0)
+[DEBUG] Downloaded erp file /home/bpe54/data/GPSDATA/DATAPOOL/COD0OPSFIN_20260500.ERP.gz of type final (0)
+[DEBUG] Downloaded ion file /home/bpe54/data/GPSDATA/DATAPOOL/COD0OPSFIN_20260500000_01D_01H_GIM.ION.gz of type final (0)
+COD0OPSFIN_2026500000_01D_01D_OSB.BIA.gz
+Traceback (most recent call last):
+  File "./rundd.py", line 1415, in <module>
+    products_dict, products_ok = prepare_products(dt, options['config_file'], products_dict, os.getenv('D'), options['verbose'], True)
+  File "./rundd.py", line 287, in prepare_products
+    status, remote, local = get_dcb(type='final', span='daily', pydt=dt, obs='bia', save_dir=product_dir)
+  File "/usr/local/lib/python3.8/dist-packages/pybern-1.4b1-py3.8.egg/pybern/products/codedcb.py", line 334, in get_dcb
+    status, remote, local = web_retrieve(target, **indct)
+  File "/usr/local/lib/python3.8/dist-packages/pybern-1.4b1-py3.8.egg/pybern/products/downloaders/retrieve.py", line 249, in web_retrieve
+    return http_retrieve(url, filename, **kwargs)
+  File "/usr/local/lib/python3.8/dist-packages/pybern-1.4b1-py3.8.egg/pybern/products/downloaders/retrieve.py", line 240, in http_retrieve
+    raise RuntimeError(msg)
+RuntimeError: [ERROR] retrieve::http_retrieve Failed to download file http://ftp.aiub.unibe.ch/CODE/2026/COD0OPSFIN_2026500000_01D_01D_OSB.BIA.gz

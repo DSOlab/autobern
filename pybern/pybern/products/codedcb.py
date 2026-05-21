@@ -91,7 +91,7 @@ ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_
         frmt = 'DCB.Z'
     elif kwargs['span'] == 'daily' and kwargs['obs'] == 'bia':
         acn = 'COD0OPSFIN_'
-        sdate = '{:}{:}0000_01D_01D'.format(yyyy, ddd)
+        sdate = '{:}{:03d}0000_01D_01D'.format(yyyy, ddd)
         spec = '_OSB'
         url_dir = 'CODE/{:}'.format(yyyy)
         frmt = 'BIA.gz'
