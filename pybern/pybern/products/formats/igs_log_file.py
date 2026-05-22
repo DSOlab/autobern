@@ -440,11 +440,18 @@ class IgsLogFile:
 
     def site_name(self):
       bd = self.parse_block(1)
-      name = bd['Four Character ID']
-      domes = bd['IERS DOMES Number']
+      name = bd.get('Four Character ID', '').strip()
+      if name == '':
+          # Some sitelogs only provide a Nine Character ID
+          nine_char = _dict_get_first(bd, ('Nine Character ID', 'Nine Char ID'))
+          if re.match(r"^[A-Z0-9]{4}[0-9]{2}[A-Z0-9]{3}$", nine_char.strip().upper()):
+              name = nine_char.strip().upper()[:4]
+      if name == '':
+          name = _dict_get_first(bd, ('Site Name',))
+
+      domes = bd.get('IERS DOMES Number', '')
       if re.match(r"^\(A4\)$", name.strip()) or name.strip() == '':
           errmsg = '[ERROR] No valid station name (Four Character ID) field found in log file {:}'.format(self.filename)
-          # print(errmsg, file=sys.stderr)
           raise RuntimeError(errmsg)
       if re.match(r"^\(A9\)$", domes.strip()): domes = ''
       installed_at = install_date(bd).date()

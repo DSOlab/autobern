@@ -18,6 +18,16 @@ from bernsta_001 import Type001Record
 from bernsta_002 import Type002Record, ANTENNA_GENERIC_NUMBER, ANTENNA_GENERIC_STRING, non_strict_comparisson
 from bernsta_003 import Type003Record
 
+## New header for BERN54
+'''
+STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.5           13-MAY-26 08:41
+--------------------------------------------------------------------------------
+
+FORMAT VERSION: 1.03
+TECHNIQUE:      GNSS
+'''
+
+## Old header for BERN52
 '''
 STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           16-JAN-21 13:11
 --------------------------------------------------------------------------------
@@ -25,7 +35,7 @@ STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           16-JAN-21 13:11
 FORMAT VERSION: 1.01
 TECHNIQUE:      GNSS
 '''
-FILE_FORMAT = '.STA (Bernese v5.2)'
+FILE_FORMAT = '.STA (Bernese v5.4)'
 
 
 class BernStaInfo:
@@ -73,7 +83,7 @@ class BernStaInfo:
 
     def antennas2generic(self):
         for sta, val in self.dct.items():
-            for count, t2rec in enumerate(val['type002']):
+            for count, t2rec in enumerate(val.get('type002', [])):
                 if t2rec.antenna_sn.strip() != ANTENNA_GENERIC_STRING or int(t2rec.antenna_nr) != ANTENNA_GENERIC_NUMBER:
                     # print('Non generic antenna record for station {:}->[{:}]/[{:}] :[{:}]'.format(sta, t2rec.antenna_sn, int(t2rec.antenna_nr), t2rec))
                     print('[NOTE ] Non-generic antenna found for station {:} for interval {:} to {:}; details NR: {:}/{:}'.format(sta, t2rec.start_date, t2rec.stop_date, t2rec.antenna_sn.strip(), int(t2rec.antenna_nr)))
@@ -96,7 +106,7 @@ class BernStaInfo:
                 log.to_001type()], 'type002': log.to_002type()}
             return 0
         else:
-            if len(binfo['type001']) > 1:
+            if len(binfo.get('type001', [])) > 1:
                 print('[ERROR] Too many Type 001 records for station {:} in STA file {:}'.format(name, stafn), file=sys.stderr)
                 return 1
             
@@ -154,10 +164,10 @@ STATION NAME          FLG  FROM                 TO                   MARKER TYPE
     @staticmethod
     def dump_header(outfile=sys.stdout,
                     dt=datetime.datetime.now(),
-                    formatv=1.01,
+                    formatv=1.03,
                     technique='GNSS'):
         date_str = dt.strftime('%d-%b-%y %H:%M')
-        header_str = """STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.2           {:}
+        header_str = """STATION INFORMATION FILE FOR BERNESE GNSS SOFTWARE 5.4           {:}
 --------------------------------------------------------------------------------
 
 FORMAT VERSION: {:4.2f}
@@ -172,19 +182,18 @@ TECHNIQUE:      {:}""".format(date_str, formatv, technique)
             print("", file=outfile)
             Type001Record.dump_header(outfile)
             for sta in station_list:
-                [print(inst, file=outfile) for inst in self.dct[sta]['type001']]
+                for inst in self.dct[sta].get('type001', []):
+                    print(inst, file=outfile)
             print("", file=outfile)
             Type002Record.dump_header(outfile)
             for sta in station_list:
-                [print(inst, file=outfile) for inst in self.dct[sta]['type002']]
+                for inst in self.dct[sta].get('type002', []):
+                    print(inst, file=outfile)
             print("", file=outfile)
             Type003Record.dump_header(outfile)
             for sta in station_list:
-                if 'type003' in self.dct[sta]:
-                    [
-                        print(inst, file=outfile)
-                        for inst in self.dct[sta]['type003']
-                    ]
+                for inst in self.dct[sta].get('type003', []):
+                    print(inst, file=outfile)
             BernStaInfo.dump_tail(outfile)
 
 
