@@ -131,3 +131,4 @@ dmypy.json
 # Autobern files
 config/config.*
 !config/config.template
+bin/nohup.out
