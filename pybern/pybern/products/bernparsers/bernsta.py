@@ -253,20 +253,22 @@ class BernSta:
                 FILE_FORMAT, line,
                 '[ERROR] BernSta::__parse_block_002 failed to find \'TYPE 002: STATION INFORMATION\' block'
             )
-        while not line.startswith(
-                'STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK'
-        ):
+        new_header_1 = 'STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP     AZIMUTH  LONG NAME  DESCRIPTION             REMARK'
+        new_header_2 = '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  ****.*  *********  **********************  ************************'
+        old_header_1 = 'STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK'
+        old_header_2 = '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************'
+
+        while line and not (line.startswith(new_header_1) or line.startswith(old_header_1)):
             line = stream.readline()
-        if not line.startswith(
-                'STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK'
-        ):
+        if not (line.startswith(new_header_1) or line.startswith(old_header_1)):
             raise FileFormatError(
                 FILE_FORMAT, line,
                 '[ERROR] BernSta::__parse_block_002 failed to find header block for Type 002 (#1)'
             )
+        using_new_type002 = line.startswith(new_header_1)
         line = stream.readline()
-        if line.strip(
-        ) != '****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************':
+        expected_header_2 = new_header_2 if using_new_type002 else old_header_2
+        if line.strip() != expected_header_2:
             raise FileFormatError(
                 FILE_FORMAT, line,
                 '[ERROR] BernSta::__parse_block_002 failed to find header block for Type 002 (#2)'

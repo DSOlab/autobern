@@ -294,6 +294,67 @@ def install_date(sub_dict):
 def remove_date(sub_dict):
   return parse_log_date(sub_dict['Date Removed'])
 
+def _clean_log_value(value):
+  """Return a stripped site-log value, treating template placeholders as empty.
+
+  IGS sitelogs often keep template tokens such as ``(A9)`` or ``(deg)`` in
+  optional fields.  Those tokens should not propagate into fixed-width .STA
+  records.
+  """
+  if value is None:
+    return ''
+  value = str(value).strip()
+  if re.match(r"^\([A-Za-z][A-Za-z0-9\*\-,\.\s]*\)$", value):
+    return ''
+  return value
+
+
+def _dict_get_first(dct, keys, default=''):
+  """Return the first non-empty value from *dct* for any key in *keys*."""
+  for key in keys:
+    if key in dct:
+      value = _clean_log_value(dct[key])
+      if value != '':
+        return value
+  return default
+
+
+def _parse_float_from_log_value(value, default=0.0):
+  """Extract the leading numeric value from an IGS sitelog field.
+
+  The antenna alignment field is commonly written as e.g. ``0 deg``.  This
+  helper accepts such strings, FORTRAN ``D`` exponents, plain numbers, and
+  blank/template values.  Blank/template values return *default*.
+  """
+  value = _clean_log_value(value)
+  if value == '':
+    return default
+  match = re.search(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][-+]?\d+)?", value)
+  if match is None:
+    return default
+  return float(match.group(0).replace('D', 'E').replace('d', 'e'))
+
+
+def antenna_azimuth_from_block(antenna_block):
+  """Return antenna azimuth/alignment from a parsed block-4 sub-dictionary.
+
+  In the IGS sitelog, this value is normally stored in block 4.x as
+  ``Alignment from True N`` and may be suffixed by units (``deg``).  The .STA
+  TYPE 002 format expects the numeric value in degrees.
+  """
+  for key in ('Alignment from True N', 'Alignment from True North',
+              'Antenna Alignment from True N'):
+    if key in antenna_block:
+      return _parse_float_from_log_value(antenna_block[key], 0.0)
+
+  # Be tolerant of small spelling/capitalization changes in sitelogs.
+  for key, value in antenna_block.items():
+    normalized = key.lower()
+    if 'alignment' in normalized and 'true' in normalized:
+      return _parse_float_from_log_value(value, 0.0)
+
+  return 0.0
+
 def block_info_at(t, b):
   """ If b is an IgsLogFile-parsed, block 3 or 4 dictionary (aka a result of
       IgsLogFile::parse_block), then this function will return the sub-block/sub-
@@ -390,6 +451,50 @@ class IgsLogFile:
       if installed_at == datetime.datetime.max: installed_at = datetime.datetime.min
       return name, domes, installed_at
 
+    def nine_character_id(self):
+      """Return the IGS 9-character station identifier from log block 1.
+
+      The Bernese .STA TYPE 002 ``LONG NAME`` column is populated from the
+      sitelog field ``Nine Character ID``.  If the field is missing or still
+      contains a template token, an empty string is returned so the .STA field
+      is left blank rather than filled with invalid text.
+      """
+      bd = self.parse_block(1)
+      value = _dict_get_first(bd, ('Nine Character ID', 'Nine Char ID'))
+      value = value.strip().upper()
+      if re.match(r"^[A-Z0-9]{4}[0-9]{2}[A-Z0-9]{3}$", value):
+        return value
+      return ''
+
+    def site_description(self):
+      """Return a short best-effort station description for TYPE 002.
+
+      The .STA DESCRIPTION column is only 22 characters wide.  Prefer a compact
+      ``City, Country`` string from log block 2 and fall back to block 1's
+      ``Site Name`` if block 2 is absent or empty.
+      """
+      description = ''
+      try:
+        bd2 = self.parse_block(2)
+        city = _dict_get_first(bd2, ('City or Town', 'City'))
+        country = _dict_get_first(bd2, ('Country', 'Country Code'))
+        if city and country:
+          description = '{:}, {:}'.format(city, country)
+        elif city:
+          description = city
+        elif country:
+          description = country
+      except Exception:
+        description = ''
+
+      if description == '':
+        try:
+          description = _dict_get_first(self.parse_block(1), ('Site Name',))
+        except Exception:
+          description = ''
+
+      return description[:22]
+
     def to_001type(self):
       name, domes, installed_at = self.site_name()
       old_name = name + '*'
@@ -403,6 +508,8 @@ class IgsLogFile:
       
       name, domes, installed_at = self.site_name()
       name = (name + ' ' + domes).strip()
+      long_name = self.nine_character_id()
+      description = self.site_description()
 
       intervals = make_intervals(bd3, bd4)
       t2records = []
@@ -422,7 +529,9 @@ class IgsLogFile:
         else:
           t2 = Type002Record(station=name, start=t[0], end=t[1], remark='{:}'.format(
               os.path.basename(self.filename)), receiver_type=recinfo['Receiver Type'], receiver_serial=recinfo['Serial Number'], antenna_type=antinfo['Antenna Type'],
-              antenna_serial=antinfo['Serial Number'], delta_north=float(antinfo['Marker->ARP North Ecc(m)']), delta_east=float(antinfo['Marker->ARP East Ecc(m)']), delta_up=float(antinfo['Marker->ARP Up Ecc. (m)']))
+              antenna_serial=antinfo['Serial Number'], delta_north=float(antinfo['Marker->ARP North Ecc(m)']), delta_east=float(antinfo['Marker->ARP East Ecc(m)']),
+              delta_up=float(antinfo['Marker->ARP Up Ecc. (m)']), azimuth=antenna_azimuth_from_block(antinfo),
+              long_name=long_name, description=description)
           t2records.append(t2)
  
       #print('T2 Records:')

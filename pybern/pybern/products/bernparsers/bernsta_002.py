@@ -25,8 +25,8 @@ class Type002Record:
         header_str = """TYPE 002: STATION INFORMATION
 -----------------------------
 
-STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK
-****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************"""
+STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP     AZIMUTH  LONG NAME  DESCRIPTION             REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  ****.*  *********  **********************  ************************"""
         print(header_str, file=ofile)
 
     def __init__(self, line=None, **kwargs):
@@ -52,6 +52,11 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
         self.north = kwargs['delta_north'] if 'delta_north' in kwargs else 0e0
         self.east = kwargs['delta_east'] if 'delta_east' in kwargs else 0e0
         self.up = kwargs['delta_up'] if 'delta_up' in kwargs else 0e0
+        # Keep the historical attribute spelling (azimouth) for backward
+        # compatibility, but also accept the correctly-spelled constructor
+        # keyword (azimuth) used by log parsers and new code.
+        self.azimouth = kwargs['azimouth'] if 'azimouth' in kwargs else kwargs.get('azimuth', 0e0)
+        self.long_name = kwargs['long_name'] if 'long_name' in kwargs else "         "
         self.remark = kwargs['remark'] if 'remark' in kwargs else ''
         self.description = kwargs['description'] if 'description' in kwargs else ''
 
@@ -60,12 +65,16 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
        This will set the start and stop date and the station name.
 
       An example of a .STA file type 002 info line follows::
-
-        STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK
-        ****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************
-        AFKB                  001                                            LEICA GRX1200GGPRO                          999999  LEIAT504GG      LEIS                        999999    0.0000    0.0000    0.0000  Kabul, AF               NEW
-        AZGB 49541S001        001                       2004 07 20 23 59 59  TRIMBLE 4000SSE                             999999  TRM22020.00+GP  NONE                        999999    0.0000    0.0000    0.0000  Globe, US               NEW
-        AZGB 49541S001        001  2004 07 21 00 00 00  2004 08 26 23 59 59  TRIMBLE 4700                                999999  TRM33429.00+GP  NONE                        999999    0.0000    0.0000    0.0000  Globe, US               NEW
+STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP     AZIMUTH  LONG NAME  DESCRIPTION             REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  ****.*  *********  **********************  ************************
+____                  001                                            SIMULA                                      999999  SIMULA          NONE                        999999    0.0000    0.0000    0.0000          ____00CHE  Bern, CH                SIMULA
+ABMF 97103M001        001  2008 07 15 00 00 00  2009 10 15 19 59 59  ASHTECH UZ-12                               999999  AERAT2775_43    SPKE                        999999    0.0000    0.0000    0.0500          ABMF00GLP  Les Abymes, FR          
+ABMF 97103M001        001  2009 10 15 20 00 00  2011 11 15 04 59 59  TRIMBLE NETR5                               999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000          ABMF00GLP  Les Abymes, FR          IGSSTATION.3488
+ABMF 97103M001        001  2011 11 15 05 00 00  2012 01 24 11 59 59  TRIMBLE NETR9                               999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000          ABMF00GLP  Les Abymes, FR          abmf_20111115.log
+ABMF 97103M001        001  2012 01 24 12 00 00  2015 04 28 14 59 59  TRIMBLE NETR9                               999999  TRM57971.00     NONE                        999999    0.0000    0.0000    0.0000          ABMF00GLP  Les Abymes, FR          abmf_20120124.log
+ABMF 97103M001        001  2015 04 28 15 00 00  2019 04 15 11 59 59  LEICA GR25                                  999999  TRM57971.00     NONE                        999999    0.0000    0.0000    0.0000          ABMF00GLP  Les Abymes, FR          abmf_20150428.log
+ABMF 97103M001        001  2019 04 15 12 00 00                       SEPT POLARX5                                999999  TRM57971.00     NONE                        999999    0.0000    0.0000    0.0000          ABMF00GLP  Les Abymes, FR          abmf_20190415.log
+ABPO 33302M001        001                       2017 04 11 20 59 59  ASHTECH UZ-12                               999999  ASH701945G_M    SCIT                        999999    0.0000    0.0000    0.0083   180.0  ABPO00MDG  Antananarivo, MG        NEW
 
     '''
         self.sta_name = line[0:16].rstrip()
@@ -79,8 +88,31 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
         self.north = line[173:181].rstrip()
         self.east = line[183:191].rstrip()
         self.up = line[193:201].rstrip()
-        self.description = line[203:225].rstrip()
-        self.remark = line[227:].rstrip()
+
+        # Current TYPE 002 records include AZIMUTH and LONG NAME after UP.
+        # A few older .STA files do not; keep reading them so old files fail
+        # gracefully instead of interpreting DESCRIPTION text as azimuth.
+        azimuth_field = line[203:210].strip()
+        looks_like_new_type002 = False
+        if azimuth_field == '':
+            looks_like_new_type002 = len(line) >= 222 and line[211:221].strip() != ''
+        else:
+            try:
+                float(azimuth_field)
+                looks_like_new_type002 = True
+            except:
+                looks_like_new_type002 = False
+
+        if looks_like_new_type002:
+            self.azimouth = azimuth_field
+            self.long_name = line[211:221].strip()
+            self.description = line[222:244].rstrip()
+            self.remark = line[245:].rstrip()
+        else:
+            self.azimouth = ''
+            self.long_name = ''
+            self.description = line[203:225].rstrip()
+            self.remark = line[226:].rstrip()
         if len(self.sta_name) < 4:
             raise FileFormatError(
                 FILE_FORMAT, line,
@@ -131,7 +163,23 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
                     FILE_FORMAT, line,
                     '[ERROR] Type002Record::init_from_line Failed to parse stop date'
                 )
+        if self.azimouth != "":
+            try:
+                self.azimouth = float(self.azimouth)
+            except:
+                raise FileFormatError(FILE_FORMAT, line, '[ERROR] Type002Record::init_from_line Failed to parse (float) azimuth')
+        else:
+            self.azimouth = 0.0
     
+    @property
+    def azimuth(self):
+        """Correctly-spelled alias for the historical ``azimouth`` member."""
+        return self.azimouth
+
+    @azimuth.setter
+    def azimuth(self, value):
+        self.azimouth = value
+
     def equal_except_dates(self, type002_instance):
         d1 = vars(self)
         d2 = vars(type002_instance)
@@ -157,10 +205,10 @@ STATION NAME          FLG          FROM                   TO         RECEIVER TY
             t_start = self.start_date.strftime('%Y %m %d %H %M %S')
         if self.stop_date != MAX_STA_DATE:
             t_stop = self.stop_date.strftime('%Y %m %d %H %M %S')
-        return '{:<16s}      {:03d}  {:}  {:}  {:<20s}  {:>20s}  {:>6s}  {:<20s}  {:>20s}  {:>6s}  {:8.4f}  {:8.4f}  {:8.4f}  {:22s} {:}'.format(
+        return '{:<16s}      {:03d}  {:}  {:}  {:<20s}  {:>20s}  {:>6s}  {:<20s}  {:>20s}  {:>6s}  {:8.4f}  {:8.4f}  {:8.4f}  {:6.1f}  {:>9s}  {:22s}  {:}'.format(
             self.sta_name, self.flag, t_start, t_stop, self.receiver_t,
             self.receiver_sn, self.receiver_nr, self.antenna_t, self.antenna_sn,
-            self.antenna_nr, self.north, self.east, self.up, self.description,
+            self.antenna_nr, self.north, self.east, self.up, self.azimouth, self.long_name, self.description,
             self.remark)
 
     def __repr__(self):
@@ -229,7 +277,7 @@ def non_strict_comparisson(t1, t2, t1_source='N/A', t2_source='N/A', print_warni
         #print(vars(rec2))
         #print('Comparing to:')
         #print(vars(interval))
-        for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up']:
+        for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up', 'azimouth', 'long_name']:
             #print('[{:}] Vs [{:}]'.format(interval.antenna_t, rec2.antenna_t))
             if vars(interval)[key] != vars(rec2)[key]:
                 print('[ERROR] (#1) Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> [{:}]/[{:}] {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key], t1_source, t2_source), file=sys.stderr)
@@ -257,7 +305,7 @@ def non_strict_comparisson(t1, t2, t1_source='N/A', t2_source='N/A', print_warni
         if rec2 is None and interval.stop_date == MAX_STA_DATE and t2[len(t2)-1].stop_date >= datetime.datetime(2099, 12, 31):
             rec2 = match_epoch(datetime.datetime(2099, 12, 31),t2)
             wrn_print('[WRNNG] Interval seems to be artificial ({:}), not expanding to eternity ... Probably a EUREF Sta file (resuming).'.format(t2[len(t2)-1].stop_date))
-        for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up']:
+        for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up', 'azimouth', 'long_name']:
             if vars(interval)[key] != vars(rec2)[key]:
                 print('[ERROR] (#2) Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> [{:}]/[{:}] {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key], t1_source, t2_source), file=sys.stderr)
                 error += 1
