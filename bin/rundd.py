@@ -1524,7 +1524,7 @@ if __name__ == '__main__':
     ## update station-specif time-series (if needed)
     station_ts_updated = {}
     if options['update_sta_ts'] and not bpe_error:
-        station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(solution_id['final'], dt.strftime('%y%j'))))
+        station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}_{:}0.OUT'.format(solution_id['final'], dt.strftime('%Y%j'))))
 
     ## compile a quick report based on the ADDNEQ2 output file for every
     ## station (appended to the log-file)
@@ -1534,7 +1534,7 @@ if __name__ == '__main__':
     ## assert that all stations (RINEX) downloaded are indeed included in the
     ## processing
     if not bpe_error:
-        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(solution_id['final'], dt.strftime('%y%j'))), logfn)
+        check_downloaded_are_processed(rinex_holdings, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}_{:}0.OUT'.format(solution_id['final'], dt.strftime('%Y%j'))), logfn)
 
     ## collect warning messages in a list (of dictionaries for every warning)
     if not bpe_error:
@@ -1555,7 +1555,7 @@ if __name__ == '__main__':
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
         #message_file = errlog if bpe_error else bern_log_fn
         message_file = logfn
-        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
+        message_head = 'autobpe54.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR' if bpe_error else '')
         with open(message_file, 'r') as fin:
             message_body = fin.read()
         send_report_mail(options, message_head, message_body)

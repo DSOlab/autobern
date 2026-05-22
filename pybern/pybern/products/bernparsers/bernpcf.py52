@@ -27,13 +27,14 @@ class PcfFile:
                 '[ERROR] No PCF files parsed! Cannot find variable header line for list'
             )
         """
-        VARIABLE         DEFAULT        PARAMETERS
+        VARIABLE DESCRIPTION                              DEFAULT
+        8******* 40************************************** 30****************************
         """
         header_index = self.pcf_lines.index(
-            'VARIABLE         DEFAULT        PARAMETERS')
+            'VARIABLE DESCRIPTION                              DEFAULT')
         assert (
             header_index > -1 and self.pcf_lines[header_index + 1] ==
-            '# General and model files:'
+            '8******* 40************************************** 30****************************'
         )
         return header_index
 

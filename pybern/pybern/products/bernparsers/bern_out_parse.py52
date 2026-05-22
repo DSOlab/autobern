@@ -7,7 +7,7 @@ import datetime
 from pybern.products.errors.errors import FileFormatError
 """
  ===============================================================================
- Bernese GNSS Software, Version 5.4                                             
+ Bernese GNSS Software, Version 5.2                                             
  -------------------------------------------------------------------------------
  Program        : GPSXTR                                                        
  Purpose        : Extract GPSEST/ADDNEQ2 program output                         
