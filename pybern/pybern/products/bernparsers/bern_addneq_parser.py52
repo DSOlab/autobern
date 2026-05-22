@@ -104,11 +104,7 @@ def parse_addneq_out(istream):
         '--------------------------------------------------------------------------'
     ))
     line = istream.readline()
-    if not re.match(r'^\s*File\s+Name', line):
-        raise FileFormatError(
-            FILE_FORMAT, line,
-            '[ERROR] parse_addneq_out  Invalid BERNESE ADDNEQ file; Expected \'File  Name\' header'
-        )
+    assert (line.lstrip().startswith('File  Name'))
     line = istream.readline()
     assert (line.lstrip().startswith(
         '--------------------------------------------------------------------------'
@@ -406,33 +402,38 @@ def parse_addneq_out(istream):
     assert (line.lstrip().startswith('--------------------'))
     line = istream.readline()  ## empty line
     line = istream.readline()
-    if not re.match(r'^\s*Parameter type', line.lstrip()):
-        raise FileFormatError(
-            FILE_FORMAT, line,
-            '[ERROR] parse_addneq_out  Invalid BERNESE ADDNEQ file; Expected \'Parameter type\' line'
-        )
+    assert (line.lstrip().startswith(
+        'Parameter type                               Adjusted   explicitly / implicitly (pre-eliminated)        Deleted     Singular'
+    ))
     line = istream.readline()
-    if not line.lstrip().startswith('----'):
-        raise FileFormatError(
-            FILE_FORMAT, line,
-            '[ERROR] parse_addneq_out  Invalid BERNESE ADDNEQ file; Expected separator after Parameter type'
-        )
+    assert (line.lstrip().startswith('--------------------'))
     line = istream.readline()
-    while line and len(line.strip()) > 0:
-        if line.lstrip().startswith('-----'):
-            line = istream.readline()
-            continue
-        if line.lstrip().startswith('A PRIORI'):
-            break
-        # Parse lines with description and value(s)
-        # Format: "description          value(s)"
-        parts = line.split()
-        if len(parts) > 0 and parts[-1].isdigit():
-            # Extract description and values
-            value = int(parts[-1])
-            description = ' '.join(parts[:-1]).strip().lower().replace(' ', '_')
-            if description and not description.startswith('total') and not description.startswith('parameter'):
-                dct[key][description] = {'adjusted': value}
+    while line and len(line) > 45:
+        if not line.lstrip().startswith('------------------'):
+            description, adjusted, explicitely, implicitly, deleted, singular = [
+                x.strip() for x in [
+                    line[0:47], line[47:58], line[58:71], line[71:106],
+                    line[106:118], line[118:]
+                ]
+            ]
+            r = re.compile('([0-9]+)\s*\w*')
+            g = re.match(r, implicitly)
+            if not g:
+                raise FileFormatError(
+                    FILE_FORMAT, line,
+                    '[ERROR] parse_gpsest_out  Invalid BERNESE GPSEST file; Filed to resolve line \'\''
+                    .format(line.strip()))
+            implicitly = g.groups(1)[0]
+            dct[key][description.lower().replace(' ', '_')] = {}
+            for tpl in zip(
+                [adjusted, explicitely, implicitly, deleted, singular],
+                ['adjusted', 'explicit', 'implicit', 'deleted', 'singular']):
+                try:
+                    value = int(tpl[0])
+                    dct[key][description.lower().replace(' ',
+                                                         '_')][tpl[1]] = value
+                except ValueError as e:
+                    pass
         line = istream.readline()
     """
      Statistics:                           

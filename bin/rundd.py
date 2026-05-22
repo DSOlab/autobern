@@ -861,7 +861,7 @@ def compile_report(options, dt, bern_log_fn, netsta_dct, station_ts_updated, rin
         return ''
 
     ## the final ADDNEQ2 output file (to be parsed)
-    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}{:}0.OUT'.format(options['solution_id'], dt.strftime('%y%j')))
+    final_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}_{:}0.OUT'.format(options['solution_id'], dt.strftime('%Y%j')))
 
     ## parse the ADDNEQ2 output file and keep site information
     addneq2_info = {}
@@ -1396,11 +1396,11 @@ if __name__ == '__main__':
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
 ##TODO check .STA parsers
- #   stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
- #   if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
- #       print('[ERROR] Aborting processing!', file=sys.stderr)
- #       append2f(logfn, 'Failed to validate station records in STA file', 'FATAL ERROR; Processing stoped')
- #       sys.exit(1)
+    stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
+    if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
+        print('[ERROR] Aborting processing!', file=sys.stderr)
+        append2f(logfn, 'Failed to validate station records in STA file', 'FATAL ERROR; Processing stoped')
+        sys.exit(1)
 
     ## download and prepare products; do not give up if the first try fails,
     ## maybe some product is udated/written on the remote server. Retry a few

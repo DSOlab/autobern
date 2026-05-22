@@ -5,24 +5,25 @@ from __future__ import print_function
 import os, sys
 import datetime
 from pybern.products.errors.errors import FileFormatError
+## new header for BERN54
 """
- ===============================================================================
- Bernese GNSS Software, Version 5.4                                             
- -------------------------------------------------------------------------------
- Program        : GPSXTR                                                        
- Purpose        : Extract GPSEST/ADDNEQ2 program output                         
- -------------------------------------------------------------------------------
- Campaign       : ${P}/GREECE                                                   
- Default session: 0630 year 2021                                                
- Date           : 08-Mar-2021 15:49:45                                          
- User name      : bpe                                                           
- ===============================================================================
-
+===================================================================================================================================
+ Bernese GNSS Software, Version 5.4
+ -----------------------------------------------------------------------------------------------------------------------------------
+ Program        : ADDNEQ2
+ Output-version : 1.1
+ Purpose        : Combine normal equation systems
+ -----------------------------------------------------------------------------------------------------------------------------------
+ Campaign       : ${P}/EPNB23
+ Default session: 0500 year 2026
+ Date           : 21-May-2026 13:50:20
+ User name      : bpe54
+ ===================================================================================================================================
 """
 
 
 def parse_generic_out_header(istream):
-    FILE_FORMAT = 'Generic .OUT (Bernese v5.2)'
+    FILE_FORMAT = 'Generic .OUT (Bernese v5.4)'
     dct = {}
     line = istream.readline()
     while not line.lstrip().startswith(
@@ -30,10 +31,10 @@ def parse_generic_out_header(istream):
     ):
         line = istream.readline()
     line = istream.readline()
-    if not line.lstrip().startswith('Bernese GNSS Software, Version 5.2'):
+    if not line.lstrip().startswith('Bernese GNSS Software, Version 5.4'):
         raise FileFormatError(
             FILE_FORMAT, line,
-            '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Expected \'Bernese GNSS Software, Version 5.2\''
+            '[ERROR] parse_generic_header Invalid BERNESE Generic Header; Expected \'Bernese GNSS Software, Version 5.4\''
         )
     line = istream.readline()
     if not line.lstrip().startswith(
@@ -52,6 +53,9 @@ def parse_generic_out_header(istream):
     else:
         dct['program'] = line.split(':')[1].strip()
     line = istream.readline()
+    if line.lstrip().startswith('Output-version'):
+        dct['output_version'] = line.split(':')[1].strip()
+        line = istream.readline()
     if not line.lstrip().startswith('Purpose'):
         raise FileFormatError(
             FILE_FORMAT, line,
