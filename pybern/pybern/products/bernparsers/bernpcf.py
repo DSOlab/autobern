@@ -11,7 +11,10 @@ utils_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) +
 sys.path.append(utils_dir)
 from dctutils import merge_dicts
 
-FILE_FORMAT = 'PCF (Bernese v5.2)'
+FILE_FORMAT = 'PCF (Bernese v5.4)'
+VARIABLE_RE = re.compile(
+    r'^(?P<name>\S+)\s*=\s*(?P<value>.*?)(?:;\s*DESCRIPTION=(?P<description>.*))?$'
+)
 
 
 class PcfFile:
@@ -37,6 +40,30 @@ class PcfFile:
         )
         return header_index
 
+    def parse_variable_line(self, line):
+        """Parse a Bernese 5.4 PCF variable line."""
+        stripped = line.lstrip()
+        is_commented = stripped.startswith('#')
+        if is_commented:
+            stripped = stripped[1:].lstrip()
+
+        match = VARIABLE_RE.match(stripped)
+        if not match:
+            return None
+
+        return {
+            'name': match.group('name').strip(),
+            'description': (match.group('description') or '').strip(),
+            'value': match.group('value').strip(),
+            'is_commented': is_commented,
+        }
+
+    def format_variable_line(self, var_name, var_value, var_comment):
+        if var_comment is None:
+            var_comment = ''
+        return '{:14s} = {:14s};  DESCRIPTION={:}'.format(
+            var_name, var_value, var_comment)
+
     def parse_pcf(self, pcf_file):
         with open(pcf_file, 'r') as pcf:
             self.pcf_lines = [line.strip() for line in pcf.readlines()]
@@ -45,38 +72,32 @@ class PcfFile:
         ## search for the variable beyond this point
         idx = self.find_variable_header_line() + 2
         for pcf_line in self.pcf_lines[idx:]:
-            if not pcf_line[0].lstrip() == '#':
-                if pcf_line[0:8].strip() == var_name:
-                    return idx, var_name, pcf_line[9:40 + 9].strip(
-                    ), pcf_line[40 + 9 + 1:40 + 9 + 30].strip(), False
-            else:
-                tmp_line = pcf_line.lstrip().strip('#').lstrip()
-                if tmp_line[0:8].strip() == var_name:
-                    return idx, var_name, tmp_line[9:40 + 9].strip(
-                    ), tmp_line[40 + 9 + 1:40 + 9 + 30].strip(), True
+            parsed = self.parse_variable_line(pcf_line)
+            if parsed and parsed['name'] == var_name:
+                return idx, var_name, parsed['description'], parsed[
+                    'value'], parsed['is_commented']
             idx += 1
         return -1, '', '', '', False
 
     def add_variable_line(self, var_name, var_value, var_comment):
-        assert (len(var_name) <= 8)
         assert (len(var_value) <= 30)
-        if var_comment is None:
-            var_comment = ''
         idx = self.find_variable_header_line() + 2
-        for vline in self.pcf_lines[idx:]:
-            if vline.lstrip().startswith('#'):
-                break
-            idx += 1
-        self.pcf_lines.insert(
-            idx, '{:8s} {:40s} {:30s}'.format(var_name, var_comment, var_value))
-        return idx
+        insert_idx = idx
+        for offset, vline in enumerate(self.pcf_lines[idx:]):
+            if self.parse_variable_line(vline):
+                insert_idx = idx + offset + 1
+        self.pcf_lines.insert(insert_idx,
+                              self.format_variable_line(
+                                  var_name, var_value, var_comment))
+        return insert_idx
 
     def comment_out_variable_line(self, var_name):
-        assert (len(var_name) <= 8)
         var_found = 0
         idx = self.find_variable_header_line() + 2
         for offset, vline in enumerate(self.pcf_lines[idx:]):
-            if vline.lstrip().startswith(var_name):
+            parsed = self.parse_variable_line(vline)
+            if parsed and not parsed['is_commented'] and parsed[
+                    'name'] == var_name:
                 self.pcf_lines[idx + offset] = '#{:}'.format(vline.rstrip())
                 var_found += 1
         return var_found
@@ -84,29 +105,28 @@ class PcfFile:
     def uncomment_variable_line(self, var_name, var_value, idx=None):
         if idx is not None:
             pcf_line = self.pcf_lines[idx]
-            tmp_line = pcf_line.lstrip().strip('#').lstrip()
-            idx, name, cmnt, val, is_cmnt = idx, tmp_line[0:8].strip(
-            ), tmp_line[9:40 + 9].strip(), tmp_line[40 + 9 + 1:40 + 9 +
-                                                    30].strip(), True
+            parsed = self.parse_variable_line(pcf_line)
+            idx, name, cmnt, val, is_cmnt = idx, parsed['name'], parsed[
+                'description'], parsed['value'], parsed['is_commented']
         else:
             idx, name, cmnt, val, is_cmnt = self.find_variable(var_name)
         assert (idx > -1 and name == var_name and is_cmnt)
-        self.pcf_lines[idx] = '{:8s} {:40s} {:30s}'.format(
-            var_name, cmnt, var_value)
+        self.pcf_lines[idx] = self.format_variable_line(
+            var_name, var_value, cmnt)
         return
 
     def change_variable_line(self, var_name, var_value, idx=None):
         if idx is not None:
             pcf_line = self.pcf_lines[idx]
             assert (not pcf_line.startswith('#'))
-            idx, name, cmnt, val, is_cmnt = idx, pcf_line[0:8].strip(
-            ), pcf_line[9:40 + 9].strip(), pcf_line[40 + 9 + 1:40 + 9 +
-                                                    30].strip(), False
+            parsed = self.parse_variable_line(pcf_line)
+            idx, name, cmnt, val, is_cmnt = idx, parsed['name'], parsed[
+                'description'], parsed['value'], parsed['is_commented']
         else:
             idx, name, cmnt, val, is_cmnt = self.find_variable(var_name)
         assert (idx > -1 and name == var_name and not is_cmnt)
-        self.pcf_lines[idx] = '{:8s} {:40s} {:30s}'.format(
-            var_name, cmnt, var_value)
+        self.pcf_lines[idx] = self.format_variable_line(
+            var_name, var_value, cmnt)
         return
 
     def set_variable(self, var_name, var_value, var_comment):
@@ -140,11 +160,11 @@ class PcfFile:
         idx = self.find_variable_header_line() + 2
         var_dct = {}
         for line in self.pcf_lines[idx:]:
-            if not line.lstrip().startswith('#'):
-                var_name, var_comment, var_value = [
-                    x.strip()
-                    for x in [line[0:8], line[9:40 + 9], line[40 + 9 + 1:]]
-                ]
+            parsed = self.parse_variable_line(line)
+            if parsed and not parsed['is_commented']:
+                var_name = parsed['name']
+                var_comment = parsed['description']
+                var_value = parsed['value']
                 if var_name in var_dct:
                     raise RuntimeError(
                         '[ERROR] Variable found more than once in PCF file; variable name: \'{:}\''

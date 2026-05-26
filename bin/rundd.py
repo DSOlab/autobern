@@ -1489,8 +1489,10 @@ if __name__ == '__main__':
 #        send_report_mail(options, message_head, message_body)
 #        sys.exit(1)
     pcf = bpcf.PcfFile(pcf_file)
-#    for var, value in zip(['B', 'C', 'E', 'F', 'N', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],['COD', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
-#        pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
+    for var, value in zip(['ORB', 'FLT', 'FIN', 'RED', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],['COD0OPSFIN', solution_id['prelim'], solution_id['final'], solution_id['reduced'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
+    ### for var, value in zip(['ORB', 'FLT', 'FIN', 'RED', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],                                         
+    ## ['COD0OPSFIN', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
+        pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
     pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')
 

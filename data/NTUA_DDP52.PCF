@@ -197,15 +197,15 @@ PID USER         PASSWORD PARAM1   PARAM2   PARAM3   PARAM4   PARAM5   PARAM6   
 ## 903                       (10)
 #
 #
-VARIABLE DESCRIPTION                              DEFAULT
-8******* 40************************************** 30****************************
-V_A      A priori information                     APR
-V_B      Orbit/ERP, DCB, CLK information          COD
-V_C      Preliminary (ambiguity-float) results    DSP
-V_E      Final (ambiguity-fixed) results          DSO
-V_F      Size-reduced NEQ information             DSR
-V_I      NEQ iformation for ION estimation        DDI
-V_N      Free network solution                    DSN
+VARIABLE DESCRIPTION                              DEFAULT >> BERN54
+8******* 40************************************** 30***************************
+V_A      A priori information                     APR   > V_APR
+V_B      Orbit/ERP, DCB, CLK information          COD   > V_ORB
+V_C      Preliminary (ambiguity-float) results    DSP   > V_FLT
+V_E      Final (ambiguity-fixed) results          DSO   > V_FIN
+V_F      Size-reduced NEQ information             DSR   > V_RED
+V_I      NEQ iformation for ION estimation        DDI   > V_ION
+V_N      Free network solution                    DSN   > V_
 V_RNXDIR Directory with the RINEX files           RINEX
 V_OBSSEL Station selection file (blank: all)      
 V_REFDIR Directory with basic Bernese files       REF52
