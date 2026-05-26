@@ -80,8 +80,8 @@ def cleanup(verbosity=False):
 
     for f in temp_files:
         try:
-            verboseprint('[DEBUG] Removing temporary file {:} atexit ...'.format(f), end='')
-            #DEBUG os.remove(f)
+            verboseprint('[DEBUG] Removing temporary file {:} at exit ...'.format(f), end='')
+            os.remove(f)
             #verboseprint(' done')
         except:
             #verboseprint(' failed')

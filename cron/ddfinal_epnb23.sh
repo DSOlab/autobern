@@ -14,9 +14,9 @@ CONFIG=config.epnb23
 #year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
 #yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
 #doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
-year=2026
-yr2=26
-doy=103
+year=2023
+yr2=23
+doy=351
 idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 
