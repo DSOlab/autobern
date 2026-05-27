@@ -10,12 +10,12 @@ import shutil
 import email.utils
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlparse, unquote
+from urllib.parse import parse_qs, quote, urljoin, urlparse, unquote
 from urllib.request import Request, urlopen
 import pybern.products.bernparsers.bloadvar as blvar
 
 DEFAULT_AIUB_BASE_URL = 'https://www.aiub.unibe.ch/download'
-AIUB_S3TEST_BASE_URL = 'https://downloadtest.aiub.unibe.ch/'
+AIUB_S3TEST_BASE_URL = 'https://code.aiub.unibe.ch/s3_script/aiub_s3_bucket_listing.php?path='
 
 
 class DirectoryListingParser(HTMLParser):
@@ -32,7 +32,15 @@ class DirectoryListingParser(HTMLParser):
 
 
 def url_for(base_url, remote_path):
+    if 'path=' in base_url:
+        return base_url + quote(remote_path.strip('/'))
     return base_url.rstrip('/') + '/' + remote_path.strip('/') + '/'
+
+
+def listing_path(url):
+    parsed = urlparse(url)
+    query_path = parse_qs(parsed.query).get('path', [''])[0]
+    return query_path.strip('/')
 
 
 def remote_timestamp(url):
@@ -61,20 +69,34 @@ def list_remote_directory(url):
     parser = DirectoryListingParser()
     parser.feed(html)
     entries = []
+    current_listing_path = listing_path(url)
     base_path = urlparse(url).path.rstrip('/') + '/'
     for href in parser.hrefs:
-        if href in ('../', './') or href.startswith('#') or href.startswith('?'):
+        if href in ('../', './') or href.startswith('#'):
             continue
         absolute_url = urljoin(url, href)
         parsed = urlparse(absolute_url)
-        if parsed.scheme not in ('http', 'https') or parsed.netloc != urlparse(url).netloc:
+        if parsed.scheme not in ('http', 'https'):
             continue
-        if not parsed.path.startswith(base_path):
+
+        href_listing_path = listing_path(absolute_url)
+        if href_listing_path != '':
+            if current_listing_path and not href_listing_path.startswith(current_listing_path.rstrip('/') + '/'):
+                continue
+            name = os.path.basename(href_listing_path)
+            if name:
+                entries.append((name, absolute_url, True))
             continue
-        rel_path = unquote(parsed.path[len(base_path):])
-        if rel_path == '' or '/' in rel_path.strip('/'):
-            continue
-        entries.append((rel_path.rstrip('/'), absolute_url, href.endswith('/') or parsed.path.endswith('/')))
+
+        if parsed.netloc == urlparse(url).netloc and parsed.path.startswith(base_path):
+            rel_path = unquote(parsed.path[len(base_path):])
+            if rel_path == '' or '/' in rel_path.strip('/'):
+                continue
+            entries.append((rel_path.rstrip('/'), absolute_url, href.endswith('/') or parsed.path.endswith('/')))
+        else:
+            name = os.path.basename(unquote(parsed.path))
+            if name:
+                entries.append((name, absolute_url, False))
     return entries
 
 

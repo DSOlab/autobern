@@ -814,6 +814,9 @@ def sta_id2domes(sta_id, netsta_dct):
     """
     for dct in netsta_dct:
         if dct['mark_name_DSO'].lower() == sta_id.lower():
+            if dct['mark_numb_OFF'] is None:
+                print('[WRNNG] No domes number found for station {:} (database query)'.format(sta_id))
+                return ''
             return dct['mark_numb_OFF']
     print('[WRNNG] No domes number found for station {:} (database query)'.format(sta_id))
     return ''
@@ -985,7 +988,8 @@ STATION NAME      CLU
         sta_counter = 0
         for sta in rinex_holdings:
             if rinex_holdings[sta]['local'] is not None and not rinex_holdings[sta]['exclude']:
-                print('{:16s}  {:3d}'.format(' '.join([sta.upper(), rinex_holdings[sta]['domes']]), sta_counter//options['files_per_cluster']+1), file=fout)
+                domes = rinex_holdings[sta].get('domes') or ''
+                print('{:16s}  {:3d}'.format(' '.join([sta.upper(), domes]).strip(), sta_counter//options['files_per_cluster']+1), file=fout)
                 sta_counter += 1
     return cluster_file, sta_counter
 

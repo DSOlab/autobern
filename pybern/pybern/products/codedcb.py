@@ -15,7 +15,8 @@ else:
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 ## CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
-CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTP!!
+#CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTP!!
+CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
