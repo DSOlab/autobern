@@ -260,6 +260,10 @@ def match_epoch(t,t2list):
     #    return t2list[len(t2list)-1]
     return None
 
+def report_missing_match(interval, epoch, t1_source, t2_source):
+    print('[ERROR] No matching Type 002 record found at {:} for station {:}. Interval [{:} to {:}] {:}/{:}'.format(
+        epoch, interval.sta_name, interval.start_date, interval.stop_date, t1_source, t2_source), file=sys.stderr)
+
 def non_strict_comparisson(t1, t2, t1_source='N/A', t2_source='N/A', print_warning=False):
     #print('{:} records'.format(t1_source))
     #for i in t1: print('\t{:}'.format(i))
@@ -267,12 +271,20 @@ def non_strict_comparisson(t1, t2, t1_source='N/A', t2_source='N/A', print_warni
     #for i in t2: print('\t{:}'.format(i))
     wrn_print = print if print_warning else noop
     error = 0
+    if len(t1) == 0 or len(t2) == 0:
+        print('[ERROR] Cannot compare Type 002 records; {:} has {:} records and {:} has {:} records'.format(
+            t1_source, len(t1), t2_source, len(t2)), file=sys.stderr)
+        return 1
     if len(t1) < len(t2):
         t1, t2 = t2, t1
         t1_source, t2_source = t2_source, t1_source
     
     for interval in t1:
         rec2 = match_epoch(interval.start_date,t2)
+        if rec2 is None:
+            report_missing_match(interval, interval.start_date, t1_source, t2_source)
+            error += 1
+            continue
         #print('Requested data for date: {:}, interval [{:} to {:}]'.format(interval.start_date, interval.start_date, interval.stop_date))
         #print(vars(rec2))
         #print('Comparing to:')
@@ -305,6 +317,10 @@ def non_strict_comparisson(t1, t2, t1_source='N/A', t2_source='N/A', print_warni
         if rec2 is None and interval.stop_date == MAX_STA_DATE and t2[len(t2)-1].stop_date >= datetime.datetime(2099, 12, 31):
             rec2 = match_epoch(datetime.datetime(2099, 12, 31),t2)
             wrn_print('[WRNNG] Interval seems to be artificial ({:}), not expanding to eternity ... Probably a EUREF Sta file (resuming).'.format(t2[len(t2)-1].stop_date))
+        if rec2 is None:
+            report_missing_match(interval, epoch, t1_source, t2_source)
+            error += 1
+            continue
         for key in ['receiver_t', 'antenna_t', 'north', 'east', 'up', 'azimouth', 'long_name']:
             if vars(interval)[key] != vars(rec2)[key]:
                 print('[ERROR] (#2) Missmatch for Type 002 Records at {:} for station {:}. Key={:} -> [{:}]/[{:}] {:}/{:}'.format(interval.start_date, interval.sta_name, key, vars(interval)[key], vars(rec2)[key], t1_source, t2_source), file=sys.stderr)

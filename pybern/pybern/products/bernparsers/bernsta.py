@@ -81,6 +81,13 @@ class BernStaInfo:
                 return self.dct[key]
         return None
 
+    def station_key(self, station, use_four_char_id=False):
+        op = BernStaInfo.get_equality_operator(use_four_char_id)
+        for key in self.stations:
+            if op(station, key):
+                return key
+        return None
+
     def antennas2generic(self):
         for sta, val in self.dct.items():
             for count, t2rec in enumerate(val.get('type002', [])):
@@ -336,7 +343,8 @@ class BernSta:
         line = stream.readline()
         while line and len(line.strip()) > 20:
             new_rec = Type003Record(line)
-            if new_rec.sta_name not in bernstainfo.stations:
+            sta_key = new_rec.sta_name if new_rec.sta_name in bernstainfo.stations else bernstainfo.station_key(new_rec.sta_name, True)
+            if sta_key is None:
                 if missing_is_error:
                     raise RuntimeError(
                         '[ERROR] BernSta::__parse_block_003 Station {:} has Type 003 record but not included in Type 001'
@@ -347,10 +355,10 @@ class BernSta:
                         .format(new_rec.sta_name))
                     print('        Record will be skipped!')
             else:
-                if 'type003' in bernstainfo.dct[new_rec.sta_name]:
-                    bernstainfo.dct[new_rec.sta_name]['type003'].append(new_rec)
+                if 'type003' in bernstainfo.dct[sta_key]:
+                    bernstainfo.dct[sta_key]['type003'].append(new_rec)
                 else:
-                    bernstainfo.dct[new_rec.sta_name]['type003'] = [new_rec]
+                    bernstainfo.dct[sta_key]['type003'] = [new_rec]
             line = stream.readline()
 
     def parse(self):

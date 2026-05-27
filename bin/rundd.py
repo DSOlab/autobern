@@ -463,7 +463,7 @@ def decompress_rinex(rinex_holdings):
     def crx2rnx(crnx, station, new_holdings):
         ## Note that some files (e.g. Metrica's rinex3 may be .zip, observation
         ## RINEX, aka, do not need to be processed by CRX2RNX!
-        if crnx.endswith('o') or crnx.endswith('O'):
+        if crnx.endswith('o') or crnx.endswith('O') or crnx.endswith('.rnx') or crnx.endswith('.RNX'):
             print('[NOTE ] Rinex file {:} seems to not be Hatanaka-compressed; skipping CRX2RNX call ...'.format(crnx))
             new_holdings[station]['local'] = crnx
             return

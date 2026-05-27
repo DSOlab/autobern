@@ -15,6 +15,20 @@ import tempfile
 #else:
 from .cmpvar import find_os_compression_type, name_of_decompressed
 
+def rinex_zip_member_score(member):
+    """Rank likely RINEX payload files inside zip archives."""
+    name = os.path.basename(member)
+    lname = name.lower()
+    if member.endswith('/') or name == '':
+        return -1
+    if lname.endswith(('.rnx', '.crx')):
+        return 4
+    if re.match(r'.*\.\d{2}[od]$', lname):
+        return 3
+    if lname.endswith(('.obs', '.nav')):
+        return 2
+    return 1
+
 def crx2rnx(filename, remove_compressed=True, path2crx2rnx=None):
     """ Decompress a Hatanaka-compressed RINEX file, to an obs file. This
         function will try to use the program CRX2RNX to perform the
@@ -102,15 +116,15 @@ def os_decompress(filename, remove_original=False):
     elif ctype == '.zip':
         try:
             with zipfile.ZipFile(filename, "r") as zipin:
-                flist = zipin.namelist()
-                ## check .zip contents; it should only have one file, namely noncmp_filename
-                ##assert (len(flist) == 1 and
-                ##        flist[0] == os.path.basename(noncmp_filename))
-                ## print(">>num of files: {:}, here is the list: {:}".format(len(flist), flist))
-                if len(flist) == 1:
-                    noncmp_filename = os.path.join(os.path.dirname(filename), flist[0])
-                zipin.extractall(os.path.dirname(filename))
-                ## print(">>extractall ok-> extracted to {:}!".format(noncmp_filename));
+                flist = [member for member in zipin.namelist() if rinex_zip_member_score(member) > 0]
+                if len(flist) == 0:
+                    status = 4
+                else:
+                    member = sorted(flist, key=rinex_zip_member_score, reverse=True)[0]
+                    noncmp_filename = os.path.join(os.path.dirname(filename), os.path.basename(member))
+                    with zipin.open(member) as f_in:
+                        with open(noncmp_filename, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
         except:
             status = 4
     else:

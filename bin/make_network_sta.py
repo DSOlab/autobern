@@ -8,6 +8,9 @@ import re
 import argparse
 import datetime
 import atexit
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pybern')))
+
 from pybern.products.fileutils.keyholders import parse_key_file
 from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
 from pybern.products.euref.utils import get_euref_exclusion_list, get_m3g_log
