@@ -6,8 +6,10 @@ import sys
 import re
 import os
 import shutil
+import warnings
 from contextlib import closing
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import urllib.request
 from urllib.error import HTTPError, URLError
 import socket
@@ -211,7 +213,7 @@ def http_retrieve(url, filename=None, **kwargs):
     if not use_credentials:  ## download with no credentials
         try:
             ## allow timeout with requests
-            request = requests.get(target, timeout=20, stream=True)
+            request = requests.get(target, timeout=20, stream=True, verify=verify)
             if request.status_code == 200:
               with open(saveas, 'wb') as fh:
                   for chunk in request.iter_content(1024 * 1024):
@@ -223,7 +225,7 @@ def http_retrieve(url, filename=None, **kwargs):
             status = 1
     else:  ## download with credentials (not sure if this works for python 2)
         try:
-            with requests.get(target, auth=(username, password), timeout=20) as r:
+            with requests.get(target, auth=(username, password), timeout=20, verify=verify) as r:
                 r.raise_for_status()
                 if r.status_code == 200:
                   with open(saveas, 'wb') as f:

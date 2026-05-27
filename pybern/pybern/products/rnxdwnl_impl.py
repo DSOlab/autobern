@@ -198,10 +198,20 @@ def make_rinex3_fn(slong_name, pt, mark_name_dso, mark_name_off=None, allow_metr
     return possible_rinex_fn
 
 def make_rinex2_fn(mark_name_dso, mark_name_off, pt):
+    """ Given a station DSO name (mark_name_dso), a station official name (mark_name_off) and a python 
+        datetime instance (pt), make a list of possible RINEX v2.x files that can hold data for the station/date.
+        Updates:
+        27.05.2026 [DA]: Add rnx.zip as possible compression format for RINEX v2, as some data providers (e.g. UNIWA) 
+        
+    """
     possible_rinex_fn = {}
-    for comp in ['Z', 'gz']:
-        rname = '{:}{:}0.{:}d.{}'.format(mark_name_off, pt.strftime('%j'), pt.strftime('%y'), comp)
-        lname = '{:}{:}0.{:}d.{}'.format(mark_name_dso, pt.strftime('%j'), pt.strftime('%y'), comp)
+    for comp in ['Z', 'gz', 'rnx.zip']:
+        if comp == 'rnx.zip':
+            rname = '{:}{:}0.{}'.format(mark_name_off, pt.strftime('%j'), comp)
+            lname = '{:}{:}0.{}'.format(mark_name_dso, pt.strftime('%j'), comp)
+        else:
+            rname = '{:}{:}0.{:}d.{}'.format(mark_name_off, pt.strftime('%j'), pt.strftime('%y'), comp)
+            lname = '{:}{:}0.{:}d.{}'.format(mark_name_dso, pt.strftime('%j'), pt.strftime('%y'), comp)
         possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
     
     ## TREECMP data are UNIX compressed but **not** Hatanaka compressed
@@ -323,8 +333,9 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
             remote_fn = remote_dir + rfn
             verboseprint("[DEBUG] This is the remote file we should download: {:} (local: {:})".format(remote_fn, lfn))
             use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
+            no_check_certificate = query_dict['protocol'] == 'https' and query_dict['url_domain'] == 'www.gein.noa.gr'
             try:
-                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp)
+                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp, no_check_certificate=no_check_certificate)
                 verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
                 if status == 0 and os.path.isfile(saveas):
                     holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
