@@ -172,7 +172,7 @@ def make_rinex3_fn(slong_name, pt, mark_name_dso, mark_name_off=None, allow_metr
     possible_rinex_fn = {}
     long_name_warning_issued = False
 
-    for data_source in ['R', 'S']:
+    for data_source in ['R', 'S', 'U']:
         for content_type in ['MO', 'GO']:
             ## should not happen but sometimes long_name is NULL in database
             if not slong_name:

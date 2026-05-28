@@ -1,5 +1,5 @@
 #! /bin/bash
-## EUREF Densification Benchmark for YEAR 2026 DOY 351-357  GPSWEEK 2293
+##  Densification Benchmark for YEAR 2026 DOY 351-357  GPSWEEK 2293
 
 ABPE_DIR="/home/bpe54/applications/autobern"
 if ! test -d $ABPE_DIR
@@ -14,9 +14,14 @@ CONFIG=config.greece
 #year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
 #yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
 #doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
-year=2023
-yr2=23
-doy=351
+#year=2023
+
+for year in 2026 2024 2022 2020 2018 2016; do
+  echo "Processing year ${year}..."
+yr2=${year:2:2}
+doy=110
+
+
 idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 
@@ -43,5 +48,6 @@ python3 ${ABPE_DIR}/bin/rundd.py \
   || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
 
 rm ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD
+done 
 
 exit 0
