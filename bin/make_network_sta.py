@@ -74,10 +74,16 @@ parser.add_argument('-s',
                     default=None)
 parser.add_argument('-o',
                     '--sta-file',
-                    required=True,
+                    required=False,
                     help='The resulting .STA file, which holds records for all stations in network if they are recorded either in the reference .STA file or have a valid log file in the LOG_DIRECTORY dir',
                     metavar='OUT_STA',
                     dest='out_sta',
+                    default=None)
+parser.add_argument('--missing-from-sta',
+                    required=False,
+                    help='Report network stations missing from the given .STA file and exit',
+                    metavar='STA_FILE',
+                    dest='missing_from_sta',
                     default=None)
 parser.add_argument('--skip-log-error',
     action='store_true',
@@ -114,10 +120,29 @@ if __name__ == '__main__':
     ## parse command line arguments
     args = parser.parse_args()
 
+    if args.missing_from_sta is None and args.out_sta is None:
+        parser.error('the following arguments are required: -o/--sta-file')
+
     ## check log directory
-    if not os.path.isdir(args.log_dir):
+    if args.missing_from_sta is None and not os.path.isdir(args.log_dir):
         print('[ERROR] Failed to locate directory {:}'.format(args.log_dir))
         sys.exit(1)
+
+    if args.missing_from_sta is not None:
+        if not os.path.isfile(args.missing_from_sta):
+            print('[ERROR] Failed to find sta file {:}'.format(args.missing_from_sta), file=sys.stderr)
+            sys.exit(1)
+
+        db_credentials_dct = parse_db_credentials_file(args.credentials_file)
+        netsta_dct = query_sta_in_net(args.network, db_credentials_dct)
+        sta = bsta.BernSta(args.missing_from_sta).parse()
+        missing = [
+            dct['mark_name_DSO'] for dct in netsta_dct
+            if sta.station_info(dct['mark_name_DSO'].upper(), True) is None
+        ]
+        for station in missing:
+            print(station)
+        sys.exit(0)
 
     ## handle reference sta file
     if args.reference_sta is None:
