@@ -9,6 +9,13 @@ if ! test -d $ABPE_DIR
 fi
 
 CONFIG=config.greece
+STATUS_FILE="${ABPE_DIR}/cron/repro26_greece_thales.log"
+SERVER_NAME=$(hostname -s 2>/dev/null || hostname)
+
+write_process_status() {
+  process_time=$(date '+%Y-%m-%dT%H:%M:%S%z')
+  printf '%s %s %s %s %s\n' "$process_time" "$year" "$doy" "$SERVER_NAME" "$1" >> "$STATUS_FILE"
+}
 
 ## get the date 15 days ago
 #year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
@@ -18,36 +25,48 @@ CONFIG=config.greece
 
 for year in 2026; do
   echo "Processing year ${year}..."
-yr2=${year:2:2}
-doy=110
+  yr2=${year:2:2}
+  doy=025
 
 
-idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
+  idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 
-## we need to make an a-priori crd file for the BPE
-python3 ${ABPE_DIR}/bin/make_apriori_crd.py -n greece \
-  -c ${ABPE_DIR}/config/config.greece \
-  -o ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD \
-  --ssc-files ${HOME}/tables/ssc/EUR0OPSSNX_1996001_2025270_00U_SOL.SSC \
-  --crd-files ${HOME}/tables/crd/NTUA54.CRD \
-  --date "${year}-${doy}" \
-  --date-format '%Y-%j' \
-   || { echo "ERROR. Failed to create a-priori CRD file"; exit 1; }
+  ## we need to make an a-priori crd file for the BPE
+  python3 ${ABPE_DIR}/bin/make_apriori_crd.py -n greece \
+    -c ${ABPE_DIR}/config/config.greece \
+    -o ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD \
+    --ssc-files ${HOME}/tables/ssc/EUR0OPSSNX_1996001_2025270_00U_SOL.SSC \
+    --crd-files ${HOME}/tables/crd/NTUA54.CRD \
+    --date "${year}-${doy}" \
+    --date-format '%Y-%j'
+  apriori_status=$?
+  if [ $apriori_status -ne 0 ]; then
+    echo "ERROR. Failed to create a-priori CRD file"
+    write_process_status "error"
+    continue
+  fi
 
-## run the DD BPE ...
-python3 ${ABPE_DIR}/bin/rundd.py \
-  -c ${ABPE_DIR}/config/config.greece \
-  -n greece \
-  -y ${year} \
-  -d ${idoy} \
-  --verbose \
-  --use-euref-exclusion-list \
-  --min-reference-stations 10 \
-  --aprinf REG_${yr2}${doy}0 \
-  || { echo "ERROR. BPE and/or rundd script failed!"; exit 1; }
+  ## run the DD BPE ...
+  python3 ${ABPE_DIR}/bin/rundd.py \
+    -c ${ABPE_DIR}/config/config.greece \
+    -n greece \
+    -y ${year} \
+    -d ${idoy} \
+    --verbose \
+    --use-euref-exclusion-list \
+    --min-reference-stations 10 \
+    --aprinf REG_${yr2}${doy}0
+  rundd_status=$?
 
-rm ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD
+  rm -f ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD
+  if [ $rundd_status -ne 0 ]; then
+    echo "ERROR. BPE and/or rundd script failed!"
+    write_process_status "error"
+    continue
+  fi
+
+  write_process_status "solve"
 done 
 
 exit 0
