@@ -634,7 +634,7 @@ def link2campaign(options, dt, add2temp_files=True):
             tab_obssel = os.path.join(TDIR, 'sel', obssel_fn)
             if not os.path.isfile(tab_obssel):
                 errmsg = '[ERROR] Failed to find selection file {:} in either {:} or {:}'.format(obssel_fn, os.path.dirname(gen_obssel), os.path.dirname(tab_obssel))
-                raise RuntimeError(msg)
+                raise RuntimeError(errmsg)
             link_dict.append({'src': tab_obssel, 'dest': gen_obssel})
 
     for pair in link_dict:

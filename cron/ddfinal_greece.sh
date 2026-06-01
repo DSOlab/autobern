@@ -16,7 +16,7 @@ CONFIG=config.greece
 #doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
 #year=2023
 
-for year in 2026 2024 2022 2020 2018 2016; do
+for year in 2026; do
   echo "Processing year ${year}..."
 yr2=${year:2:2}
 doy=110
