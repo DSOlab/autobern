@@ -8,13 +8,13 @@ function help {
     exit 1
 }
 
-if [ "$#" -ne 4 ]
+if [ "$#" -eq 0 ]
 then
 	echo "[ERROR] : No input argument"
 	help
 fi
 
-while [ $# -gt 4 ]
+while [ $# -gt 0 ]
 do
     case "$1" in
         --host)
