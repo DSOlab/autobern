@@ -8,12 +8,13 @@ function help {
     exit 1
 }
 
-if [ "$#" -lt 2 ]; then
-    echo "[ERROR] : Missing required arguments"
-    help
+if [ "$#" -ne 4 ]
+then
+	echo "[ERROR] : No input argument"
+	help
 fi
 
-while [ $# -gt 0 ]
+while [ $# -gt 4 ]
 do
     case "$1" in
         --host)

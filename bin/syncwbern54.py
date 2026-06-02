@@ -220,10 +220,13 @@ if __name__ == '__main__':
         target_path = blvar.parse_loadvar(args.bern_loadvar)['GLOBAL']
         model_dir = os.path.join(target_path, 'MODEL')
         config_dir = os.path.join(target_path, 'CONFIG')
+        datapool_dir = blvar.parse_loadvar(args.bern_loadvar)['D']
+        ref54_dir = os.path.join(datapool_dir, 'REF54')
         verboseprint('[DEBUG] Synchronizing local directory {:}'.format(model_dir))
         verboseprint('[DEBUG] Synchronizing local directory {:}'.format(config_dir))
-        target_dir = [model_dir, config_dir]
-        remote_dir = ['BSWUSER54/MODEL','BSWUSER54/CONFIG']
+        verboseprint('[DEBUG] Synchronizing local directory {:}'.format(ref54_dir))
+        target_dir = [model_dir, config_dir, ref54_dir]
+        remote_dir = ['BSWUSER54/MODEL','BSWUSER54/CONFIG','BSWUSER54/REF']
     else:
         target_dir = [args.target]
         remote_dir = [args.remote_dir]

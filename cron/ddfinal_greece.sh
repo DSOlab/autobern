@@ -26,7 +26,7 @@ write_process_status() {
 for year in 2026; do
   echo "Processing year ${year}..."
   yr2=${year:2:2}
-  doy=033
+  doy=091
 
 
   idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
@@ -61,12 +61,13 @@ for year in 2026; do
 
   rm -f ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD
   if [ $rundd_status -ne 0 ]; then
-    echo "ERROR. BPE and/or rundd script failed!"
-    write_process_status "error"
-    continue
+     echo "ERROR. BPE and/or rundd script failed!"
+     write_process_status "error"
+     continue
+  else
+     write_process_status "solve" 
   fi
 
-  write_process_status "solve"
 done 
 
 exit 0
