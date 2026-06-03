@@ -26,7 +26,7 @@ write_process_status() {
 for year in 2026; do
   echo "Processing year ${year}..."
   yr2=${year:2:2}
-  doy=091
+  doy=093
 
 
   idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'

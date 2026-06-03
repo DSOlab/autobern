@@ -1557,6 +1557,31 @@ if __name__ == '__main__':
                 append2f(logfn, 'Uploaded local (final) SINEX file {:} to {:}'.format(final_sinex,uploaded_to))
                 print('[DEBUG] Uploaded local (final) SINEX file {:} to {:}'.format(final_sinex,uploaded_to))
 
+    ## synchronize local saved product directory to remote host if configured
+    if not bpe_error and 'save_dir_host' in options and options['save_dir_host'] and 'save_dir_dir' in options and options['save_dir_dir'] and 'save_dir' in options and options['save_dir']:
+        try:
+            local_save_dir = os.path.expanduser(os.path.expandvars(options['save_dir']))
+            if not os.path.isdir(local_save_dir):
+                raise RuntimeError('[ERROR] Local SAVE_DIR does not exist: {:}'.format(local_save_dir))
+            username = options.get('save_dir_urn', 'anonymous')
+            password = options.get('save_dir_pss', '')
+            upld.lftp_sync_folder(
+                options['save_dir_host'],
+                options['save_dir_dir'],
+                local_save_dir,
+                username,
+                password,
+                exclude_globs=None,
+                parallel=3,
+                only_newer=True,
+                verbose=options['verbose'],
+                reverse=True)
+            append2f(logfn, 'Synchronized local SAVE_DIR {:} to remote {:}:{:}'.format(local_save_dir, options['save_dir_host'], options['save_dir_dir']))
+            print('[DEBUG] Synchronized local SAVE_DIR {:} to remote {:}:{:}'.format(local_save_dir, options['save_dir_host'], options['save_dir_dir']))
+        except Exception as exc:
+            print('[ERROR] Failed to synchronize SAVE_DIR {:} to {:}:{:}: {:}'.format(options['save_dir'], options['save_dir_host'], options['save_dir_dir'], exc), file=sys.stderr)
+            append2f(logfn, 'Failed to synchronize local SAVE_DIR {:} to remote {:}:{:}: {:}'.format(options['save_dir'], options['save_dir_host'], options['save_dir_dir'], exc), '')
+
     ## do we need to send mail ?
     if 'send_mail_to' in options and options['send_mail_to'] is not None:
         #message_file = errlog if bpe_error else bern_log_fn
