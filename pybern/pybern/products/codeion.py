@@ -181,20 +181,27 @@ def get_ion_rapid_target(**kwargs):
             sdate = ''
         else:
             week, sow = pydt2gps(pydt)
-            sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
-            if kwargs['type'] == 'rapid':
-                frmt = 'ION_R'
-            elif kwargs['type'] == 'prediction':
-                frmt = 'ION_P'
-            elif kwargs['type'] == 'p2':
-                frmt = 'ION_P2'
-            elif kwargs['type'] == 'p5':
-                frmt = 'ION_P5'
+            if week <-2237:
+                #week, sow = pydt2gps(pydt)
+                sdate = '{:04d}{:1d}'.format(week, sow2dow(sow))
+                if kwargs['type'] == 'rapid':
+                    frmt = 'ION_R'
+                elif kwargs['type'] == 'prediction':
+                    frmt = 'ION_P'
+                elif kwargs['type'] == 'p2':
+                    frmt = 'ION_P2'
+                elif kwargs['type'] == 'p5':
+                    frmt = 'ION_P5'
+                else:
+                    raise RuntimeError(
+                        '[ERROR] code::get_ion_rapid invalid request (#2)')
+                ion = '{:}{:}.{:}'.format(acn, sdate, frmt)
             else:
-                raise RuntimeError(
-                    '[ERROR] code::get_ion_rapid invalid request (#2)')
+                #yy, ddd = pydt2yydoy(pydt)
+                sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+                if kwargs['type'] == 'rapid':
+                    ion = '{:}0OPSRAP_{:}0000_01D_01H_GIM.ION'.format(acn, sdate)
 
-    ion = '{:}{:}.{:}'.format(acn, sdate, frmt)
     target = '{:}/CODE/{:}'.format(CODE_URL, ion)
     return target
 

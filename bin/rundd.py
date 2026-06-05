@@ -181,10 +181,23 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
 #        'dcb': {'target_dir': 'ORB', 'target_fn': 'P1C1{:}.DCB'.format(dt.strftime('%y%m'))},
 #        'vmf1': {'target_dir': 'GRD', 'target_fn': 'VMF{:}0.GRD'.format(dt.strftime('%y%j'))}}
 
-    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0.PRE'.format(dt.strftime('%Y%j'))},
-        'erp': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}.ERP'.format(dt.strftime('%Y%j'))},
+    # derive orbit product base (e.g. COD0OPSFIN) from downloaded products if
+    # available so we can keep the last-3-chars (FIN/ULT/RAP) variable
+    orb_base = None
+    for key in ('erp', 'sp3'):
+        try:
+            if key in product_dict and product_dict[key].get('local'):
+                orb_base = os.path.basename(product_dict[key]['local']).split('_')[0]
+                break
+        except Exception:
+            orb_base = None
+    if orb_base is None:
+        orb_base = 'COD0OPSFIN'
+
+    rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': f'{orb_base}_{{:}}0.PRE'.format(dt.strftime('%Y%j'))},
+        'erp': {'target_dir': 'ORB', 'target_fn': f'{orb_base}_{{:}}.ERP'.format(dt.strftime('%Y%j'))},
         'ion': {'target_dir': 'ATM', 'target_fn': 'HOI_{:}0.ION'.format(dt.strftime('%Y%j'))},
-        'dcb': {'target_dir': 'ORB', 'target_fn': 'COD0OPSFIN_{:}0_OSB.BIA'.format(dt.strftime('%Y%j'))},
+        'dcb': {'target_dir': 'ORB', 'target_fn': f'{orb_base}_{{:}}0_OSB.BIA'.format(dt.strftime('%Y%j'))},
         'vmf3': {'target_dir': 'GRD', 'target_fn': 'VMF3_{:}0.GRD'.format(dt.strftime('%Y%j'))}}
 
     for ptype, rules in rules_d.items():
@@ -269,11 +282,13 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
     ## download dcb
     if 'dcb' not in product_dict:
         days_dif = (datetime.datetime.now() - dt).days
-        if days_dif > 0 and days_dif < 30:
+        if days_dif > 0 and days_dif < 7:
             for i in range(3):
                 try:
-                    status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
-                    product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+                    ##status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
+                    ##product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
+                    status, remote, local = get_dcb(type='rapid', span='daily', pydt=dt, obs='bia', save_dir=product_dir)
+                    product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'bia'}
                     verboseprint('[DEBUG] Downloaded dcb file {:} of type {:} ({:})'.format(local, 'current', status))
                     break
                 except:
@@ -1399,7 +1414,7 @@ if __name__ == '__main__':
     
     ## validate stations using the STA file and get domes
     ## stafn = stainf2fn(options['stainf'], options['tables_dir'], options['campaign'].upper())
-##TODO check .STA parsers
+    ## change STA pasers for bern5.4 version
     stafn = os.path.join(os.getenv('P'), options['campaign'].upper(), 'STA', options['stainf'].upper() + '.STA')
     if match_rnx_vs_sta(rinex_holdings, stafn, dt) > 0:
         print('[ERROR] Aborting processing!', file=sys.stderr)
@@ -1493,9 +1508,19 @@ if __name__ == '__main__':
 #        send_report_mail(options, message_head, message_body)
 #        sys.exit(1)
     pcf = bpcf.PcfFile(pcf_file)
-    for var, value in zip(['ORB', 'FLT', 'FIN', 'RED', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],['COD0OPSFIN', solution_id['prelim'], solution_id['final'], solution_id['reduced'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['satsys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
-    ### for var, value in zip(['ORB', 'FLT', 'FIN', 'RED', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],                                         
-    ## ['COD0OPSFIN', solution_id['prelim'], solution_id['final'], solution_id['reduced'], solution_id['free_net'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['sat_sys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
+
+    # derive orb base and 3-char suffix from downloaded products (prefer ERP)
+    orb_full = None
+    if 'sp3' in products_dict and products_dict['sp3'].get('local'):
+        orb_full = os.path.basename(products_dict['sp3']['local']).split('_')[0]
+    elif 'erp' in products_dict and products_dict['erp'].get('local'):
+        orb_full = os.path.basename(products_dict['erp']['local']).split('_')[0]
+    if orb_full is None:
+        orb_full = 'COD0OPSFIN'
+#    orb_suf = orb_full[-3:]
+
+    for var, value in zip(['ORB', 'FLT', 'FIN', 'RED', 'BLQINF', 'ATLINF', 'STAINF', 'CRDINF', 'SATSYS', 'PCV', 'PCVINF', 'ELANG', 'FIXINF', 'REFINF', 'REFPSD', 'CLU', 'OBSSEL'],
+                          [orb_full, solution_id['prelim'], solution_id['final'], solution_id['reduced'], options['blqinf'], options['atlinf'], options['stainf'], options['campaign'].upper(), options['satsys'].upper(), options['pcvext'].upper(), options['pcvinf'].upper(), options['elevation_angle'], options['fixinf'], options['refinf'], options['refpsd'], options['files_per_cluster'], options['obssel'].upper()+'.SEL']):
         pcf.set_variable('V_'+var, value, 'rundd {}'.format(datetime.datetime.now().strftime('%Y%m%dT%H%M%S')))
     pcf.dump(os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF'))
     pcf_file = os.path.join(os.getenv('U'), 'PCF', 'RUNDD.PCF')

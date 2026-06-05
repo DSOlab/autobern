@@ -57,6 +57,8 @@ def get_credentials_from_args(arg_dict):
         Note! some cmd options have a default value of None; guard against 
         this.
     """
+    username = None
+    password = None
     if 'config_file' in arg_dict and arg_dict['config_file']:
         d = parse_key_file(arg_dict['config_file']);
         username = d['TUWIEN_VMF1_USER'] if 'TUWIEN_VMF1_USER' in d else None

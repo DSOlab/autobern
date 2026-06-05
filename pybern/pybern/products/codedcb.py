@@ -119,7 +119,6 @@ ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_
             frmt = 'DCB.Z'
     try:
         dcb = '{:}{:}{:}.{:}'.format(acn, sdate, spec, frmt)
-        print(dcb)
         target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, dcb)
     except:
         msg = '[ERROR] code::get_dcb_final Failed to formulate DCB file'
@@ -174,7 +173,7 @@ def get_dcb_rapid_target(**kwargs):
                             **kwargs)
     if 'obs' in kwargs and kwargs['obs'] not in [
             'p1p2', 'p1c1', 'p1p2all', 'p1p2gps', 'p1c1rnx', 'p1c2rnx',
-            'p1p2p1c1', 'full'
+            'p1p2p1c1', 'full', 'bia'
     ]:
         raise ArgumentError('[ERROR] code::get_dcb_rapid Invalid obs', 'obs',
                             **kwargs)
@@ -190,16 +189,24 @@ def get_dcb_rapid_target(**kwargs):
     if 'obs' not in kwargs:
         kwargs['obs'] = 'full'
 
+    pydt = _date(**kwargs)
+    yy, ddd = pydt2yydoy(pydt)                             
+    mm, yyyy = pydt.strftime('%m'), pydt.strftime('%Y')    
     spec = ''
+    
     if kwargs['type'] == 'rapid' and kwargs['span'] == 'daily' and kwargs[
             'obs'] == 'p1p2':
-        pydt = _date(**kwargs)
-        yy, ddd = pydt2yydoy(pydt)
-        mm, yyyy = pydt.strftime('%m'), pydt.strftime('%Y')
         url_dir = 'BSWUSER52/ORB/{:}'.format(yyyy)
         acn = 'COR'
         sdate = '{:02d}{:03d}'.format(yy, ddd)
         frmt = 'DCB.Z'
+    elif kwargs['type'] == 'rapid' and kwargs['span'] == 'daily' and kwargs[
+            'obs'] == 'bia':
+        acn = 'COD0OPSRAP_'
+        sdate = '{:}{:03d}0000_01D_01D'.format(yyyy, ddd)
+        spec = '_OSB'
+        url_dir = 'CODE'
+        frmt = 'BIA'
     elif kwargs['type'] == 'current' and kwargs['span'] == 'monthly':
         url_dir = 'CODE'
         frmt = 'DCB'

@@ -166,6 +166,7 @@ if __name__ == '__main__':
     ## for all types provided by the user and stored in the 'types' array. When
     ## we succed, stop downloading.
     status = 10
+    types = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
     for t in types:
         input_dct['type'] = t
         try:

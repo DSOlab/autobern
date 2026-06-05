@@ -146,12 +146,22 @@ def get_sp3_rapid_target(**kwargs):
 
     acn = 'COD'
     url_dir = 'CODE'
-    if kwargs['type'] not in ['current', 'current-5d']:
-        pydt = _date(**kwargs)  ## this may throw
-        week, sow = pydt2gps(pydt)
+    #if kwargs['type'] not in ['current', 'current-5d']:
+    pydt = _date(**kwargs)  ## this may throw
+    ## yy, ddd = pydt2yydoy(pydt)
+    week, sow = pydt2gps(pydt)
+    if week <= 2237:
         sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-
-    if kwargs['type'] == 'current':
+    else:
+        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+    
+    if week >= 2238 and kwargs['type'] in ['urapid', 'ultra-rapid']:
+        frmt = 'SP3'
+        eph = '{:}0OPSULT_{:}0000_01D_05M_ORB.{:}'.format(acn, sdate, frmt)
+    elif week >= 2238 and kwargs['type'] in ['frapid', 'final-rapid']:
+        frmt = 'SP3'                                                          
+        eph = '{:}0OPSRAP_{:}0000_01D_05M_ORB.{:}'.format(acn, sdate, frmt)        
+    elif kwargs['type'] == 'current':
         sdate = ''
         frmt = 'EPH_U'
     elif kwargs['type'] == 'current-5d':
@@ -172,7 +182,9 @@ def get_sp3_rapid_target(**kwargs):
     else:
         raise RuntimeError('[ERROR] code::get_sp3_rapid Invalid type.')
 
-    eph = '{:}{:}.{:}'.format(acn, sdate, frmt)
+    if frmt in ['EPH_U', 'EPH_5D', 'EPH_M', 'EPH_R', 'EPH_P', 'EPH_P2', 'EPH_5D']:
+        eph = '{:}{:}.{:}'.format(acn, sdate, frmt)
+    
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, eph)
     return target
 
@@ -249,10 +261,10 @@ def get_sp3(**kwargs):
 
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
-    elif week >= 2238 and kwargs['type'] == 'final':
-        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
-        frmt = 'SP3'
-        indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt)
+    #elif week >= 2238 and kwargs['type'] == 'final':
+    #    sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+    #    frmt = 'SP3'
+    #    indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt)
     #    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
     #    frmt = 'EPH'
     #    indct['save_as'] = 'COD{:}.{:}.Z'.format(sdate, frmt)

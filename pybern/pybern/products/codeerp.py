@@ -2,6 +2,7 @@
 #-*- coding: utf-8 -*-
 
 from __future__ import print_function
+from calendar import week
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.downloaders.retrieve import web_retrieve
@@ -179,14 +180,25 @@ def get_erp_rapid_target(**kwargs):
     if 'type' not in kwargs:
         kwargs['type'] = 'frapid'
 
-    if kwargs['type'] != 'frapid':
-        pydt = _date(**kwargs)  ## this may throw
-        week, sow = pydt2gps(pydt)
+#    if kwargs['type'] != 'frapid':
+    pydt = _date(**kwargs)
+    ## yy, ddd = pydt2yydoy(pydt)
+    week, sow = pydt2gps(pydt)
+    if week <= 2237:
         sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+    else:
+        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+
     acn = 'COD'
     url_dir = 'CODE'
 
-    if kwargs['type'] in ['urapid', 'ultra-rapid']:
+    if week >= 2238 and kwargs['type'] in ['urapid', 'ultra-rapid']:
+        frmt = 'ERP'
+        erp = '{:}0OPSULT_{:}0000_01D_01D_ERP.{:}'.format(acn, sdate, frmt)
+    elif week >= 2238 and kwargs['type'] in ['frapid', 'final-rapid']:
+        frmt = 'ERP'                                                          
+        erp = '{:}0OPSRAP_{:}0000_01D_01D_ERP.{:}'.format(acn, sdate, frmt)        
+    elif kwargs['type'] in ['urapid', 'ultra-rapid']:
         frmt = 'ERP_U'
     elif kwargs['type'] in ['frapid', 'final-rapid']:
         frmt = 'ERP_M'
@@ -202,7 +214,9 @@ def get_erp_rapid_target(**kwargs):
         sdate = ''
         frmt = 'ERP_U'
 
-    erp = '{:}{:}.{:}'.format(acn, sdate, frmt)
+    if frmt in ['ERP_M', 'ERP_U', 'ERP_R', 'ERP_P', 'ERP_P2', 'ERP_5D']:
+        erp = '{:}{:}.{:}'.format(acn, sdate, frmt)
+
     target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
     return target
 
@@ -277,10 +291,10 @@ def get_erp(**kwargs):
     indct = {}
     if 'save_as' in kwargs:
         indct['save_as'] = kwargs['save_as']
-    elif week >= 2238 and kwargs['type'] == 'final':
-        sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
-        frmt = 'ERP'
-        indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt) 
+    #elif week >= 2238 and kwargs['type'] == 'final':
+    #    sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+    #    frmt = 'ERP'
+    #    indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt) 
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
     status, remote, local = web_retrieve(target, **indct)

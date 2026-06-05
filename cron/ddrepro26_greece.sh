@@ -9,7 +9,7 @@ if ! test -d $ABPE_DIR
 fi
 
 CONFIG=config.greece
-STATUS_FILE="${ABPE_DIR}/cron/final_greece_thales.log"
+STATUS_FILE="${ABPE_DIR}/cron/repro26_greece_thales.log"
 SERVER_NAME=$(hostname -s 2>/dev/null || hostname)
 
 write_process_status() {
@@ -18,16 +18,14 @@ write_process_status() {
 }
 
 ## get the date 15 days ago
-year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
-yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
-doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
-#year=2023
+#year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
+#yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
+#doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
+year=1995
 
-#for year in 2026; do
-  echo "Processing year ${year}..."
+for doy in 001; do
+  echo "Processing year ${year} - doy ${doy}..."
   yr2=${year:2:2}
-  doy=154
-
 
   idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
@@ -68,6 +66,6 @@ doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-d
      write_process_status "solve" 
   fi
 
-#done 
+done 
 
 exit 0
