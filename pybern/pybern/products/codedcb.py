@@ -83,19 +83,26 @@ ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_
     pydt = _date(**kwargs)  ## this may throw
     yy, ddd = pydt2yydoy(pydt)
     mm, yyyy = pydt.strftime('%m'), pydt.strftime('%Y')
-
+    week, sow = pydt2gps(pydt)
+    
     spec = ''
     if kwargs['span'] == 'daily' and kwargs['obs'] == 'p1p2':
         acn = 'COD'
         sdate = '{:02d}{:03d}'.format(yy, ddd)
         url_dir = 'BSWUSER52/ORB/{:}'.format(yyyy)
         frmt = 'DCB.Z'
-    elif kwargs['span'] == 'daily' and kwargs['obs'] == 'bia':
+    elif kwargs['span'] == 'daily' and kwargs['obs'] == 'bia' and week>= 2238:
         acn = 'COD0OPSFIN_'
         sdate = '{:}{:03d}0000_01D_01D'.format(yyyy, ddd)
         spec = '_OSB'
         url_dir = 'CODE/{:}'.format(yyyy)
         frmt = 'BIA.gz'
+    elif kwargs['span'] == 'daily' and kwargs['obs'] == 'bia' and week< 2238:
+        acn = 'COD'
+        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+        spec = ''
+        url_dir = 'CODE/{:}'.format(yyyy)
+        frmt = 'BIA.Z'
     elif kwargs['span'] == 'monthly':
         sdate = '{:02d}{:}'.format(yy, mm)
         url_dir = 'CODE/{:}'.format(yyyy)

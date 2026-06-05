@@ -191,7 +191,7 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
                 break
         except Exception:
             orb_base = None
-    if orb_base is None:
+    if orb_base is None or gweek < 2238:
         orb_base = 'COD0OPSFIN'
 
     rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': f'{orb_base}_{{:}}0.PRE'.format(dt.strftime('%Y%j'))},
