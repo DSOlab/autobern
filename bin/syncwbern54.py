@@ -150,6 +150,8 @@ parser = argparse.ArgumentParser(
     Dimitris Anastasiou,danastasiou@mail.ntua.gr
     January, 2021
     Update: 2025.05.21 :[DA] update for BERN54
+            2026.06.10 :[DA] add --upd_tables option to copy tables from REF54 
+                             to a specified tables folder
     '''))
 
 parser.add_argument(
@@ -197,6 +199,12 @@ parser.add_argument('--remote-dir',
                     dest='remote_dir',
                     default='BSWUSER54',
                     help='Remote directory below the AIUB base URL; only used with --target')
+
+parser.add_argument('--upd_tables',
+                    metavar='TABLES_PATH',
+                    dest='upd_tables',
+                    required=False,
+                    help='Path to tables folder; if exists, copies CRD/VEL/PSD/FIX/ATX/ATL/BLQ/PCV files from REF54')
 
 if __name__ == '__main__':
 
@@ -248,5 +256,52 @@ if __name__ == '__main__':
             print('[ERROR] Mirroring failed for {:}: {:}'.format(remote_url, exc), file=sys.stderr)
             sys.exit(1)
 
+    ##  Handle upd_tables: copy files from REF54 to tables folder
+    if args.upd_tables:
+        tables_path = args.upd_tables
+        if os.path.exists(tables_path):
+            verboseprint('[DEBUG] Updating tables in {:}'.format(tables_path))
+            
+            ##  Get REF54 directory
+            if args.bern_loadvar:
+                datapool_dir = blvar.parse_loadvar(args.bern_loadvar)['D']
+                ref54_dir = os.path.join(datapool_dir, 'REF54')
+            else:
+                print('[ERROR] --upd_tables requires --bernese-loadvar to determine REF54 location', file=sys.stderr)
+                sys.exit(1)
+            
+            if not os.path.isdir(ref54_dir):
+                print('[ERROR] REF54 directory does not exist: {:}'.format(ref54_dir), file=sys.stderr)
+                sys.exit(1)
+            
+            ##  Define file type to target subdirectory mapping
+            file_mappings = [
+                (['*.CRD', '*.VEL', '*.PSD'], 'crd'),
+                (['*.FIX'], 'fix'),
+                (['*.ATX'], 'atx'),
+                (['*.ATL'], 'atl'),
+                (['*.BLQ'], 'blq'),
+                (['*.PCV'], 'pcv'),
+            ]
+            
+            ##  Process each file type
+            for extensions, subdir in file_mappings:
+                target_subdir = os.path.join(tables_path, subdir)
+                os.makedirs(target_subdir, exist_ok=True)
+                verboseprint('[DEBUG] Created/verified directory: {:}'.format(target_subdir))
+                
+                for file in os.listdir(ref54_dir):
+                    file_path = os.path.join(ref54_dir, file)
+                    if os.path.isfile(file_path):
+                        for ext_pattern in extensions:
+                            if fnmatch.fnmatch(file.upper(), ext_pattern.upper()):
+                                target_file = os.path.join(target_subdir, file)
+                                try:
+                                    shutil.copy2(file_path, target_file)
+                                    verboseprint('[DEBUG] Copied {:} -> {:}'.format(file_path, target_file))
+                                except Exception as exc:
+                                    print('[ERROR] Failed to copy {:} to {:}: {:}'.format(file_path, target_file, exc), file=sys.stderr)
+                                    sys.exit(1)
+                                break
 
     sys.exit(0)
