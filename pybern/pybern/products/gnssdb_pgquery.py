@@ -1,0 +1,98 @@
+#! /usr/bin/python3
+#-*- coding: utf-8 -*-
+
+from __future__ import print_function
+import os
+import datetime
+import sys
+from pybern.products.fileutils.keyholders import extract_key_values
+from pybern.products.downloaders.retrieve import web_retrieve
+import psycopg2
+import psycopg2.extras
+
+g_verbose_rnxdwnl = False
+
+net_upd_ts_query=(
+    """SELECT
+        "stacode"."mark_name_DSO",
+        "stacode"."mark_numb_OFF",
+        "network"."network_name",
+        "sta2nets"."upd_tssta"
+        FROM "stacode"
+        JOIN "station" ON "stacode"."stacode_id" = "station"."stacode_id"
+        JOIN "sta2nets" ON "station"."station_id" = "sta2nets"."station_id"
+        JOIN "network" ON "sta2nets"."network_id" = "network"."network_id"
+        WHERE "network"."network_name" = %s
+        AND "sta2nets"."upd_tssta" = 1;""")
+
+sta_in_net_query=(
+    """SELECT "station"."station_id", 
+        "station"."mark_name_DSO", 
+        "stacode"."mark_name_OFF",
+        "stacode"."mark_numb_OFF",
+        "stacode"."station_name", 
+        "stacode"."long_name",
+        "network"."network_name" 
+        FROM "station" 
+        JOIN "stacode" ON "station"."stacode_id"="stacode"."stacode_id" 
+        JOIN "sta2nets" ON "sta2nets"."station_id"="station"."station_id" 
+        JOIN "network" ON "network"."network_id"="sta2nets"."network_id" 
+        WHERE "network"."network_name"=%s""")
+
+
+def parse_db_credentials_file(credentials_file):
+    ## parse credentials to a dictionary (from file)
+    credentials_dct = {'GNSS_DB_USER':None, 'GNSS_DB_PASS':None, 'GNSS_DB_HOST':None, 'GNSS_DB_NAME':None}
+    credentials_dct = extract_key_values(credentials_file, **credentials_dct)
+    return credentials_dct
+
+
+def execute_query(credentials_dct, query_str, *args):
+    """ 
+    """
+    connection_error = 0 
+    ## Connect to the database
+    try:
+        cnx = psycopg2.connect(
+            host=credentials_dct['GNSS_DB_HOST'], 
+            dbname=credentials_dct['GNSS_DB_NAME'], 
+            user=credentials_dct['GNSS_DB_USER'], 
+            password=credentials_dct['GNSS_DB_PASS'],
+            connect_timeout=10)
+        ## get a cursor to perform queries ...
+        cursor = cnx.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        ## execute query ...
+        cursor.execute(query_str, args)
+        ## get response
+        rows = cursor.fetchall()
+        ## close the cursor
+        cursor.close()
+        cnx.close()
+    except psycopg2.OperationalError as err:
+        print('[ERROR] Failed to connect to database!', file=sys.stderr)
+        print('[ERROR] ' + str(err), file=sys.stderr)
+        connection_error = 12
+    except psycopg2.Error as err:
+        print('[ERROR] Database error!', file=sys.stderr)
+        print('[ERROR] ' + str(err), file=sys.stderr)
+        connection_error = 12
+
+    if connection_error > 0:
+        msg = '[ERROR] Failed to connect to database at {:}@{:}; fatal!'.format(credentials_dct['GNSS_DB_NAME'], credentials_dct['GNSS_DB_HOST'])
+        raise RuntimeError(msg)
+
+    return rows
+
+
+def query_sta_in_net(network, credentials_dct):
+    """ Returns a dictionary of type:
+        [{'station_id': 1, 'mark_name_DSO': 'pdel', ...}, {...}]
+    """
+    return execute_query(credentials_dct, sta_in_net_query, network)
+
+
+def query_tsupd_net(network, credentials_dct):
+    """ Returns a dictionary of type:
+        [{'station_id': 1, 'mark_name_DSO': 'pdel', ...}, {...}]
+    """
+    return execute_query(credentials_dct, net_upd_ts_query, network)
