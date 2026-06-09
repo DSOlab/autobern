@@ -56,7 +56,8 @@ for year in 2026; do
     --verbose \
     --use-euref-exclusion-list \
     --min-reference-stations 10 \
-    --aprinf REG_${yr2}${doy}0
+    --aprinf REG_${yr2}${doy}0 \
+    --update-db-ts
   rundd_status=$?
 
   rm -f ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD

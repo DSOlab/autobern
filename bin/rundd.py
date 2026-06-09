@@ -8,6 +8,7 @@ import re
 import argparse
 import subprocess
 import datetime
+import psycopg2
 from time import sleep as psleep
 import atexit
 import getpass
@@ -790,6 +791,165 @@ def update_ts(options, adnq2_fn):
 
     return stations_updated
 
+
+def update_tsdb(options, station_ts_updated, logfn=None):
+    """Insert updated time-series records into the PostgreSQL DB."""
+    if not station_ts_updated:
+        return False
+
+    db_credentials = parse_db_credentials_file(options['config_file'])
+    try:
+        conn = psycopg2.connect(
+            host=db_credentials['GNSS_DB_HOST'],
+            dbname=db_credentials['GNSS_DB_NAME'],
+            user=db_credentials['GNSS_DB_USER'],
+            password=db_credentials['GNSS_DB_PASS'],
+            connect_timeout=10
+        )
+    except Exception as exc:
+        append2f(logfn, '[ERROR] Failed to connect to database: {:}'.format(exc))
+        return False
+
+    cursor = conn.cursor()
+    reference_frame = options.get('update_ts_db_ref', 'IGS20')
+    software = options.get('update_ts_db_software', 'BERNESE52')
+    solution_type = 'Final'
+
+    def db_get_id(query, value, id_name):
+        cursor.execute(query, (value,))
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    reference_frame_id = db_get_id('SELECT reference_frame_id FROM "reference_frame" WHERE name = %s', reference_frame, 'reference_frame_id')
+    software_id = db_get_id('SELECT software_id FROM "software" WHERE name = %s', software, 'software_id')
+    solution_type_id = db_get_id('SELECT solution_type_id FROM "solution_type" WHERE name = %s', solution_type, 'solution_type_id')
+
+    if reference_frame_id is None:
+        append2f(logfn, '[ERROR] Reference frame {:} not found in database'.format(reference_frame))
+        conn.close()
+        return False
+    if software_id is None:
+        append2f(logfn, '[ERROR] Software {:} not found in database'.format(software))
+        conn.close()
+        return False
+    if solution_type_id is None:
+        append2f(logfn, '[ERROR] Solution type {:} not found in database'.format(solution_type))
+        conn.close()
+        return False
+
+    adnq2_out = os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}_{:}0.OUT'.format(options['solution_id'], datetime.datetime.strptime('{:}-{:03d}'.format(options['year'], int(options['doy'])), '%Y-%j').strftime('%Y%j')))
+    if not os.path.isfile(adnq2_out):
+        append2f(logfn, '[ERROR] Could not find ADDNEQ2 output file {:} for DB update'.format(adnq2_out))
+        conn.close()
+        return False
+
+    with open(adnq2_out, 'r') as adnq2:
+        adnq2_dct = bparse.parse_generic_out_header(adnq2)
+        assert(adnq2_dct['program'] == 'ADDNEQ2')
+        adnq2_dct = baddneq.parse_addneq_out(adnq2)
+        adnq2_dct = adnq2_dct['stations']
+
+    tsupd_dict = query_tsupd_net(options['network'], db_credentials)
+
+    def station_in_addneq2(station_):
+        for aa, dct in adnq2_dct.items():
+            if dct['station_name'].lower().strip() == station_.lower().strip():
+                return dct
+        return None
+
+    insert_query = """
+                INSERT INTO "gps_timeseries" (
+                    station_id, mark_name_dso,
+                    obs_date, obs_time, obs_timestamp,
+                    ecef_x, ecef_x_sigma,
+                    ecef_y, ecef_y_sigma,
+                    ecef_z, ecef_z_sigma,
+                    latitude, latitude_sigma,
+                    longitude, longitude_sigma,
+                    altitude, altitude_sigma,
+                    processing_date, processing_time, processing_timestamp,
+                    campaign,
+                    reference_frame_id, software_id, solution_type_id
+                ) VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s
+                )
+            """
+
+    records = []
+    for qdct in tsupd_dict:
+        sid = qdct['mark_name_DSO']
+        sdm = qdct['mark_numb_OFF']
+        station_name = '{:} {:}'.format(sid, sdm).strip()
+
+        if station_name not in station_ts_updated:
+            continue
+
+        addneq2_record = station_in_addneq2(station_name)
+        if addneq2_record is None:
+            continue
+
+        station_id = db_get_id('SELECT station_id FROM "station" WHERE "mark_name_DSO" = %s', sid, 'station_id')
+        if station_id is None:
+            append2f(logfn, '[ERROR] Station {:} not found in database'.format(sid))
+            continue
+
+        tfrom = addneq2_record['X_from']
+        tto = addneq2_record['X_to']
+        dt_seconds = int((tto - tfrom).seconds) / 2
+        obs_datetime = tfrom + datetime.timedelta(seconds=dt_seconds)
+        processing_datetime = datetime.datetime.now()
+
+        records.append((
+            station_id,
+            sid,
+            obs_datetime.strftime('%Y-%m-%d'),
+            obs_datetime.strftime('%H:%M:%S'),
+            obs_datetime.strftime('%Y-%m-%d %H:%M:%S'),
+            addneq2_record['X_estimated_value'],
+            addneq2_record['X_rms_error'],
+            addneq2_record['Y_estimated_value'],
+            addneq2_record['Y_rms_error'],
+            addneq2_record['Z_estimated_value'],
+            addneq2_record['Z_rms_error'],
+            addneq2_record['Latitude_estimated_value'],
+            addneq2_record['Latitude_rms_error'],
+            addneq2_record['Longitude_estimated_value'],
+            addneq2_record['Longitude_rms_error'],
+            addneq2_record['Height_estimated_value'],
+            addneq2_record['Height_rms_error'],
+            processing_datetime.strftime('%Y-%m-%d'),
+            processing_datetime.strftime('%H:%M:%S'),
+            processing_datetime.strftime('%Y-%m-%d %H:%M:%S'),
+            options.get('campaign', '').upper(),
+            reference_frame_id,
+            software_id,
+            solution_type_id
+        ))
+
+    if not records:
+        append2f(logfn, '[WARNING] No DB records prepared for update_tsdb')
+        conn.close()
+        return False
+
+    try:
+        cursor.executemany(insert_query, records)
+        conn.commit()
+        append2f(logfn, '[DEBUG] Inserted {:} gps_timeseries records into DB'.format(len(records)))
+    except Exception as exc:
+        conn.rollback()
+        append2f(logfn, '[ERROR] Failed to insert gps_timeseries records: {:}'.format(exc))
+        conn.close()
+        return False
+
+    cursor.close()
+    conn.close()
+    return True
+
+
 def check_downloaded_are_processed(rinex_holdings, addneq2_out, bern_log_fn):
     """ Check that the sites listed in (the final) ADDNEQ2 output file, are
         the same sites listed in the rinex_holdings; aka check that all
@@ -1103,8 +1263,13 @@ parser = argparse.ArgumentParser(
     Dionysos Satellite Observatory\n
     Send bug reports to:
     Xanthos Papanikolaou, xanthos@mail.ntua.gr
-    Dimitris Anastasiou,danast@mail.ntua.gr
-    January, 2021'''))
+    Dimitris Anastasiou, danastasiou@mail.ntua.gr
+    Version: 1.6.51 
+    Update history:
+            - 1.5.10: 2024-06-17 : Various changes
+            - 1.5.51: 2026-06-09 : Add update ts to postgre DB
+    First released:        
+            January, 2021'''))
 
 parser.add_argument('-y',
                     '--year',
@@ -1296,6 +1461,13 @@ parser.add_argument(
                     help='If set, then the progeam will try to upload the final SINEX file to EPNDensification FTP site, using the credentials that should exist in the corresponding config file (entries: \'EPND_FTP_IP\', \'EPND_FTP_USERNAME\', \'EPND_FTP_PASSWORD\')'
                     )
 
+parser.add_argument(
+                    '--update-db-ts',
+                    action='store_true',
+                    dest='update_db_ts',
+                    help='If set, import updated station .cts files to the PostgreSQL DB after time-series update.'
+                    )
+
 if __name__ == '__main__':
 
     ## parse command line arguments
@@ -1327,6 +1499,18 @@ if __name__ == '__main__':
                 options[k.lower()] = v
         elif v is None and k not in options:
             options[k.lower()] = v
+
+    ## ensure update_db_ts is enabled by either config or CLI
+    options['update_db_ts'] = bool(options.get('update_db_ts', False) or options.get('upd_db_ts', False))
+    if 'softrel' in options and options['softrel'] is not None:
+        options['update_ts_db_software'] = options['softrel']
+    elif 'update_ts_db_software' not in options or options['update_ts_db_software'] is None:
+        options['update_ts_db_software'] = 'BERNESE54'
+
+    if 'refinf' in options and options['refinf'] is not None:
+        options['update_ts_db_ref'] = options['refinf']
+    elif 'update_ts_db_ref' not in options or options['update_ts_db_ref'] is None:
+        options['update_ts_db_ref'] = 'IGS20'
 
     ## parse the config file (if any) without expanding variables, to get
     ## only TS_FILE_NAME
@@ -1556,6 +1740,12 @@ if __name__ == '__main__':
     station_ts_updated = {}
     if options['update_sta_ts'] and not bpe_error:
         station_ts_updated = update_ts(options, os.path.join(os.getenv('P'), options['campaign'].upper(), 'OUT', '{:}_{:}0.OUT'.format(solution_id['final'], dt.strftime('%Y%j'))))
+
+    if options['update_db_ts'] and not bpe_error:
+        if station_ts_updated:
+            update_tsdb(options, station_ts_updated, logfn)
+        else:
+            append2f(logfn, 'Requested update-db-ts but no station .cts files were updated; skipping DB import')
 
     ## compile a quick report based on the ADDNEQ2 output file for every
     ## station (appended to the log-file)
