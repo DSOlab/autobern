@@ -8,7 +8,7 @@ import re
 import argparse
 import datetime
 from pybern.products.fileutils.keyholders import parse_key_file
-from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
+from pybern.products.gnssdb_pgquery import parse_db_credentials_file, query_sta_in_net
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(
     Dionysos Satellite Observatory\n
     Send bug reports to:
     Xanthos Papanikolaou, xanthos@mail.ntua.gr
-    Dimitris Anastasiou,danast@mail.ntua.gr
+    Dimitris Anastasiou, danastasiou@mail.ntua.gr
     December, 2022'''))
 
 parser.add_argument('-n',

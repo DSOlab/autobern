@@ -13,12 +13,12 @@ import atexit
 import getpass
 from shutil import copyfile
 import smtplib, ssl
-import pybern.products.rnxdwnl_impl as rnxd
+import pybern.products.rnxdwnl_implpg as rnxd
 import pybern.products.fileutils.decompress as dcomp
 import pybern.products.fileutils.compress as comp
 import pybern.products.uploaders.uploaders as upld
 from pybern.products.fileutils.keyholders import parse_key_file
-from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net, query_tsupd_net
+from pybern.products.gnssdb_pgquery import parse_db_credentials_file, query_sta_in_net, query_tsupd_net
 from pybern.products.codesp3 import get_sp3
 from pybern.products.codeerp import get_erp
 from pybern.products.codeion import get_ion

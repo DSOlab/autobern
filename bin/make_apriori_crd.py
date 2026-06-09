@@ -9,7 +9,7 @@ import argparse
 import datetime
 from pybern.products.fileutils.keyholders import parse_key_file
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
-from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
+from pybern.products.gnssdb_pgquery import parse_db_credentials_file, query_sta_in_net
 import pybern.products.formats.ssc as ssc
 
 class myFormatter(argparse.ArgumentDefaultsHelpFormatter,
@@ -25,8 +25,11 @@ parser = argparse.ArgumentParser(
     Dionysos Satellite Observatory\n
     Send bug reports to:
     Xanthos Papanikolaou, xanthos@mail.ntua.gr
-    Dimitris Anastasiou,danast@mail.ntua.gr
-    January, 2021'''))
+    Dimitris Anastasiou, danastasiou@mail.ntua.gr
+    Updates: 
+            2026-06-09 [DA] turn to postgresql use of database
+    First version:
+            January, 2021'''))
 
 parser.add_argument('-n',
                     '--network',
@@ -141,14 +144,14 @@ if __name__ == '__main__':
 
     ## write header to crd file
     header = 'Coordinate Extrapolation from pybern'
-    datum = 'IGS_14'
+    datum = 'IGS20_0'
     flag = 'APR'
     num = 0
     sta_sofar = []
     with open(args.crd_out, 'w') as bout:
         print("{:}".format(header), file=bout)
         print("--------------------------------------------------------------------------------", file=bout)
-        print("LOCAL GEODETIC DATUM: {:}           EPOCH: 2010-01-01 00:00:00".format(datum, args.date.strftime("%Y-%m-%d %H:%M:%S")), file=bout)
+        print("LOCAL GEODETIC DATUM: {:}           EPOCH: 2015-01-01 00:00:00".format(datum, args.date.strftime("%Y-%m-%d %H:%M:%S")), file=bout)
         print("", file=bout)
         print("NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG", file=bout)
         print("", file=bout)

@@ -23,7 +23,7 @@ write_process_status() {
 #doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
 #year=2023
 
-for year in 2022; do
+for year in 2026; do
   echo "Processing year ${year}..."
   yr2=${year:2:2}
   doy=123

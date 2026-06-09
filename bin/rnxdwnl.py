@@ -4,7 +4,11 @@
 from __future__ import print_function
 import argparse
 import os
-import pybern.products.rnxdwnl_impl as rnxd
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pybern')))
+
+import pybern.products.rnxdwnl_implpg as rnxd  # pyright: ignore[reportMissingImports]
     
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -18,14 +22,16 @@ def runmain():
 
     parser = argparse.ArgumentParser(
         formatter_class=myFormatter,
-        description='Query DSO GNSS database and download RINEX (v2 or v3) files',
+        description='Query the PostgreSQL GNSS database and download RINEX (v2.x 3.x 4.x) files',
         epilog=('''
         National Technical University of Athens,
         Dionysos Satellite Observatory\n
         Send bug reports to:
         Xanthos Papanikolaou, xanthos@mail.ntua.gr
-        Dimitris Anastasiou,danastasiou@mail.ntua.gr
+        Dimitris Anastasiou, danastasiou@mail.ntua.gr
         Updates: 2024-01-29 minor changes
+                 2026-06-09 [DA] turn to postgresql use of database
+        First version:
                  October, 2021
         '''))
 
@@ -60,7 +66,7 @@ def runmain():
                         '--credentials-file',
                         action='store',
                         required=False,
-                        help='A file containing credentials for connecting to the database; it will need to hold the variables \'GNSS_DB_USER\', \'GNSS_DB_PASS\', and optionaly \'GNSS_DB_HOST\' and \'GNSS_DB_NAME\'',
+                        help='A file containing credentials for connecting to the PostgreSQL database; it will need to hold the variables \'GNSS_DB_USER\', \'GNSS_DB_PASS\', and optionally \'GNSS_DB_HOST\' and \'GNSS_DB_NAME\'',
                         metavar='CREDENTIALS_FILE',
                         dest='credentials_file',
                         default=None)
@@ -84,12 +90,12 @@ def runmain():
                         default=None)
 
     parser.add_argument('-i',
-                        '--my-sql-host',
+                        '--db-host',
                         action='store',
                         required=False,
-                        help='Host where the database server is located',
-                        metavar='MYSQL_HOST',
-                        dest='mysql_host',
+                        help='Host where the PostgreSQL database server is located',
+                        metavar='DB_HOST',
+                        dest='db_host',
                         default=None)
 
     parser.add_argument('-m',
