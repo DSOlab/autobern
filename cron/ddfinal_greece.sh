@@ -9,7 +9,7 @@ if ! test -d $ABPE_DIR
 fi
 
 CONFIG=config.greece
-STATUS_FILE="${ABPE_DIR}/cron/final_greece_thales.log"
+STATUS_FILE="${HOME}/data/proclog/final_greece_thales.log"
 SERVER_NAME=$(hostname -s 2>/dev/null || hostname)
 
 write_process_status() {
@@ -24,9 +24,9 @@ doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-d
 #year=2023
 
 #for year in 2026; do
-  echo "Processing year ${year}..."
+  echo "Processing year-doy ${year}-${doy}..."
   yr2=${year:2:2}
-  doy=154
+#  doy=154
 
 
   idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
@@ -34,7 +34,7 @@ doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-d
 
   ## we need to make an a-priori crd file for the BPE
   python3 ${ABPE_DIR}/bin/make_apriori_crd.py -n greece \
-    -c ${ABPE_DIR}/config/config.greece \
+    -c ${ABPE_DIR}/config/config.greece_igc \
     -o ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD \
     --ssc-files ${HOME}/tables/ssc/EUR0OPSSNX_1996001_2025270_00U_SOL.SSC \
     --crd-files ${HOME}/tables/crd/NTUA54.CRD \
@@ -49,21 +49,22 @@ doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-d
 
   ## run the DD BPE ...
   python3 ${ABPE_DIR}/bin/rundd.py \
-    -c ${ABPE_DIR}/config/config.greece \
+    -c ${ABPE_DIR}/config/config.greece_igc \
     -n greece \
     -y ${year} \
     -d ${idoy} \
     --verbose \
     --use-euref-exclusion-list \
     --min-reference-stations 10 \
-    --aprinf REG_${yr2}${doy}0
+    --aprinf REG_${yr2}${doy}0 \
+    --update-db-ts
   rundd_status=$?
 
   rm -f ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD
   if [ $rundd_status -ne 0 ]; then
      echo "ERROR. BPE and/or rundd script failed!"
      write_process_status "error"
-     continue
+     #continue
   else
      write_process_status "solve" 
   fi

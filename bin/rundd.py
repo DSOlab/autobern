@@ -283,7 +283,7 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
     ## download dcb
     if 'dcb' not in product_dict:
         days_dif = (datetime.datetime.now() - dt).days
-        if days_dif > 0 and days_dif < 7:
+        if days_dif > 0 and days_dif < 13:
             for i in range(3):
                 try:
                     ##status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
@@ -299,7 +299,7 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
                     else:
                         verboseprint(' giving up...')
                     psleep(60)
-        elif days_dif >= 30:
+        elif days_dif >= 13:
                 status, remote, local = get_dcb(type='final', span='daily', pydt=dt, obs='bia', save_dir=product_dir)
                 product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'bia'}
         else:
@@ -792,7 +792,7 @@ def update_ts(options, adnq2_fn):
     return stations_updated
 
 
-def update_tsdb(options, station_ts_updated, logfn=None):
+def update_tsdb(dt, options, station_ts_updated, logfn=None):
     """Insert updated time-series records into the PostgreSQL DB."""
     if not station_ts_updated:
         return False
@@ -812,8 +812,13 @@ def update_tsdb(options, station_ts_updated, logfn=None):
 
     cursor = conn.cursor()
     reference_frame = options.get('update_ts_db_ref', 'IGS20')
-    software = options.get('update_ts_db_software', 'BERNESE52')
-    solution_type = 'Final'
+    software = options.get('update_ts_db_software', 'BERNESE54')
+    days_dif = (datetime.datetime.now() - dt).days
+
+    if days_dif > 13:
+        solution_type = "Final"
+    else:
+        solution_type = "Ultra_Rapid"
 
     def db_get_id(query, value, id_name):
         cursor.execute(query, (value,))
@@ -1743,7 +1748,7 @@ if __name__ == '__main__':
 
     if options['update_db_ts'] and not bpe_error:
         if station_ts_updated:
-            update_tsdb(options, station_ts_updated, logfn)
+            update_tsdb(dt, options, station_ts_updated, logfn)
         else:
             append2f(logfn, 'Requested update-db-ts but no station .cts files were updated; skipping DB import')
 
