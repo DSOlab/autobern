@@ -9,7 +9,7 @@ if ! test -d $ABPE_DIR
 fi
 
 CONFIG=config.greece
-STATUS_FILE="${ABPE_DIR}/cron/repro26_greece_thales.log"
+STATUS_FILE="${ABPE_DIR}/cron/testing_greece_thales.log"
 SERVER_NAME=$(hostname -s 2>/dev/null || hostname)
 
 write_process_status() {
@@ -23,10 +23,10 @@ write_process_status() {
 #doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
 #year=2023
 
-for year in 2022 2021 2020 2019; do
+for year in 2019; do
   echo "Processing year ${year}..."
   yr2=${year:2:2}
-  doy=123
+  doy=001
 
 
   idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
@@ -56,8 +56,7 @@ for year in 2022 2021 2020 2019; do
     --verbose \
     --use-euref-exclusion-list \
     --min-reference-stations 10 \
-    --aprinf REG_${yr2}${doy}0 \
-    --update-db-ts
+    --aprinf REG_${yr2}${doy}0 
   rundd_status=$?
 
   rm -f ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD

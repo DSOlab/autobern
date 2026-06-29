@@ -73,6 +73,14 @@ parser.add_argument(
     'Choose type of solution; can be any of \"final, rapid, current\". Can be ommited if CODE_TYPE unambiguously defines a DCB file.'
 )
 
+parser.add_argument(
+    '-r20',
+    '--repro20',
+    dest='repro20',
+    action='store_true',
+    help='Use the REPRO_2020 products of the DCB files.'
+)
+
 parser.add_argument('-s',
                     '--time-span',
                     metavar='TIME_SPAN',
@@ -128,6 +136,8 @@ if __name__ == '__main__':
         input_dct['save_as'] = args.save_as
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
+    if args.repro20:
+        input_dct['repro20'] = True 
 
 #    ## try downloading the dcb file; if we fail do not throw, print the error
 #    ## message and return an intger > 0 to the shell.

@@ -15,8 +15,8 @@ else:
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 ## CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
-#CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTP!!
-CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
+CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTP!!
+#CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
@@ -79,6 +79,9 @@ ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_
         kwargs['span'] = 'monthly'
     if 'obs' not in kwargs:
         kwargs['obs'] = 'p1c1'
+    if 'repro20' not in kwargs:
+        kwargs['repro20'] = False
+        REPRO20_URL = ''
 
     pydt = _date(**kwargs)  ## this may throw
     yy, ddd = pydt2yydoy(pydt)
@@ -98,11 +101,18 @@ ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_
         url_dir = 'CODE/{:}'.format(yyyy)
         frmt = 'BIA.gz'
     elif kwargs['span'] == 'daily' and kwargs['obs'] == 'bia' and week< 2238:
-        acn = 'COD'
-        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-        spec = ''
-        url_dir = 'CODE/{:}'.format(yyyy)
-        frmt = 'BIA.Z'
+        if kwargs['repro20']:
+            acn = 'COD0R03FIN_'
+            sdate = '{:}{:03d}0000_01D_01D'.format(yyyy, ddd)
+            spec = '_OSB'
+            url_dir = 'REPRO_2020/CODE/{:}'.format(yyyy)
+            frmt = 'BIA.gz'
+        else:
+            acn = 'COD'
+            sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+            spec = ''
+            url_dir = 'CODE/{:}'.format(yyyy)
+            frmt = 'BIA.Z'
     elif kwargs['span'] == 'monthly':
         sdate = '{:02d}{:}'.format(yy, mm)
         url_dir = 'CODE/{:}'.format(yyyy)
