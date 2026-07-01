@@ -192,7 +192,7 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
                 break
         except Exception:
             orb_base = None
-    if orb_base is None or gweek < 2238:
+    if orb_base is None:
         orb_base = 'COD0OPSFIN'
 
     rules_d = {'sp3': {'target_dir': 'ORB', 'target_fn': f'{orb_base}_{{:}}0.PRE'.format(dt.strftime('%Y%j'))},
@@ -215,7 +215,7 @@ def products2dirs(product_dict, campaign_dir, dt, add2temp_files=True):
         ## replace/append in temp_files list
         if add2temp_files: update_temp_files(target, source)
 
-def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, verbose=False, add2temp_files=True):
+def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, verbose=False, add2temp_files=True, repro20=False):
     """ Download products for date 'dt', using the credentials file
         'credentials_file', to the directory 'product_dir' and if needed, add
         them to temp_files list. The function will also decompress the
@@ -237,12 +237,15 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
 
     if product_dir is None: product_dir = os.getcwd()
 
+    ## Check for Repro 20 products; if repro20 is True, we will download Repro 20 products, else we
+    product_kwargs = {'repro20': repro20} if repro20 else {}
+
     ## download sp3
     if 'sp3' not in product_dict:
         ptypes = ['final', 'final-rapid', 'early-rapid', 'ultra-rapid', 'current']
         for count,orbtype in enumerate(ptypes):
             try:
-                status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=product_dir)
+                status, remote, local = get_sp3(type=orbtype, pydt=dt, save_dir=product_dir, **product_kwargs)
                 verboseprint('[DEBUG] Downloaded orbit file {:} of type {:} ({:})'.format(local, orbtype, status))
                 product_dict['sp3'] = {'remote': remote, 'local': local, 'type': orbtype}
                 break
@@ -257,7 +260,7 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
         for count,erptype in enumerate(ptypes):
             try:
                 ## status, remote, local = get_erp(type=erptype, pydt=dt, span='weekly', save_dir=product_dir, code_dir='bswuser52')
-                status, remote, local = get_erp(type=erptype, pydt=dt, save_dir=product_dir)               
+                status, remote, local = get_erp(type=erptype, pydt=dt, save_dir=product_dir, **product_kwargs)
                 verboseprint('[DEBUG] Downloaded erp file {:} of type {:} ({:})'.format(local, erptype, status))
                 product_dict['erp'] = {'remote': remote, 'local': local, 'type': erptype}
                 break
@@ -288,7 +291,7 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
                 try:
                     ##status, remote, local = get_dcb(type='current', obs='full', save_dir=product_dir)
                     ##product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'full'}
-                    status, remote, local = get_dcb(type='rapid', span='daily', pydt=dt, obs='bia', save_dir=product_dir)
+                    status, remote, local = get_dcb(type='rapid', span='daily', pydt=dt, obs='bia', save_dir=product_dir, **product_kwargs)
                     product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'bia'}
                     verboseprint('[DEBUG] Downloaded dcb file {:} of type {:} ({:})'.format(local, 'current', status))
                     break
@@ -300,7 +303,7 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
                         verboseprint(' giving up...')
                     psleep(60)
         elif days_dif >= 13:
-                status, remote, local = get_dcb(type='final', span='daily', pydt=dt, obs='bia', save_dir=product_dir)
+                status, remote, local = get_dcb(type='final', span='daily', pydt=dt, obs='bia', save_dir=product_dir, **product_kwargs)
                 product_dict['dcb'] = {'remote': remote, 'local': local, 'type': 'bia'}
         else:
             print('[ERROR] Don\'t know what DCB product to download!')
@@ -1620,7 +1623,7 @@ if __name__ == '__main__':
     products_dict = {}
     while product_download_try < product_download_max_tries and not products_ok:
         #try:
-        products_dict, products_ok = prepare_products(dt, options['config_file'], products_dict, os.getenv('D'), options['verbose'], True)
+        products_dict, products_ok = prepare_products(dt, options['config_file'], products_dict, os.getenv('D'), options['verbose'], True, bool(options.get('cod_repro20', False)))
             ## products downloaded and prepared; break loop
             ## product_download_try = product_download_max_tries + 1
         #except Exception as e:

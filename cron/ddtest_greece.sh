@@ -8,7 +8,7 @@ if ! test -d $ABPE_DIR
   exit 1
 fi
 
-CONFIG=config.greece
+CONFIG=config.greece_r20
 STATUS_FILE="${ABPE_DIR}/cron/testing_greece_thales.log"
 SERVER_NAME=$(hostname -s 2>/dev/null || hostname)
 
@@ -34,7 +34,7 @@ for year in 2019; do
 
   ## we need to make an a-priori crd file for the BPE
   python3 ${ABPE_DIR}/bin/make_apriori_crd.py -n greece \
-    -c ${ABPE_DIR}/config/config.greece \
+    -c ${ABPE_DIR}/config/${CONFIG} \
     -o ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD \
     --ssc-files ${HOME}/tables/ssc/EUR0OPSSNX_1996001_2025270_00U_SOL.SSC \
     --crd-files ${HOME}/tables/crd/NTUA54.CRD \
@@ -49,7 +49,7 @@ for year in 2019; do
 
   ## run the DD BPE ...
   python3 ${ABPE_DIR}/bin/rundd.py \
-    -c ${ABPE_DIR}/config/config.greece \
+    -c ${ABPE_DIR}/config/${CONFIG} \
     -n greece \
     -y ${year} \
     -d ${idoy} \
