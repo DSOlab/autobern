@@ -16,8 +16,8 @@ else:
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 #CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
-#CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
-CODE_URL = 'https://www.aiub.unibe.ch/s3test'  
+CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
+#CODE_URL = 'https://www.aiub.unibe.ch/s3test'  
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
@@ -85,6 +85,9 @@ def get_erp_final_target(**kwargs):
         kwargs['span'] = 'daily'
     if 'code_dir' not in kwargs:
         kwargs['code_dir'] = 'code'
+    if 'repro20' not in kwargs:
+        kwargs['repro20'] = False
+        REPRO20_URL = ''
 
     pydt = _date(**kwargs)  ## this may throw
     yy, ddd = pydt2yydoy(pydt)
@@ -98,14 +101,20 @@ def get_erp_final_target(**kwargs):
     acn = 'COD'
     frmt = 'ERP'
     if week <= 2237:
-        if kwargs['span'] == 'weekly':
-            sdate = '{:04d}{:1d}'.format(week, 7)
+        if kwargs['repro20']:
+            sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+            frmt = 'ERP'
+            erp = '{:}0R03FIN_{:}0000_01D_01D_ERP.{:}.gz'.format(acn, sdate, frmt)
+            REPRO20_URL = '/REPRO_2020'
         else:
-            if kwargs['code_dir'] == 'code':
-                sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+            if kwargs['span'] == 'weekly':
+                sdate = '{:04d}{:1d}'.format(week, 7)
             else:
-                sdate = '{:02d}{:03d}'.format(yy, ddd)
-        erp = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
+                if kwargs['code_dir'] == 'code':
+                    sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+                else:
+                    sdate = '{:02d}{:03d}'.format(yy, ddd)
+            erp = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     else:
         if kwargs['span'] == 'weekly':
             sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
@@ -114,7 +123,7 @@ def get_erp_final_target(**kwargs):
             sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
             erp = '{:}0OPSFIN_{:}0000_01D_01D_ERP.{:}.gz'.format(acn, sdate, frmt)
 
-    target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, erp)
+    target = '{:}{:}/{:}/{:}'.format(CODE_URL, REPRO20_URL, url_dir, erp)
     return target
 
 

@@ -28,7 +28,6 @@ from pybern.products.euref.utils import get_euref_exclusion_list
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
 from pybern.products.utils.dctutils import merge_dicts
-from pybern.products.utils.solution_ids import build_solution_ids
 import pybern.products.bernparsers.bern_out_parse as bparse
 import pybern.products.bernparsers.bern_addneq_parser as baddneq
 import pybern.products.bernparsers.bernsta as bsta
@@ -1237,7 +1236,7 @@ def append2f(fn, text, header=None):
         fout.write(text)
         print('', file=fout)
 
-def upload_sinex(options, dt):
+def upload_sinex(options):
     ## try locating the SINEX file
     final_snx = os.path.join(os.getenv('P'), options['campaign'].upper(), 'SOL', '{:}{:}0.SNX'.format(options['solution_id'], dt.strftime('%y%j')))
     ret = final_snx, None
@@ -1683,25 +1682,22 @@ if __name__ == '__main__':
         orb_full = os.path.basename(products_dict['erp']['local']).split('_')[0]
     if orb_full is None:
         orb_full = 'COD0OPSFIN'
-    
-    ## derive orb_type from orb_full; e.g. COD0OPSFIN -> FIN
     sol_type = orb_full[-3:]
 
     ## Set solution identifiers
-    try:
-        solution_id = build_solution_ids(options['solution_id'], sol_type)
-    except ValueError as exc:
-        print('[ERROR] {:}'.format(exc), file=sys.stderr)
-        append2f(logfn, str(exc), 'FATAL ERROR; Processing stoped')
-        ## Send ERROR mail
-        with open(logfn, 'r') as lfn: message_body = lfn.read()
-        message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
-        send_report_mail(options, message_head, message_body)
-        sys.exit(1)
+    solution_id = {'final': options['solution_id'] }
+    for descr, sid in zip(['prelim', 'reduced', 'free_net'], [ 'P', 'R', 'N']):
+        if options['solution_id'][-1] == sid:
+            print('[ERROR] Final solution identifier cannot end in {:}; reserved for {:} solution'.format(sid, descr), file=sys.stderr)
+            append2f(logfn, 'Final solution identifier cannot end in {:}; reserved for {:} solution'.format(sid, descr), 'FATAL ERROR; Processing stoped')
+            ## Send ERROR mail
+            with open(logfn, 'r') as lfn: message_body = lfn.read()
+            message_head = 'autobpe.rundd.{}-{}@{} {:}'.format(options['pcf_file'], options['network'], dt.strftime('%y%j'), 'ERROR')
+            send_report_mail(options, message_head, message_body)
+            sys.exit(1)
+        solution_id[descr] = options['solution_id'][0:-1] + sid
     for descr, sid in solution_id.items():
         print('[DEBUG] {:} solution identifier set to {:}'.format(descr.upper(), sid))
-
-    options['solution_id'] = solution_id['final']
 
     ## Set variables in PCF file
     pcf_file = os.path.join(os.getenv('U'), 'PCF', options['pcf_file'])
@@ -1777,7 +1773,7 @@ if __name__ == '__main__':
     ## upload SINEX files if needed (SINEX to EPND ftp)
     if not bpe_error and options['upload_to_epnd']:
         if 'epnd_ftp_ip' in options and options['epnd_ftp_ip'].strip() != '':
-            final_sinex, uploaded_to = upload_sinex(options, dt)
+            final_sinex, uploaded_to = upload_sinex(options)
             if not uploaded_to:
                 append2f(logfn, 'Failed to upload local final SINEX file {:} to {:}'.format(final_sinex,options['epnd_ftp_ip']), '')
             else:

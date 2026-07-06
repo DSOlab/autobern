@@ -12,7 +12,7 @@ import atexit
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pybern')))
 
 from pybern.products.fileutils.keyholders import parse_key_file
-from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
+from pybern.products.gnssdb_pgquery import parse_db_credentials_file, query_sta_in_net
 from pybern.products.euref.utils import get_euref_exclusion_list, get_m3g_log
 from pybern.products.downloaders.retrieve import web_retrieve
 import pybern.products.bernparsers.bernsta as bsta
@@ -42,8 +42,11 @@ parser = argparse.ArgumentParser(
     Dionysos Satellite Observatory\n
     Send bug reports to:
     Xanthos Papanikolaou, xanthos@mail.ntua.gr
-    Dimitris Anastasiou,danast@mail.ntua.gr
-    January, 2021'''))
+    Dimitris Anastasiou, danastasiou@mail.ntua.gr
+    Updates: 2025-01-30 minor changes
+             2026-06-09 [DA] turn to postgresql use of database
+    First version:
+            January, 2021'''))
 
 parser.add_argument('-n',
                     '--network',

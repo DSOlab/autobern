@@ -8,7 +8,7 @@ import re
 import argparse
 import datetime
 from pybern.products.fileutils.keyholders import parse_key_file
-from pybern.products.gnssdb_query import parse_db_credentials_file, query_sta_in_net
+from pybern.products.gnssdb_pgquery import parse_db_credentials_file, query_sta_in_net
 from pybern.products.euref.m3g import get_exportlog, get_m3g_network_stations
 from pybern.products.downloaders.retrieve import web_retrieve
 from pybern.products.bernparsers.bern_crd_parser import parse_bern52_crd
@@ -35,8 +35,11 @@ parser = argparse.ArgumentParser(
     Dionysos Satellite Observatory\n
     Send bug reports to:
     Xanthos Papanikolaou, xanthos@mail.ntua.gr
-    Dimitris Anastasiou,danast@mail.ntua.gr
-    January, 2021'''))
+    Dimitris Anastasiou, danastasiou@mail.ntua.gr
+    Updates: 2024-01-29 minor changes
+             2026-06-09 [DA] turn to postgresql use of database
+    First version:
+            January, 2021'''))
 
 parser.add_argument('-n',
                     '--network',

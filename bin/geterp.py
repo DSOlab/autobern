@@ -92,6 +92,14 @@ parser.add_argument(
     help=
     'Choose type of solution; can be any of (or multiple of) \"final, ultra-rapid, final-rapid, early-rapid, current, prediction, p2, p5\". If more than one types are specified (using comma seperated values), the program will try all types in the order given untill a file is found and downloaded. E.g. \'--type=final,rapid,p5\' means that we first try for the final solution; if found it is downloaded and the program ends. If it is not found found, then the program will try to download the rapid solution and then the p5 solution.'
 )
+parser.add_argument(
+    '-r20',
+    '--repro20',
+    dest='repro20',
+    action='store_true',
+    help= 'Use the REPRO_2020 products instead of the default CODE products.'
+)
+
 parser.add_argument('--verbose',
                     dest='verbose',
                     action='store_true',
@@ -156,7 +164,7 @@ if __name__ == '__main__':
         sys.exit(10)
 
     ## store user options in a dictionary to pass to the download function.
-    input_dct = {'span': args.span}
+    input_dct = {'span': args.span }
     if args.year:
         input_dct['pydt'] = datetime.datetime.strptime(
             '{:4d}-{:03d}'.format(args.year, args.doy), '%Y-%j')
@@ -164,6 +172,9 @@ if __name__ == '__main__':
         input_dct['save_as'] = args.save_as
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
+    if args.repro20:
+        input_dct['repro20'] = True
+
 
     ## try downloading the erp file; if we fail do not throw, print the error
     ## message and return an intger > 0 to the shell. We will try downloading

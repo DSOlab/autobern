@@ -16,8 +16,8 @@ else:
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
 #CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
-# CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
-CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
+CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
+# CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
@@ -62,15 +62,24 @@ def get_sp3_final_target(**kwargs):
         kwargs['type'] = 'final'
     if 'acid' not in kwargs:
         kwargs['acid'] = 'cod'
+    if 'repro20' not in kwargs:
+        kwargs['repro20'] = False
+        REPRO20_URL = ''
 
     pydt = _date(**kwargs)  ## this may throw
     week, sow = pydt2gps(pydt)
     acn = 'COD' if kwargs['acid'] == 'cod' else 'COX'
 
     if week <= 2237:
-        sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
-        frmt = 'EPH'
-        eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
+        if kwargs['repro20']:
+            sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
+            frmt = 'SP3'
+            eph = '{:}0R03FIN_{:}0000_01D_05M_ORB.{:}.gz'.format(acn, sdate, frmt)
+            REPRO20_URL = '/REPRO_2020'
+        else:
+            sdate = '{:04d}{:01d}'.format(week, sow2dow(sow))
+            frmt = 'EPH'
+            eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
     else:
         sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
         frmt = 'SP3'
@@ -79,7 +88,7 @@ def get_sp3_final_target(**kwargs):
     url_dir = '{:}'.format(pydt.strftime('%Y'))
 
     #eph = '{:}{:}.{:}.Z'.format(acn, sdate, frmt)
-    target = '{:}/CODE/{:}/{:}'.format(CODE_URL, url_dir, eph)
+    target = '{:}{:}/CODE/{:}/{:}'.format(CODE_URL, REPRO20_URL, url_dir, eph)
     return target
 
 
