@@ -1,6 +1,7 @@
 #!/bin/bash
 ## Remote folder R_????
 ## Local folder L_????
+set -euo pipefail
 
 ## Help Function
 function help {
@@ -45,22 +46,22 @@ fi
 R_TABLES="${USER}@${HOST}:/home/bpe54/tables/"
 L_TABLES="/home/bpe54/tables/"
 
-rsync -a -z \
-    --update \
+rsync -avz \
     --partial \
-    --append-verify \
+    --checksum \
     --human-readable \
+    --itemize-changes \
     --progress \
     "$R_TABLES" "$L_TABLES"
 
 R_GPSU="${USER}@${HOST}:/home/bpe54/GPSUSER/"
 L_GPSU="/home/bpe54/GPSUSER/"
 
-rsync -a -z \
-    --update \
+rsync -avz \
     --partial \
-    --append-verify \
+    --checksum \
     --human-readable \
+    --itemize-changes \
     --progress \
     "$R_GPSU" "$L_GPSU"
 
@@ -69,11 +70,11 @@ if [ -n "${CAMPAIGN}" ]; then
     R_GEN="${USER}@${HOST}:/home/bpe54/data/GPSDATA/CAMPAIGN54/${CAMPAIGN}/GEN/"
     L_GEN="/home/bpe54/data/GPSDATA/CAMPAIGN54/${CAMPAIGN}/GEN/"
 
-    rsync -a -z \
-        --update \
+    rsync -avz \
         --partial \
-        --append-verify \
+	--checksum \
         --human-readable \
+	--itemize-changes \
         --progress \
         "$R_GEN" "$L_GEN"
 else
