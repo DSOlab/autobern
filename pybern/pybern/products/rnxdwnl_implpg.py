@@ -217,7 +217,7 @@ def make_rinex2_fn(mark_name_dso, mark_name_off, pt):
     ## For EPN stations before 2021, add upper case to RNX
     if mark_name_dso.lower() in ['noa1', 'tuc2', 'duth', 'aut1', 'pat0', 'larm']:
         rname = '{:}{:}0.{:}D.Z'.format(mark_name_off.upper(), pt.strftime('%j'), pt.strftime('%y'))
-        lname = '{:}{:}0.{:}D.Z'.format(mark_name_dso.upper(), pt.strftime('%j'), pt.strftime('%y'))
+        lname = '{:}{:}0.{:}d.Z'.format(mark_name_dso, pt.strftime('%j'), pt.strftime('%y'))
         possible_rinex_fn = add2possible_rinex(possible_rinex_fn, mark_name_dso, rname, lname)
 
     ## TREECMP data are UNIX compressed but **not** Hatanaka compressed
