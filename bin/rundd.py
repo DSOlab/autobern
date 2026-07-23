@@ -473,7 +473,7 @@ def rename_rinex_markers(rinex_holdings, netsta_dct):
         if dct['mark_name_DSO'].upper() == 'SNTR':
             if dct['mark_name_DSO'] in rinex_holdings:
                 print('[NOTE ] Changing marker name of station {:}/{:} to match DSO name'.format(dct['mark_name_DSO'], dct['mark_name_OFF']))
-                rnx = Rinex(rinex_holdings[dct['mark_name_DSO']:w]['local'])
+                rnx = Rinex(rinex_holdings[dct['mark_name_DSO']]['local'])
                 if not rnx.updateMarkerName(dct['mark_name_DSO'].upper()):
                     msg = '[ERROR] Failed to change \'MARKER NAME\' for station {:}, RINEX: {:}'.format(dct['mark_name_DSO'], rinex_holdings[dct['mark_name_DSO']]['local'])
                     raise RuntimeError(msg)
