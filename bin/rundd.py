@@ -471,7 +471,6 @@ def rename_rinex_markers(rinex_holdings, netsta_dct):
                     raise RuntimeError(msg)
     return rinex_holdings
 
-
 def decompress_rinex(rinex_holdings):
     """ rinex_holdings = {'pdel': {
         'local': '/home/bpe/applications/autobern/bin/pdel0250.16d.Z',
