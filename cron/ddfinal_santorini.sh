@@ -8,9 +8,9 @@ if ! test -d $ABPE_DIR
   exit 1
 fi
 
-CONFIG=config.greece_r20
+CONFIG=config.santorini_igc
 SERVER_NAME=$(hostname -s 2>/dev/null || hostname)
-STATUS_FILE="${HOME}/data/proclog/repro26_greece_${SERVER_NAME}.log"
+STATUS_FILE="${HOME}/data/proclog/final_santorini_${SERVER_NAME}.log"
 
 write_process_status() {
   process_time=$(date '+%Y-%m-%dT%H:%M:%S%z')
@@ -18,20 +18,20 @@ write_process_status() {
 }
 
 ## get the date 15 days ago
-#year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
-#yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
-#doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
-year=2012
+year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
+yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
+doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
+#year=2023
 
-for doy in {002..366}; do
+#for doy in 001; do
   echo "Processing year ${year} - doy ${doy}..."
-  yr2=${year:2:2}
+#  yr2=${year:2:2}
 
   idoy=$(echo $doy | sed 's/^0*//g') ## remove leading '0'
 
 
   ## we need to make an a-priori crd file for the BPE
-  python3 ${ABPE_DIR}/bin/make_apriori_crd.py -n greece \
+  python3 ${ABPE_DIR}/bin/make_apriori_crd.py -n santorini \
     -c ${ABPE_DIR}/config/${CONFIG} \
     -o ${HOME}/tables/crd/REG_${yr2}${doy}0.CRD \
     --ssc-files ${HOME}/tables/ssc/EUR0OPSSNX_1996001_2025270_00U_SOL.SSC \
@@ -48,7 +48,7 @@ for doy in {002..366}; do
   ## run the DD BPE ...
   python3 ${ABPE_DIR}/bin/rundd.py \
     -c ${ABPE_DIR}/config/${CONFIG} \
-    -n greece \
+    -n santorini \
     -y ${year} \
     -d ${idoy} \
     --verbose \
@@ -66,6 +66,6 @@ for doy in {002..366}; do
      write_process_status "solve" 
   fi
 
-done 
+#done 
 
 exit 0

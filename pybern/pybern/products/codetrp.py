@@ -14,7 +14,8 @@ else:
     from .produtils import utils_whatever2pydt as _date
     from .produtils import utils_pydt2yydoy as pydt2yydoy
 
-CODE_URL = 'ftp://ftp.aiub.unibe.ch'
+# CODE_URL = 'ftp://ftp.aiub.unibe.ch'
+CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
