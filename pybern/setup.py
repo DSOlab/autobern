@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(name='pybern',
-    version='1.6-b62,
+    version='1.6-b63',
     description='Python Modules to Assist Bernese-based GNSS processing (upd for BERN54)',
     url='',
     author='Xanthos Papanikolaou, Dimitris Anastasiou',
