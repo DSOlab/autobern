@@ -5,7 +5,7 @@ from __future__ import print_function
 from calendar import week
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
-from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.downloaders.retrieve import http_retrieve, web_retrieve
 from pybern.products.errors.errors import ArgumentError
 from sys import version_info as version_info
 if version_info.major == 2:
@@ -18,6 +18,7 @@ else:
 #CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
 # CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTPS!!
 CODE_URL = 'https://www.aiub.unibe.ch/s3test'  
+CDDIS_REPRO3_URL = 'https://cddis.nasa.gov/archive/gnss/products/repro3'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
@@ -87,7 +88,6 @@ def get_erp_final_target(**kwargs):
         kwargs['code_dir'] = 'code'
     if 'repro20' not in kwargs:
         kwargs['repro20'] = False
-        REPRO20_URL = ''
 
     pydt = _date(**kwargs)  ## this may throw
     yy, ddd = pydt2yydoy(pydt)
@@ -123,7 +123,11 @@ def get_erp_final_target(**kwargs):
             sdate = '{:}{:}'.format(pydt.strftime('%Y'), pydt.strftime('%j'))
             erp = '{:}0OPSFIN_{:}0000_01D_01D_ERP.{:}.gz'.format(acn, sdate, frmt)
 
-    target = '{:}{:}/{:}/{:}'.format(CODE_URL, REPRO20_URL, url_dir, erp)
+    if kwargs['repro20'] and kwargs.get('dc_downl', 'CODE').upper() == 'CDDIS':
+        target = '{:}/{:}/{:}'.format(CDDIS_REPRO3_URL, week, erp)
+    else:
+        repro20_url = '/REPRO_2020' if kwargs['repro20'] else ''
+        target = '{:}{:}/{:}/{:}'.format(CODE_URL, repro20_url, url_dir, erp)
     return target
 
 
@@ -306,7 +310,16 @@ def get_erp(**kwargs):
     #    indct['save_as'] = '{:}0OPSFIN_{:}0.{:}.gz'.format(acn, sdate, frmt) 
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
-    status, remote, local = web_retrieve(target, **indct)
+    use_cddis = kwargs.get('repro20', False) and kwargs.get('dc_downl', 'CODE').upper() == 'CDDIS'
+    if use_cddis:
+        if kwargs.get('dc_uname') is not None:
+            indct['username'] = kwargs['dc_uname']
+        if kwargs.get('dc_passwd') is not None:
+            indct['password'] = kwargs['dc_passwd']
+        indct['earthdata_auth'] = True
+        status, remote, local = http_retrieve(target, **indct)
+    else:
+        status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
 
 

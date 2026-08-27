@@ -6,6 +6,7 @@ import sys
 import re
 import os
 import shutil
+import tempfile
 import warnings
 from contextlib import closing
 import requests
@@ -224,21 +225,51 @@ def http_retrieve(url, filename=None, **kwargs):
         except:
             status = 1
     else:  ## download with credentials (not sure if this works for python 2)
+        if kwargs.get('earthdata_auth', False):
+            netrc_file = None
+            previous_netrc = os.environ.get('NETRC')
+        else:
+            netrc_file = None
+            previous_netrc = None
         try:
-            with requests.get(target, auth=(username, password), timeout=20, verify=verify) as r:
-                r.raise_for_status()
-                if r.status_code == 200:
-                  with open(saveas, 'wb') as f:
-                      #shutil.copyfileobj(r.raw, f)
-                      f.write(r.content)
-                if not os.path.isfile(saveas):
-                    status += 1
+            with requests.Session() as session:
+                if kwargs.get('earthdata_auth', False):
+                    netrc_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
+                    netrc_file.write(
+                        'machine urs.earthdata.nasa.gov login {:} password {:}\n'.format(
+                            username, password))
+                    netrc_file.close()
+                    os.chmod(netrc_file.name, 0o600)
+                    os.environ['NETRC'] = netrc_file.name
+                else:
+                    session.auth = (username, password)
+                with session.get(target, timeout=20, verify=verify) as r:
+                    r.raise_for_status()
+                    if r.status_code == 200:
+                      with open(saveas, 'wb') as f:
+                          #shutil.copyfileobj(r.raw, f)
+                          f.write(r.content)
+                    if not os.path.isfile(saveas):
+                        status += 1
         except:
             status = 1
+        finally:
+            if kwargs.get('earthdata_auth', False):
+                if previous_netrc is None:
+                    os.environ.pop('NETRC', None)
+                else:
+                    os.environ['NETRC'] = previous_netrc
+            if netrc_file is not None:
+                try:
+                    os.remove(netrc_file.name)
+                except OSError:
+                    pass
 
     if status > 0 and kwargs['fail_error'] == True:
         msg = '[ERROR] retrieve::http_retrieve Failed to download file {:}'.format(
             target)
+        if os.path.isfile(saveas):
+            os.remove(saveas)
         raise RuntimeError(msg)
 
     return status, target, saveas

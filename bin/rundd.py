@@ -240,6 +240,13 @@ def prepare_products(dt, credentials_file, product_dict={}, product_dir=None, ve
 
     ## Check for Repro 20 products; if repro20 is True, we will download Repro 20 products, else we
     product_kwargs = {'repro20': repro20} if repro20 else {}
+    product_config = parse_key_file(credentials_file)
+    if repro20:
+        product_kwargs.update({
+            'dc_downl': product_config.get('DC_DOWNL', 'CODE'),
+            'dc_uname': product_config.get('DC_UNAME'),
+            'dc_passwd': product_config.get('DC_PASSWD')
+        })
 
     ## download sp3
     if 'sp3' not in product_dict:

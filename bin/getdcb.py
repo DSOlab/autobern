@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import sys
+import os
 import argparse
 import datetime
 from pybern.products.codedcb import get_dcb, list_products
@@ -10,6 +11,7 @@ from pybern.products.formats.sp3 import Sp3
 import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
+from pybern.products.fileutils.keyholders import parse_key_file
 import time
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -81,6 +83,14 @@ parser.add_argument(
     help='Use the REPRO_2020 products of the DCB files.'
 )
 
+parser.add_argument(
+    '-f',
+    '--config-file',
+    dest='config_file',
+    metavar='CONFIG_FILE',
+    help='Read DC_DOWNL, DC_UNAME, and DC_PASSWD from this configuration file.'
+)
+
 parser.add_argument('-s',
                     '--time-span',
                     metavar='TIME_SPAN',
@@ -137,7 +147,14 @@ if __name__ == '__main__':
     if args.save_dir:
         input_dct['save_dir'] = args.save_dir
     if args.repro20:
-        input_dct['repro20'] = True 
+        input_dct['repro20'] = True
+        if args.config_file:
+            config = parse_key_file(os.path.abspath(args.config_file))
+            input_dct.update({
+                'dc_downl': config.get('DC_DOWNL', 'CODE'),
+                'dc_uname': config.get('DC_UNAME'),
+                'dc_passwd': config.get('DC_PASSWD')
+            })
 
 #    ## try downloading the dcb file; if we fail do not throw, print the error
 #    ## message and return an intger > 0 to the shell.

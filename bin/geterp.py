@@ -10,6 +10,7 @@ from pybern.products.formats.erp import Erp
 import pybern.products.fileutils.decompress as dc
 import pybern.products.fileutils.compress as cc
 from pybern.products.fileutils.cmpvar import is_compressed, find_os_compression_type
+from pybern.products.fileutils.keyholders import parse_key_file
 
 ##  If only the formatter_class could be:
 ##+ argparse.RawTextHelpFormatter|ArgumentDefaultsHelpFormatter ....
@@ -100,6 +101,14 @@ parser.add_argument(
     help= 'Use the REPRO_2020 products instead of the default CODE products.'
 )
 
+parser.add_argument(
+    '-c',
+    '--config-file',
+    dest='config_file',
+    metavar='CONFIG_FILE',
+    help='Read DC_DOWNL, DC_UNAME, and DC_PASSWD from this configuration file.'
+)
+
 parser.add_argument('--verbose',
                     dest='verbose',
                     action='store_true',
@@ -174,6 +183,13 @@ if __name__ == '__main__':
         input_dct['save_dir'] = args.save_dir
     if args.repro20:
         input_dct['repro20'] = True
+        if args.config_file:
+            config = parse_key_file(os.path.abspath(args.config_file))
+            input_dct.update({
+                'dc_downl': config.get('DC_DOWNL', 'CODE'),
+                'dc_uname': config.get('DC_UNAME'),
+                'dc_passwd': config.get('DC_PASSWD')
+            })
 
 
     ## try downloading the erp file; if we fail do not throw, print the error
