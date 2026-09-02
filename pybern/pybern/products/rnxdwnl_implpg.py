@@ -7,7 +7,7 @@ import datetime
 import sys
 import re
 from pybern.products.fileutils.keyholders import extract_key_values
-from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.downloaders.retrieve import earthscope_access_token, is_earthscope_archive, web_retrieve
 import psycopg2
 import psycopg2.extras
 import locale ## for local datetimes (TREECOMP)
@@ -278,7 +278,7 @@ def compare_query_result_dictionaries(dict_list):
                     
     return difs, missing
 
-def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
+def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd(), bearer_token=None):
     """ given a station query result as dictionary (query_dict), parse and
         formulate the correct fields to enable RINEX download. The function
         will formulate:
@@ -341,15 +341,17 @@ def download_station_rinex(query_dict, pt, holdings, output_dir=os.getcwd()):
             use_active_ftp = True if query_dict['dc_name'] == 'TREECOMP2' else False
             no_check_certificate = query_dict['protocol'] == 'https' and query_dict['url_domain'] == 'www.gein.noa.gr'
             try:
-                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], active=use_active_ftp, no_check_certificate=no_check_certificate)
+                if query_dict['protocol'] == 'https' and is_earthscope_archive(query_dict['url_domain']):
+                    bearer_token = bearer_token or earthscope_access_token()
+                status, target, saveas = web_retrieve(remote_fn, save_dir=output_dir, save_as=lfn, username=query_dict['ftp_usname'], password=query_dict['ftp_passwd'], bearer_token=bearer_token, active=use_active_ftp, no_check_certificate=no_check_certificate)
                 verboseprint('[DEBUG] Downloaded remote file {:} to {:}'.format(target, saveas))
                 if status == 0 and os.path.isfile(saveas):
                     holdings[query_dict['mark_name_DSO']]={'local': saveas, 'remote': target}
                     return
-            except:
-                print('[WRNNG] Failed retrieving remote file {:}'.format(remote_fn))
+            except Exception as err:
+                print('[WRNNG] Failed retrieving remote file {:}: {}'.format(remote_fn, err))
 
-def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
+def query_station(cursor, station, pt, holdings, output_dir=os.getcwd(), bearer_token=None):
     """ Given a cursor to the GNSS database, perform a station query as
         defined in station_query, for a given station 4-char id (station) and
         a python datetime instance (pt).
@@ -387,9 +389,9 @@ def query_station(cursor, station, pt, holdings, output_dir=os.getcwd()):
         return 3
 
     ## procced to station RINEX download ...
-    return download_station_rinex(rows[0], pt, holdings, output_dir)
+    return download_station_rinex(rows[0], pt, holdings, output_dir, bearer_token)
 
-def query_network(cursor, network, pt, holdings, output_dir=os.getcwd()):
+def query_network(cursor, network, pt, holdings, output_dir=os.getcwd(), bearer_token=None):
     """ Given a cursor to the GNSS database, perform a network query as
         defined in network_query, for a given network name (network) and a
         a python datetime instance (pt).
@@ -417,7 +419,7 @@ def query_network(cursor, network, pt, holdings, output_dir=os.getcwd()):
 
     ## every row in the response string, is a station row; handle the station
     for row in rows:
-        download_station_rinex(row, pt, holdings, output_dir)
+        download_station_rinex(row, pt, holdings, output_dir, bearer_token)
 
 def main(**kwargs):
     """ Drive the rnxdwnl script
@@ -445,7 +447,7 @@ def main(**kwargs):
         sys.exit(5)
 
     ## We now need credentials ... store them all in a credentials_dct dict
-    credentials_dct = {'GNSS_DB_USER':None, 'GNSS_DB_PASS':None, 'GNSS_DB_HOST':None, 'GNSS_DB_NAME':None}
+    credentials_dct = {'GNSS_DB_USER':None, 'GNSS_DB_PASS':None, 'GNSS_DB_HOST':None, 'GNSS_DB_NAME':None, 'EARTHSCOPE_ACCESS_TOKEN':None}
     if kwargs['credentials_file']:
         credentials_dct = extract_key_values(kwargs['credentials_file'], **credentials_dct)
     for k,v in zip(['username', 'password', 'db_host', 'mysql_host', 'db_name'], ['GNSS_DB_USER', 'GNSS_DB_PASS', 'GNSS_DB_HOST', 'GNSS_DB_HOST', 'GNSS_DB_NAME']):
@@ -468,9 +470,9 @@ def main(**kwargs):
         cursor = cnx.cursor(cursor_factory=psycopg2.extras.DictCursor)
         ## ask the database for stations first
         for station in kwargs['station_list']:
-            query_station(cursor, station, dt, holdings, save_dir)
+            query_station(cursor, station, dt, holdings, save_dir, credentials_dct['EARTHSCOPE_ACCESS_TOKEN'])
         ## query the database for networks
-        query_network(cursor, kwargs['network'], dt, holdings, save_dir)
+        query_network(cursor, kwargs['network'], dt, holdings, save_dir, credentials_dct['EARTHSCOPE_ACCESS_TOKEN'])
         ## close the cursor
         cursor.close()
     except psycopg2.OperationalError as err:

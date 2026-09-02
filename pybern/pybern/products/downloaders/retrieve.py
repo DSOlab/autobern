@@ -5,6 +5,7 @@ from __future__ import print_function
 import sys
 import re
 import os
+import subprocess
 import shutil
 import tempfile
 import warnings
@@ -20,6 +21,32 @@ from scp import SCPClient
 
 def url_split(target):
     return target[0:target.rindex('/')], target[target.rindex('/') + 1:]
+
+def earthscope_access_token():
+    """Get an EarthScope token from the environment or the EarthScope CLI."""
+    token = os.environ.get('EARTHSCOPE_ACCESS_TOKEN')
+    if token:
+        return token.strip()
+
+    try:
+        result = subprocess.run(
+            ['es', 'user', 'get-access-token'],
+            check=True,
+            capture_output=True,
+            text=True)
+    except (OSError, subprocess.CalledProcessError) as err:
+        raise RuntimeError(
+            "EarthScope authentication failed. Install/configure the "
+            "EarthScope CLI ('es user login') or set "
+            "EARTHSCOPE_ACCESS_TOKEN.") from err
+
+    token = result.stdout.strip()
+    if not token:
+        raise RuntimeError("EarthScope CLI returned an empty access token.")
+    return token
+
+def is_earthscope_archive(url_domain):
+    return url_domain in ('data.earthscope.org', 'gage-data.earthscope.org')
 
 def ftp_retrieve_active(ftpip, path, username, password, remote, local):
     status = 1
@@ -200,8 +227,9 @@ def http_retrieve(url, filename=None, **kwargs):
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
 
+    bearer_token = kwargs.get('bearer_token')
     use_credentials = False
-    if set(['username', 'password']).intersection(set(kwargs)):
+    if not bearer_token and set(['username', 'password']).intersection(set(kwargs)):
         use_credentials = True
         username = kwargs['username'] if 'username' in kwargs else ''
         password = kwargs['password'] if 'password' in kwargs else ''
@@ -214,7 +242,8 @@ def http_retrieve(url, filename=None, **kwargs):
     if not use_credentials:  ## download with no credentials
         try:
             ## allow timeout with requests
-            request = requests.get(target, timeout=20, stream=True, verify=verify)
+            headers = {'Authorization': 'Bearer ' + bearer_token} if bearer_token else None
+            request = requests.get(target, headers=headers, timeout=20, stream=True, verify=verify)
             if request.status_code == 200:
               with open(saveas, 'wb') as fh:
                   for chunk in request.iter_content(1024 * 1024):

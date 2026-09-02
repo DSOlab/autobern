@@ -14,6 +14,9 @@ import atexit
 import getpass
 from shutil import copyfile
 import smtplib, ssl
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pybern')))
+
 import pybern.products.rnxdwnl_implpg as rnxd
 import pybern.products.fileutils.decompress as dcomp
 import pybern.products.fileutils.compress as comp
