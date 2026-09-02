@@ -5,7 +5,9 @@ from __future__ import print_function
 import sys
 import re
 import os
+import subprocess
 import shutil
+import tempfile
 import warnings
 from contextlib import closing
 import requests
@@ -19,6 +21,32 @@ from scp import SCPClient
 
 def url_split(target):
     return target[0:target.rindex('/')], target[target.rindex('/') + 1:]
+
+def earthscope_access_token():
+    """Get an EarthScope token from the environment or the EarthScope CLI."""
+    token = os.environ.get('EARTHSCOPE_ACCESS_TOKEN')
+    if token:
+        return token.strip()
+
+    try:
+        result = subprocess.run(
+            ['es', 'user', 'get-access-token'],
+            check=True,
+            capture_output=True,
+            text=True)
+    except (OSError, subprocess.CalledProcessError) as err:
+        raise RuntimeError(
+            "EarthScope authentication failed. Install/configure the "
+            "EarthScope CLI ('es user login') or set "
+            "EARTHSCOPE_ACCESS_TOKEN.") from err
+
+    token = result.stdout.strip()
+    if not token:
+        raise RuntimeError("EarthScope CLI returned an empty access token.")
+    return token
+
+def is_earthscope_archive(url_domain):
+    return url_domain in ('data.earthscope.org', 'gage-data.earthscope.org')
 
 def ftp_retrieve_active(ftpip, path, username, password, remote, local):
     status = 1
@@ -199,8 +227,9 @@ def http_retrieve(url, filename=None, **kwargs):
     if not 'fail_error' in kwargs:
         kwargs['fail_error'] = True
 
+    bearer_token = kwargs.get('bearer_token')
     use_credentials = False
-    if set(['username', 'password']).intersection(set(kwargs)):
+    if not bearer_token and set(['username', 'password']).intersection(set(kwargs)):
         use_credentials = True
         username = kwargs['username'] if 'username' in kwargs else ''
         password = kwargs['password'] if 'password' in kwargs else ''
@@ -213,7 +242,8 @@ def http_retrieve(url, filename=None, **kwargs):
     if not use_credentials:  ## download with no credentials
         try:
             ## allow timeout with requests
-            request = requests.get(target, timeout=20, stream=True, verify=verify)
+            headers = {'Authorization': 'Bearer ' + bearer_token} if bearer_token else None
+            request = requests.get(target, headers=headers, timeout=20, stream=True, verify=verify)
             if request.status_code == 200:
               with open(saveas, 'wb') as fh:
                   for chunk in request.iter_content(1024 * 1024):
@@ -224,21 +254,51 @@ def http_retrieve(url, filename=None, **kwargs):
         except:
             status = 1
     else:  ## download with credentials (not sure if this works for python 2)
+        if kwargs.get('earthdata_auth', False):
+            netrc_file = None
+            previous_netrc = os.environ.get('NETRC')
+        else:
+            netrc_file = None
+            previous_netrc = None
         try:
-            with requests.get(target, auth=(username, password), timeout=20, verify=verify) as r:
-                r.raise_for_status()
-                if r.status_code == 200:
-                  with open(saveas, 'wb') as f:
-                      #shutil.copyfileobj(r.raw, f)
-                      f.write(r.content)
-                if not os.path.isfile(saveas):
-                    status += 1
+            with requests.Session() as session:
+                if kwargs.get('earthdata_auth', False):
+                    netrc_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
+                    netrc_file.write(
+                        'machine urs.earthdata.nasa.gov login {:} password {:}\n'.format(
+                            username, password))
+                    netrc_file.close()
+                    os.chmod(netrc_file.name, 0o600)
+                    os.environ['NETRC'] = netrc_file.name
+                else:
+                    session.auth = (username, password)
+                with session.get(target, timeout=20, verify=verify) as r:
+                    r.raise_for_status()
+                    if r.status_code == 200:
+                      with open(saveas, 'wb') as f:
+                          #shutil.copyfileobj(r.raw, f)
+                          f.write(r.content)
+                    if not os.path.isfile(saveas):
+                        status += 1
         except:
             status = 1
+        finally:
+            if kwargs.get('earthdata_auth', False):
+                if previous_netrc is None:
+                    os.environ.pop('NETRC', None)
+                else:
+                    os.environ['NETRC'] = previous_netrc
+            if netrc_file is not None:
+                try:
+                    os.remove(netrc_file.name)
+                except OSError:
+                    pass
 
     if status > 0 and kwargs['fail_error'] == True:
         msg = '[ERROR] retrieve::http_retrieve Failed to download file {:}'.format(
             target)
+        if os.path.isfile(saveas):
+            os.remove(saveas)
         raise RuntimeError(msg)
 
     return status, target, saveas

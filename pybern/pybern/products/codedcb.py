@@ -4,7 +4,7 @@
 from __future__ import print_function
 import sys
 from pybern.products.gnssdates.gnssdates import pydt2gps, sow2dow
-from pybern.products.downloaders.retrieve import web_retrieve
+from pybern.products.downloaders.retrieve import http_retrieve, web_retrieve
 from pybern.products.errors.errors import ArgumentError
 from sys import version_info as version_info
 if version_info.major == 2:
@@ -17,6 +17,7 @@ else:
 ## CODE_URL = 'ftp://ftp.aiub.unibe.ch' #will stop at June2026
 # CODE_URL = 'http://ftp.aiub.unibe.ch'  ## must change to HTTP!!
 CODE_URL = 'https://www.aiub.unibe.ch/s3test' 
+CDDIS_REPRO3_URL = 'https://cddis.nasa.gov/archive/gnss/products/repro3'
 CODE_AC = 'COD'
 FTP_TXT = 'http://ftp.aiub.unibe.ch/AIUB_AFTP.TXT'
 
@@ -136,7 +137,14 @@ ADD SNX spna=daily,   obs=bia            | CODE/yyyy/COD0OPSFIN_YYYYDDD0000_01D_
             frmt = 'DCB.Z'
     try:
         dcb = '{:}{:}{:}.{:}'.format(acn, sdate, spec, frmt)
-        target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, dcb)
+        use_cddis = (kwargs['repro20'] and
+                     kwargs.get('dc_downl', 'CODE').upper() == 'CDDIS' and
+                     kwargs['span'] == 'daily' and kwargs['obs'] == 'bia' and
+                     week < 2238)
+        if use_cddis:
+            target = '{:}/{:}/{:}'.format(CDDIS_REPRO3_URL, week, dcb)
+        else:
+            target = '{:}/{:}/{:}'.format(CODE_URL, url_dir, dcb)
     except:
         msg = '[ERROR] code::get_dcb_final Failed to formulate DCB file'
         raise RuntimeError(msg)
@@ -356,7 +364,16 @@ def get_dcb(**kwargs):
         indct['save_as'] = kwargs['save_as']
     if 'save_dir' in kwargs:
         indct['save_dir'] = kwargs['save_dir']
-    status, remote, local = web_retrieve(target, **indct)
+    use_cddis = target.startswith(CDDIS_REPRO3_URL + '/')
+    if use_cddis:
+        if kwargs.get('dc_uname') is not None:
+            indct['username'] = kwargs['dc_uname']
+        if kwargs.get('dc_passwd') is not None:
+            indct['password'] = kwargs['dc_passwd']
+        indct['earthdata_auth'] = True
+        status, remote, local = http_retrieve(target, **indct)
+    else:
+        status, remote, local = web_retrieve(target, **indct)
     return status, remote, local
 
 

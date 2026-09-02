@@ -21,9 +21,9 @@ write_process_status() {
 #year=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%Y\")))")
 #yr2=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%y\")))")
 #doy=$(python3 -c "import datetime; print('{:}'.format((datetime.datetime.now()-datetime.timedelta(days = 15)).strftime(\"%j\")))")
-year=2012
+year=2015
 
-for doy in {002..366}; do
+for doy in 165; do
   echo "Processing year ${year} - doy ${doy}..."
   yr2=${year:2:2}
 
