@@ -28,22 +28,33 @@ def earthscope_access_token():
     if token:
         return token.strip()
 
-    try:
-        result = subprocess.run(
-            ['es', 'user', 'get-access-token'],
-            check=True,
-            capture_output=True,
-            text=True)
-    except (OSError, subprocess.CalledProcessError) as err:
-        raise RuntimeError(
-            "EarthScope authentication failed. Install/configure the "
-            "EarthScope CLI ('es user login') or set "
-            "EARTHSCOPE_ACCESS_TOKEN.") from err
+    cli_commands = (
+        ['es', 'user', 'get-access-token'],
+        ['es', 'sso', 'access', '--token'],
+    )
+    last_error = None
+    for command in cli_commands:
+        try:
+            result = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True)
+        except (OSError, subprocess.CalledProcessError) as err:
+            last_error = err
+            continue
 
-    token = result.stdout.strip()
-    if not token:
-        raise RuntimeError("EarthScope CLI returned an empty access token.")
-    return token
+        token = result.stdout.strip()
+        if token:
+            return token
+
+        last_error = RuntimeError(
+            'EarthScope CLI returned an empty access token.')
+
+    raise RuntimeError(
+        "EarthScope authentication failed. Use 'es user login' with newer "
+        "EarthScope CLI versions or 'es sso login' with CLI 0.9.0, or set "
+        "EARTHSCOPE_ACCESS_TOKEN.") from last_error
 
 def is_earthscope_archive(url_domain):
     return url_domain in ('data.earthscope.org', 'gage-data.earthscope.org')
